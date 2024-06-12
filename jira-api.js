@@ -28,8 +28,7 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, jql) {
             throw new Error("JQL query must be provided.");
         }
 
-        let modifiedJql = `${jql} AND status NOT IN (Closed, Done)`; // This should just be moved to the options page
-        const encodedJQL = encodeURIComponent(modifiedJql);
+        const encodedJQL = encodeURIComponent(jql);
         const fields = "summary,status,worklog";
         const endpoint = `/search?jql=${encodedJQL}&fields=${fields}&startAt=0&maxResults=100000`;
         console.log(`Requesting issues with endpoint: ${endpoint}`);

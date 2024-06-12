@@ -6,7 +6,7 @@
         const username = document.getElementById('username').value;
         const apiToken = document.getElementById('password').value; // Use API token in place of password
         const baseUrl = document.getElementById('baseUrl').value;
-        const jql = '((assignee=currentUser()) OR worklogAuthor=currentUser())';
+        const jql = document.getElementById('jql').value;
 
         chrome.storage.sync.set({
             username,
@@ -33,9 +33,13 @@
             document.getElementById('password').value = items.apiToken; // Use API token in place of password
             document.getElementById('baseUrl').value = items.baseUrl;
             document.getElementById('jql').value = items.jql;
+
+                      // Display saved JQL in the console for debugging.
+                      console.log('Stored JQL:', items.jql);
     
             // Pass the retrieved jql value to getIssues function
-            const jira = await JiraAPI(items.baseUrl, apiExtension, items.username, items.apiToken, items.jql);
-            const issues = await jira.getIssues(items.jql);        });
+            const jira = await JiraAPI(items.baseUrl, '/rest/api/2', items.username, items.apiToken, items.jql);
+            const issues = await jira.getIssues(items.jql);
+        });
     }
 })();

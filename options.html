@@ -42,19 +42,19 @@
         }
 
         .btn {
-			width: 50%;
+            width: 50%;
             background: #0052CC;
             color: #fff;
             border-radius: 2px;
             border-color: transparent;
-            padding: 6px;
+            padding: 10px;
             font-size: 11px;
             font-weight: bold;
-			cursor: pointer;
+            cursor: pointer;
         }
 
         #save {
-            margin: 0 0 5px 50%;
+            margin: 0 0 0 50%;
             background: #0052CC;
             color: #fff;
             box-shadow: none;
@@ -97,50 +97,55 @@
 <body>
     <table>
         <tr>
-            <td><span><b>*</b> = required</span></td>
+            <td><span><b>*</b> = required to input/edit</span></td>
         </tr>
         <tr>
             <td><b>Jira Domain/URL*</b></td>
             <td>
-                <input id="baseUrl" type="text"></input>
+                <input id="baseUrl" type="text" placeholder="https://your-domain.atlassian.net"></input>
             </td>
         </tr>
         <tr>
             <td><b>Username/Email*</b></td>
             <td>
-                <input id="username" type="text"></input>
+                <input id="username" type="text" placeholder="your-email@example.com"></input>
             </td>
         </tr>
         <tr>
             <td><b>API Token*</b></td>
             <td>
-                <input id="password" type="password"></input>
+                <input id="password" type="password" placeholder="Your API Token"></input>
             </td>
         </tr>
         <tr>
-			<td>Custom JQL</td>
-			<td>
-				<input id="jql" type="text"></input>
-			</td>
-		</tr>
+            <td>Custom JQL</td>
+            <td>
+                <input id="jql" type="text" placeholder="(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)"></input>
+            </td>
+        </tr>
         <tr>
             <td></td>
             <td>
                 <button id="save" class="btn">Save</button>
             </td>
         </tr>
+        <tr>
+            <td></td>
+            <td>
+                <script src="options.js"></script>
+            </td>
+        </tr>
     </table>
     <div id="status"></div>
-
-    <script src="options.js"></script>
+    <script src="jira-api.js"></script>
 
     <div id="brand">
         <div id="info">
             <div style="text-align: center;">
-				<img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align: middle; margin-right: 10px; width:20px;height:20px;"">
-				<span>Designed by <a href="https://github.com/haydencbarnes" target="_blank" style="color: #0052CC;"> Hayden Barnes </a>in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></span>
-			  </div>
-		</div>
+                <img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align: middle; margin-right: 10px; width:20px;height:20px;">
+                <span>Designed by <a href="https://github.com/haydencbarnes" target="_blank" style="color: #0052CC;">Hayden Barnes</a> in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></span>
+            </div>
+        </div>
         <div id="nav">
             <a href="popup.html" tabindex="1" style="color: #0052CC;"><b>Time Tracker</b></a> |
             <a href="https://github.com/haydencbarnes/jira-log-time" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
