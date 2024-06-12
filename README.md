@@ -1,8 +1,10 @@
 ![jira_logo](jira_logo128.png)
 
 # Jira Log Time Chrome Extension
+Easily log time spent on Jira tasks directly from your browser with this convenient Chrome extension, saving you time and increasing productivity.
 
 ## Settings
+
 
 ### Jira Domain/URL
 
