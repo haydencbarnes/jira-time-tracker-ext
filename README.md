@@ -23,9 +23,9 @@ Your Jira Username/Email.
 
 #### REST API Token
 
-This is your Jira server REST API Token. <b>Note:</b> User must currently be authenticated with Jira to access the token/extension.
+This is your Jira server REST API Token. <b>Note:</b> User must currently be browser authenticated with Jira to access the token/extension.
 
-#### Custpm JQL Query
+#### Custom JQL Query
 The example JQL query is ((assignee=currentUser()) OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done). This means that the extension will only show issues that are:
 1. Assigned to you or you have logged time on
 2. Must not be Closed or Done.
