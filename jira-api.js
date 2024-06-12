@@ -1,4 +1,4 @@
-async function JiraAPI(baseUrl, apiExtension, username, apiToken, defaultJql) {
+async function JiraAPI(baseUrl, apiExtension, username, apiToken, jql) {
     const apiUrl = `${baseUrl}${apiExtension}`;
 
     const headers = {
@@ -11,7 +11,7 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, defaultJql) {
         getIssue,
         getIssues,
         getIssueWorklog,
-        updateWorklog
+        updateWorklog,
     };
 
     async function login() {
@@ -23,15 +23,15 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, defaultJql) {
         return apiRequest(`/issue/${id}`);
     }
 
-    async function getIssues(jql = defaultJql) {
+    async function getIssues(jql) {
         if (!jql) {
             throw new Error("JQL query must be provided.");
         }
 
-        let modifiedJql = `${jql} AND status NOT IN (Closed, Done)`;
+        let modifiedJql = `${jql} AND status NOT IN (Closed, Done)`; // This should just be moved to the options page
         const encodedJQL = encodeURIComponent(modifiedJql);
-        const fields = "summary,status,assignee,worklog";
-        const endpoint = `/search?jql=${encodedJQL}&fields=${fields}&startAt=0&maxResults=100`;
+        const fields = "summary,status,worklog";
+        const endpoint = `/search?jql=${encodedJQL}&fields=${fields}&startAt=0&maxResults=100000`;
         console.log(`Requesting issues with endpoint: ${endpoint}`);
 
         const response = await apiRequest(endpoint);

@@ -1,4 +1,4 @@
-(function () {
+(async function () {
     document.addEventListener('DOMContentLoaded', restoreOptions);
     document.getElementById('save').addEventListener('click', saveOptions);
 
@@ -6,7 +6,7 @@
         const username = document.getElementById('username').value;
         const apiToken = document.getElementById('password').value; // Use API token in place of password
         const baseUrl = document.getElementById('baseUrl').value;
-        const jql = document.getElementById('jql').value;
+        const jql = '((assignee=currentUser()) OR worklogAuthor=currentUser())';
 
         chrome.storage.sync.set({
             username,
@@ -22,17 +22,20 @@
         });
     }
 
-    function restoreOptions() {
+    async function restoreOptions() {
         chrome.storage.sync.get({
             username: '',
-            apiToken: '', // Retrieve API token
+            apiToken: '',
             baseUrl: '',
-            jql: 'assignee=currentUser()'
-        }, function (items) {
+            jql: ''
+        }, async function (items) {
             document.getElementById('username').value = items.username;
             document.getElementById('password').value = items.apiToken; // Use API token in place of password
             document.getElementById('baseUrl').value = items.baseUrl;
             document.getElementById('jql').value = items.jql;
-        });
+    
+            // Pass the retrieved jql value to getIssues function
+            const jira = await JiraAPI(items.baseUrl, apiExtension, items.username, items.apiToken, items.jql);
+            const issues = await jira.getIssues(items.jql);        });
     }
 })();

@@ -4,7 +4,7 @@ async function onDOMContentLoaded() {
     chrome.storage.sync.get({
         apiToken: '',
         baseUrl: '',
-        jql: ''
+        jql: '',
     }, async (options) => {
         await init(options);
     });
@@ -38,7 +38,7 @@ async function init(options) {
         toggleVisibility('div[id=loader-container]');
         try {
             // Fetch the issues from Jira
-            const issuesResponse = await JIRA.getIssues();
+            const issuesResponse = await JIRA.getIssues(options.jql);
             onFetchSuccess(issuesResponse, options); // Pass options to the function
         } catch (error) {
             console.error('Error fetching issues:', error);
