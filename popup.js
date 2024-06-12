@@ -10,6 +10,16 @@ async function onDOMContentLoaded() {
     });
 }
 
+function buildHTML(tag, html, attrs) {
+    const element = document.createElement(tag);
+    if (html) element.innerHTML = html;
+    Object.keys(attrs || {}).forEach(attr => {
+        element.setAttribute(attr, attrs[attr]);
+    });
+    return element;
+}
+
+
 async function init(options) {
     console.log("Options received:", options);
 
@@ -56,6 +66,11 @@ function getWorklog(issueId, JIRA) {
     const totalTime = document.querySelector(`div.issue-total-time-spent[data-issue-id="${issueId}"]`);
     const loader = totalTime.previousSibling;
 
+    if (!totalTime || !loader) {
+        console.warn(`Elements not found for issue id: ${issueId}`);
+        return;
+    }
+
     totalTime.style.display = 'none';
     loader.style.display = 'block';
 
@@ -64,10 +79,23 @@ function getWorklog(issueId, JIRA) {
         .catch((error) => onWorklogFetchError(error, totalTime, loader));
 }
 
+function sumWorklogs(worklogs) {
+    if (!Array.isArray(worklogs)) return '0 hrs';
+    const totalSeconds = worklogs.reduce((total, log) => total + log.timeSpentSeconds, 0);
+    const totalHours = (totalSeconds / 3600).toFixed(2);
+    return `${totalHours} hrs`;
+}
+
 function onWorklogFetchSuccess(response, totalTime, loader) {
-    totalTime.innerText = sumWorklogs(response.worklogs);
+    try {
+        totalTime.innerText = sumWorklogs(response.worklogs);
+    } catch (error) {
+        console.error(`Error in summing worklogs: ${error.stack}`);
+        totalTime.innerText = '0 hrs';
+    }
     totalTime.style.display = 'block';
     loader.style.display = 'none';
+    // Ensure inputs are cleared
     document.querySelectorAll('input.issue-time-input, input.issue-comment-input').forEach(input => input.value = '');
 }
 
@@ -78,7 +106,7 @@ function onWorklogFetchError(error, totalTime, loader) {
 }
 
 async function logTimeClick(evt) {
-    displayError('');
+    clearMessages(); // Clear previous error and success messages
 
     const issueId = evt.target.getAttribute('data-issue-id');
     const timeInput = document.querySelector(`input.issue-time-input[data-issue-id="${issueId}"]`);
@@ -101,7 +129,7 @@ async function logTimeClick(evt) {
 
     const timeMatches = timeInput.value.match(/[0-9]{1,4}[wdhm]/g);
     if (!timeMatches) {
-        displayError('Time input in wrong format. You can specify a time unit after a time value "X", such as Xw, Xd, Xh, or Xm, to represent weeks (w), days (d), hours (h), and minutes (m), respectively.');
+        displayError('Time input in wrong format. You can specify a time unit after a time value "X", such as Xw, Xd, Xh, or Xm, to represent weeks, days, hours, and minutes (m), respectively.');
         return;
     }
 
@@ -112,6 +140,7 @@ async function logTimeClick(evt) {
     }
 
     if (totalTimeSpans && loader) {
+        totalTimeSpans.innerText = ''; // Clear previous total time
         totalTimeSpans.style.display = 'none';
         loader.style.display = 'block';
     } else {
@@ -122,7 +151,7 @@ async function logTimeClick(evt) {
     const startedTime = getStartedTime(dateInput.value);
 
     try {
-        const options = await new Promise((resolve, reject) =>
+        const options = await new Promise((resolve, reject) => 
             chrome.storage.sync.get(['baseUrl', 'apiToken', 'jql'], items => {
                 if (chrome.runtime.lastError) {
                     return reject(chrome.runtime.lastError);
@@ -136,22 +165,33 @@ async function logTimeClick(evt) {
         console.log(`Update worklog details: issueId=${issueId}, timeSpentSeconds=${timeSpentSeconds}, startedTime=${startedTime}, comment=${commentInput.value}`);
         
         const result = await JIRA.updateWorklog(issueId, timeSpentSeconds, startedTime, commentInput.value);
-        
+
         // Handle successful response
         console.log("Worklog successfully updated:", result);
+
+        // Display success message with the logged time
+        displaySuccess("You successfully logged: " + timeInput.value + " on " + issueId);
 
         // Clear the input fields upon success
         timeInput.value = '';
         commentInput.value = '';
 
-        // Optionally, trigger a refresh or re-fetch of the worklogs if needed
+        // Fetch updated worklogs so that the displayed time is consistent
         getWorklog(issueId, JIRA);
+
     } catch (error) {
         console.error(`Error in logTimeClick function: ${error.stack}`);
 
         totalTimeSpans.style.display = 'block';
         loader.style.display = 'none';
-        genericResponseError(error);
+
+        // Check for specific known issues before calling genericResponseError
+        if (error && error.status === 200) {
+            // Worklog update was successful but something else caused an error
+            displaySuccess("Successfully logged: " + timeInput.value + " but encountered an issue afterward.");
+        } else {
+            genericResponseError(error); // Handle unexpected errors
+        }
     }
 }
 
@@ -205,7 +245,6 @@ function generateLogTableRow(id, summary, worklog, options) {
     const idText = document.createTextNode(id);
 
     const baseUrl = options.baseUrl.startsWith('http') ? options.baseUrl : `https://${options.baseUrl}`;
-
     const jiraLink = buildHTML('a', null, {
         href: `${baseUrl}/browse/${id}`,
         target: '_blank',
@@ -216,16 +255,33 @@ function generateLogTableRow(id, summary, worklog, options) {
 
     const summaryCell = buildHTML('td', summary, { class: 'issue-summary truncate' });
 
-    // Summing the total time from worklogs into hours
+    // Sum the total time from all worklogs and convert to hours
     const totalTimeSeconds = worklog.worklogs.reduce((total, log) => total + log.timeSpentSeconds, 0);
     const totalTime = (totalTimeSeconds / 3600).toFixed(2) + ' hrs';
-    const totalTimeCell = buildHTML('td', totalTime, { class: 'issue-total-time' });
 
-    // Ensure loader and total time elements
+    // Create the total time cell and loader elements
+    const totalTimeCell = buildHTML('td', '', { class: 'issue-total-time' });
+    const totalTimeDiv = buildHTML('div', totalTime, { class: 'issue-total-time-spent', 'data-issue-id': id });
     const loader = buildHTML('div', null, { class: 'loader-mini', 'data-issue-id': id });
-    const totalTimeDiv = buildHTML('div', null, { class: 'issue-total-time-spent', 'data-issue-id': id });
+
+    // Clear any existing content before appending new elements
+    totalTimeCell.innerHTML = '';
     totalTimeCell.appendChild(loader);
     totalTimeCell.appendChild(totalTimeDiv);
+
+    // Fetch latest worklog details and update total time spent dynamically
+    fetchWorklogDetails(id, options).then((worklogDetails) => {
+        const totalTimeSeconds = worklogDetails.reduce((total, log) => total + log.timeSpentSeconds, 0);
+        const totalTime = (totalTimeSeconds / 3600).toFixed(2) + ' hrs';
+        totalTimeDiv.innerText = totalTime;
+        loader.style.display = 'none';
+    });
+
+    async function fetchWorklogDetails(issueId, options) {
+        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+        const worklogResponse = await JIRA.getIssueWorklog(issueId);
+        return worklogResponse.worklogs;
+    }
 
     const timeInput = buildHTML('input', null, { class: 'issue-time-input', 'data-issue-id': id });
     const timeInputCell = buildHTML('td');
@@ -268,36 +324,33 @@ function generateLogTableRow(id, summary, worklog, options) {
     return row;
 }
 
-
-function buildHTML(tag, html, attrs) {
-    const element = document.createElement(tag);
-    if (html) element.innerHTML = html;
-    Object.keys(attrs || {}).forEach(attr => {
-        element.setAttribute(attr, attrs[attr]);
-    });
-    return element;
-}
-
-function genericResponseError(error) {
-    const response = error.response || '';
-    const status = error.status || '';
-    const statusText = error.statusText || '';
-
-    if (response) {
-        try {
-            displayError(response.errorMessages.join(' '));
-        } catch (e) {
-            displayError(`Error: ${status} - ${statusText}`);
-        }
+function displaySuccess(message) {
+    const success = document.getElementById('success');
+    if (success) {
+        success.innerText = message;
+        success.style.display = 'block';
     } else {
-        displayError(`Error: ${status} ${statusText}`);
+        console.warn('Success element not found');
     }
 }
 
 function displayError(message) {
     const error = document.getElementById('error');
-    error.innerText = message;
-    error.style.display = 'block';
+    if (error) {
+        error.innerText = message;
+        error.style.display = 'block';
+    }
+    
+    // Hide success message on error
+    const success = document.getElementById('success');
+    if (success) success.style.display = 'none';
+}
+
+function clearMessages() {
+    const error = document.getElementById('error');
+    const success = document.getElementById('success');
+    if (error) error.style.display = 'none';
+    if (success) success.style.display = 'none';
 }
 
 

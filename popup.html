@@ -36,17 +36,19 @@
         }
 
 		#success {
-            padding: 10px;
-            color: #4F8A10;
-            background-color: #DFF2BF;
-            font-weight: bold;
-            display: none;
-        }
+			padding: 10px;
+			color: #4F8A10;
+			background-color: #DFF2BF;
+			font-weight: bold;
+			display: none;
+		}
 
         #success::before {
-            content: '✔';
-            margin-right: 5px;
-        }
+            color: #000000;
+			font-weight: bold;
+			content: '\2714'; /* Unicode checkmark */
+			margin-right: 10px; /* Spacing between the checkmark and the message */
+		}
 
         #loader-container {
             display: none;
@@ -279,6 +281,7 @@
     </div>
 
     <div id="error"></div>
+	<success id="success"></success>
 
     <div id="brand">
         <div id="info">
