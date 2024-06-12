@@ -1,4 +1,4 @@
-![jira_logo128](path/to/jira_logo128.png)
+![jira_logo](jira_logo128.png)
 
 # Jira Log Time Chrome plugin
 
