@@ -4,22 +4,33 @@
 <head>
     <title>Jira Log Time Settings</title>
     <style>
+        a {
+            color: #0052CC;
+            text-decoration: none;
+        }
+
+        a:hover,
+        a:active,
+        a:focus {
+            text-decoration: underline;
+        }
+        
         body {
             width: 750px;
-            padding: 10px;
             font-family: Arial, sans-serif;
+            margin: 0;
         }
 
         table,
         tbody,
         input {
-            width: 100%;
+            width: 95%;
         }
 
         td {
             width: 50%;
             padding: 6px 0;
-            text-align: left;
+            text-align: center;
         }
 
         #status {
@@ -31,7 +42,7 @@
         }
 
         .btn {
-			width: 51%;
+			width: 50%;
             background: #0052CC;
             color: #fff;
             border-radius: 2px;
@@ -43,7 +54,7 @@
         }
 
         #save {
-            margin: 0 0 0 50%;
+            margin: 0 0 5px 50%;
             background: #0052CC;
             color: #fff;
             box-shadow: none;
@@ -55,36 +66,86 @@
             color: #fff;
             box-shadow: none;
         }
+
+        #info {
+            padding: 15px 0 0 10px;
+            width: 50%;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #brand {
+            height: 50px;
+            background: #f3f3f3;
+            margin: 0;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        #nav {
+            font-size: 14px;
+            color: #cccccc;
+            width: 44%;
+            display: inline-block;
+            text-align: right;
+            vertical-align: top;
+            padding: 15px 0 0 0;
+        }
+
     </style>
 </head>
 
 <body>
     <table>
         <tr>
-            <td><b>Jira Domain/URL</b></td>
+            <td><span><b>*</b> = required</span></td>
+        </tr>
+        <tr>
+            <td><b>Jira Domain/URL*</b></td>
             <td>
                 <input id="baseUrl" type="text"></input>
             </td>
         </tr>
         <tr>
-            <td><b>Username/Email</b></td>
+            <td><b>Username/Email*</b></td>
             <td>
                 <input id="username" type="text"></input>
             </td>
         </tr>
         <tr>
-            <td><b>API Token</b></td>
+            <td><b>API Token*</b></td>
             <td>
                 <input id="password" type="password"></input>
             </td>
         </tr>
+        <tr>
+			<td>Custom JQL</td>
+			<td>
+				<input id="jql" type="text"></input>
+			</td>
+		</tr>
+        <tr>
+            <td></td>
+            <td>
+                <button id="save" class="btn">Save</button>
+            </td>
+        </tr>
     </table>
-
     <div id="status"></div>
 
-    <button id="save" class="btn">Save</button>
-
     <script src="options.js"></script>
+
+    <div id="brand">
+        <div id="info">
+            <div style="text-align: center;">
+				<img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align: middle; margin-right: 10px; width:20px;height:20px;"">
+				<span>Designed by <a href="https://github.com/haydencbarnes" target="_blank" style="color: #0052CC;"> Hayden Barnes </a>in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></span>
+			  </div>
+		</div>
+        <div id="nav">
+            <a href="popup.html" tabindex="1" style="color: #0052CC;"><b>Time Tracker</b></a> |
+            <a href="https://github.com/haydencbarnes/jira-log-time" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
+        </div>
+    </div>
 </body>
 
 </html>
