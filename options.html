@@ -5,7 +5,7 @@
     <title>Jira Log Time Settings</title>
     <style>
         body {
-            width: 300px;
+            width: 750px;
             padding: 10px;
             font-family: Arial, sans-serif;
         }
@@ -31,13 +31,15 @@
         }
 
         .btn {
-            width: 50%;
-            text-shadow: none;
-            border: none;
+			width: 51%;
+            background: #0052CC;
+            color: #fff;
             border-radius: 2px;
+            border-color: transparent;
             padding: 6px;
-            font-size: 12px;
-            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+			cursor: pointer;
         }
 
         #save {
@@ -59,19 +61,19 @@
 <body>
     <table>
         <tr>
-            <td>Jira Domain/URL</td>
+            <td><b>Jira Domain/URL</b></td>
             <td>
                 <input id="baseUrl" type="text"></input>
             </td>
         </tr>
         <tr>
-            <td>Username</td>
+            <td><b>Username/Email</b></td>
             <td>
                 <input id="username" type="text"></input>
             </td>
         </tr>
         <tr>
-            <td>API Token</td>
+            <td><b>API Token</b></td>
             <td>
                 <input id="password" type="password"></input>
             </td>

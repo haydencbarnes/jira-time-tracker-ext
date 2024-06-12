@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Jira Log Time",
-  "version": "1.2.1",
-  "description": "Log your daily time in seconds!",
+  "version": "0.0.1",
+  "description": "Log your time to Jira in seconds!",
   "host_permissions": [
     "<all_urls>"
   ],
@@ -16,8 +16,8 @@
   },
   "options_page": "options.html",
   "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "jira_logo16.png",
+    "48": "jira_logo48.png",
+    "128": "jira_logo128.png"
   }
 }
