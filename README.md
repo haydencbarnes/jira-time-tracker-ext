@@ -9,9 +9,8 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 
 ### How it Works
 Current JQL query is ((assignee=currentUser()) OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done). This means that the extension will only show issues that are:
-1. Assigned to you
-2. You have logged time on
-3. Must not be Closed or Done.
+1. Assigned to you or you have logged time on
+2. Must not be Closed or Done.
 
 All issues that meet the above criteria will be displayed in the extension popup. You can then select the issue you want to log time on, enter the time spent, add a comment, and adjust the date if you wish. Click the "Submit" button to log the time spent on the issue.
 
