@@ -27,15 +27,12 @@
             username: '',
             apiToken: '',
             baseUrl: '',
-            jql: ''
+            jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)'
         }, async function (items) {
             document.getElementById('username').value = items.username;
             document.getElementById('password').value = items.apiToken; // Use API token in place of password
             document.getElementById('baseUrl').value = items.baseUrl;
             document.getElementById('jql').value = items.jql;
-
-                      // Display saved JQL in the console for debugging.
-                      console.log('Stored JQL:', items.jql);
     
             // Pass the retrieved jql value to getIssues function
             const jira = await JiraAPI(items.baseUrl, '/rest/api/2', items.username, items.apiToken, items.jql);
