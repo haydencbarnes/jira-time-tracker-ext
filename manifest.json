@@ -11,13 +11,13 @@
     "activeTab"
   ],
   "action": {
-    "default_icon": "jira_logo.png",
+    "default_icon": "src/icons/jira_logo.png",
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
   "icons": {
-    "16": "jira_logo16.png",
-    "48": "jira_logo48.png",
-    "128": "jira_logo128.png"
+    "16": "src/icons/jira_logo16.png",
+    "48": "src/icons/jira_logo48.png",
+    "128": "src/icons/jira_logo128.png"
   }
 }
