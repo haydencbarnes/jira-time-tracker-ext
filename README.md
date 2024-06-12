@@ -5,7 +5,7 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 
 ## Features
 - Log time spent on Jira tasks directly from your browser
-- 
+- Works with Jira Server (API V2)
 
 ### Settings/Preferences
 
