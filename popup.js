@@ -1,435 +1,322 @@
-document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
+document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
-function onDOMContentLoaded() {
-
+async function onDOMContentLoaded() {
     chrome.storage.sync.get({
-            username: '',
-            password: '',
-            description: '',
-            baseUrl: '',
-            apiExtension: '',
-            jql: ''
-        },
-        init);
+        apiToken: '',
+        baseUrl: '',
+        jql: ''
+    }, async (options) => {
+        await init(options);
+    });
+}
 
+async function init(options) {
+    console.log("Options received:", options);
 
+    try {
+        // Initialize the JIRA API with the provided options
+        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+        console.log("JIRA API Object:", JIRA);
 
-    /*************
-    Initialization
-    *************/
-
-    function init(options) {
-
-        // mandatory fields check
-        if (!options.username) {
-            return errorMessage('Missing username');
-        }
-        if (!options.password) {
-            return errorMessage('Missing password');
-        }
-        if (!options.baseUrl) {
-            return errorMessage('Missing base URL');
-        }
-        if (!options.apiExtension) {
-            return errorMessage('Missing API extension');
+        if (!JIRA || typeof JIRA.getIssues !== 'function') {
+            console.error('JIRA API instantiation failed: Methods missing', JIRA);
+            displayError('JIRA API instantiation failed.');
+            return;
         }
 
-        // Jira API instantiation
-        var JIRA = JiraAPI(options.baseUrl, options.apiExtension, options.username, options.password, options.jql);
-
-        // Set project title in html
-        setProjectTitle(options.description);
-
-        // show main loading spinner
+        // Show the main loading spinner
         toggleVisibility('div[id=loader-container]');
-
-        // fetch issues
-        JIRA.getIssues()
-            .then(onFetchSuccess, onFetchError);
-
-        function onFetchSuccess(response) {
-
-            var issues = response.issues;
-
-            // create issues HTML table
-            drawIssuesTable(issues);
-
-            // hide main loading spinner
-            toggleVisibility('div[id=loader-container]');
-
-            // asynchronously fetch and draw total worklog time
-            issues.forEach(function(issue) {
-                getWorklog(issue.key);
-            });
-
+        try {
+            // Fetch the issues from Jira
+            const issuesResponse = await JIRA.getIssues();
+            onFetchSuccess(issuesResponse, options); // Pass options to the function
+        } catch (error) {
+            console.error('Error fetching issues:', error);
+            displayError(`Fetching Issues Error: ${error.message}`);
+        } finally {
+            toggleVisibility('div[id=loader-container]'); // Hide loader
         }
-
-        function onFetchError(error) {
-            // hide main loading spinner
-            toggleVisibility('div[id=loader-container]');
-            genericResponseError(error);
-        }
-
-
-
-        /****************
-        Worklog functions
-        ****************/
-
-        // Fetch and refresh worklog row
-        function getWorklog(issueId) {
-
-            // total time and it's acompanying loader are in the same td, so we can use previousSibling
-            var totalTime = document.querySelector('div[class="issue-total-time-spent"][data-issue-id="' + issueId + '"]');
-            var loader = totalTime.previousSibling;
-
-            // hide worklog time and show loading
-            totalTime.style.display = 'none';
-            loader.style.display = 'block';
-
-            // fetch worklog
-            JIRA.getIssueWorklog(issueId)
-                .then(onWorklogFetchSuccess, onWorklogFetchError);
-
-            function onWorklogFetchSuccess(response) {
-                // set total time
-                totalTime.innerText = sumWorklogs(response.worklogs);
-                // show worklog time and hide loading
-                totalTime.style.display = 'block';
-                loader.style.display = 'none';
-                // clear time input value
-                var inputs = document.querySelectorAll('input.issue-time-input, input.issue-comment-input');
-                inputs.forEach(element => element.value = '');
-            }
-
-            function onWorklogFetchError(error) {
-                // show worklog time and hide loading inspite the error
-                totalTime.style.display = 'block';
-                loader.style.display = 'none';
-                genericResponseError(error);
-            }
-
-        }
-
-        // Worklogs sum in 'jira format' (1w 2d 3h 44m)
-        function sumWorklogs(worklogs) {
-
-            // Sum all worklog times seconds
-            var totalSeconds = worklogs.reduce(function(a, b) {
-                return { timeSpentSeconds: a.timeSpentSeconds + b.timeSpentSeconds }
-            }, { timeSpentSeconds: 0 }).timeSpentSeconds;
-
-            // Get how many weeks in totalSeconds
-            var totalWeeks = Math.floor(totalSeconds / 144000);
-            // Deduce weeks from totalSeconds
-            totalSeconds = totalSeconds % 144000;
-            // Get how many days in the rest of the totalSeconds
-            var totalDays = Math.floor(totalSeconds / 28800);
-            // Deduce days from totalSeconds
-            totalSeconds = totalSeconds % 28800;
-            // Get how many hours in the rest of the totalSeconds
-            var totalHours = Math.floor(totalSeconds / 3600);
-            // Deduce hours from totalSeconds
-            totalSeconds = totalSeconds % 3600;
-            // Get how many minutes in the rest of the totalSeconds
-            var totalMinutes = Math.floor(totalSeconds / 60);
-
-            // return it in 'nicely' formated Jira format
-            return (totalWeeks ? totalWeeks + 'w' : '') + ' ' + (totalDays ? totalDays + 'd' : '') + ' ' + (totalHours ? totalHours + 'h' : '') + ' ' + (totalMinutes ? totalMinutes + 'm' : '');
-
-        }
-
-
-
-        /***************
-        HTML interaction
-        ****************/
-
-        // Project title
-        function setProjectTitle(projectName) {
-            document.getElementById('project-name').innerText = projectName;
-        }
-
-        function toggleVisibility(query) {
-            var element = document.querySelector(query);
-            element.style.display = element.style.display == 'block' ? 'none' : 'block';
-        }
-
-        // Issues table
-        function drawIssuesTable(issues) {
-
-            var logTable = document.getElementById('jira-log-time-table');
-            var tbody = buildHTML('tbody');
-
-            issues.forEach(function(issue) {
-                var row = generateLogTableRow(issue.key, issue.fields.summary);
-                tbody.appendChild(row)
-            });
-
-            logTable.appendChild(tbody);
-
-        }
-
-        // generate all html elements for issue table
-        function generateLogTableRow(id, summary) {
-
-            /*************
-             Issue ID cell
-            *************/
-            var idCell = buildHTML('td', null, {
-                class: 'issue-id'
-            });
-
-            var idText = document.createTextNode(id);
-
-            /*********************
-            Link to the JIRA issue
-            *********************/
-
-            var jiraLink = buildHTML('a', null, {
-                href: options.baseUrl + "/browse/" + id,
-                target: "_blank"
-            });
-
-            jiraLink.appendChild(idText);
-            idCell.appendChild(jiraLink);
-
-            /************
-            Issue summary
-            ************/
-            var summaryCell = buildHTML('td', summary, {
-                class: 'issue-summary truncate'
-            });
-
-            /***************
-            Total spent time
-            ***************/
-            // summary loader
-            var loader = buildHTML('div', null, {
-                class: 'loader-mini',
-                'data-issue-id': id
-            });
-            // summary total time
-            var totalTime = buildHTML('div', null, {
-                class: 'issue-total-time-spent',
-                'data-issue-id': id
-            });
-            // Issue total worklog sum
-            var totalTimeContainer = buildHTML('td', null, {
-                class: 'total-time-container',
-                'data-issue-id': id
-            });
-            totalTimeContainer.appendChild(loader);
-            totalTimeContainer.appendChild(totalTime);
-
-            /*********
-            Time input
-            *********/
-            var timeInput = buildHTML('input', null, {
-                class: 'issue-time-input',
-                'data-issue-id': id
-            });
-            // Time input cell
-            var timeInputCell = buildHTML('td');
-            timeInputCell.appendChild(timeInput);
-			
-			/*********
-            Comment input
-            *********/
-            var commentInput = buildHTML('input', null, {
-                class: 'issue-comment-input',
-                'data-issue-id': id
-            });
-            // Comment input cell
-            var commentInputCell = buildHTML('td');
-            commentInputCell.appendChild(commentInput);
-
-            /*********
-            Date input
-            *********/
-            var dateInput = buildHTML('input', null, {
-                type: 'date',
-                class: 'issue-log-date-input',
-                value: new Date().toDateInputValue(),
-                'data-issue-id': id
-            });
-            // Date input cell
-            var dateInputCell = buildHTML('td');
-            dateInputCell.appendChild(dateInput);
-
-            /************
-            Action button
-            ************/
-            var actionButton = buildHTML('input', null, {
-                type: 'button',
-                value: 'Log Time',
-                class: 'issue-log-time-btn',
-                'data-issue-id': id
-            });
-
-            actionButton.addEventListener('click', logTimeClick);
-
-            // Action button cell
-            var actionCell = buildHTML('td');
-            actionCell.appendChild(actionButton);
-
-            /********
-            Issue row
-            ********/
-            var row = buildHTML('tr', null, {
-                'data-issue-id': id
-            });
-
-            row.appendChild(idCell);
-            row.appendChild(summaryCell);
-            row.appendChild(totalTimeContainer);
-            row.appendChild(timeInputCell);
-            row.appendChild(commentInputCell);
-            row.appendChild(dateInputCell);
-            row.appendChild(actionCell);
-
-            return row;
-
-        }
-
-
-
-        /********************
-        Log time button click
-        ********************/
-
-        function logTimeClick(evt) {
-
-            // clear any error messages
-            errorMessage('');
-
-            // get issue ID
-            var issueId = evt.target.getAttribute('data-issue-id')
-
-            // time input
-            var timeInput = document.querySelector('input[data-issue-id=' + issueId + ']');
-            // date input
-            var dateInput = document.querySelector('input[class=issue-log-date-input][data-issue-id=' + issueId + ']');
-            // comment input
-			var commentInput = document.querySelector('input[class=issue-comment-input][data-issue-id=' + issueId + ']');
-
-            // validate time input
-            if (!timeInput.value.match(/[0-9]{1,4}[wdhm]/g)) {
-                errorMessage('Time input in wrong format. You can specify a time unit after a time value "X", such as Xw, Xd, Xh or Xm, to represent weeks (w), days (d), hours (h) and minutes (m), respectively.');
-                return;
-            }
-
-            // hide total time and show loading spinner;
-            toggleVisibility('div[class="issue-total-time-spent"][data-issue-id=' + issueId + ']');
-            toggleVisibility('div[class="loader-mini"][data-issue-id=' + issueId + ']');
-
-            var startedTime = getStartedTime(dateInput.value);
-
-            JIRA.updateWorklog(issueId, timeInput.value, startedTime, commentInput.value)
-                .then(function(data) {
-                    getWorklog(issueId);
-                }, function(error) {
-                    // hide total time and show loading spinner;
-                    toggleVisibility('div[class="issue-total-time-spent"][data-issue-id=' + issueId + ']');
-                    toggleVisibility('div[class="loader-mini"][data-issue-id=' + issueId + ']');
-                    genericResponseError(error);
-                });
-
-        }
-
-
-
-        /***************
-        Helper functions 
-        ***************/
-
-        // html generator
-        function buildHTML(tag, html, attrs) {
-
-            var element = document.createElement(tag);
-            // if custom html passed in, append it
-            if (html) element.innerHTML = html;
-
-            // set each individual attribute passed in
-            for (attr in attrs) {
-                if (attrs[attr] === false) continue;
-                element.setAttribute(attr, attrs[attr]);
-            }
-
-            return element;
-        }
-
-        // Simple Jira api error handling
-        function genericResponseError(error) {
-
-            var response = error.response || '';
-            var status = error.status || '';
-            var statusText = error.statusText || '';
-
-            if (response) {
-                try {
-                    errorMessage(response.errorMessages.join(' '));
-                } catch (e) {
-                    errorMessage('Error: ' + status + ' - ' + statusText);
-                }
-            } else {
-                errorMessage('Error: ' + status + ' ' + statusText);
-            }
-
-        }
-
-        // UI error message
-        function errorMessage(message) {
-            var error = document.getElementById('error')
-            error.innerText = message;
-            error.style.display = 'block';
-        }
-
-        // Date helper to pre-select today's date in the datepicker
-        Date.prototype.toDateInputValue = (function() {
-            var local = new Date(this);
-            local.setMinutes(this.getMinutes() - this.getTimezoneOffset());
-            return local.toJSON().slice(0, 10);
-        });
-
-        function getStartedTime(dateString) {
-            var date = new Date(dateString);
-            var time = new Date();
-            var tzo = -date.getTimezoneOffset();
-            var dif = tzo >= 0 ? '+' : '-';
-
-            return date.getFullYear() 
-                + '-' + pad(date.getMonth()+1)
-                + '-' + pad(date.getDate())
-                + 'T' + pad(time.getHours())
-                + ':' + pad(time.getMinutes()) 
-                + ':' + pad(time.getSeconds()) 
-                + '.' + pad(time.getMilliseconds())
-                + dif + pad(tzo / 60) 
-                + pad(tzo % 60);
-        }
-
-        function pad (num) {
-            var norm = Math.abs(Math.floor(num));
-            return (norm < 10 ? '0' : '') + norm;
-        }
-
-        // Listen to global events and show/hide main loading spiner
-        // ** NOT USED AT THE MOMENT **
-        function initLoader() {
-            // Popup loading indicator
-            var indicator = document.getElementById('loader-container');
-
-            document.addEventListener('jiraStart', function() {
-                indicator.style.display = 'block';
-            }, false);
-
-            document.addEventListener('jiraStop', function() {
-                indicator.style.display = 'none';
-            }, false);
-
-        }
-
+    } catch (error) {
+        console.error('Error initializing JIRA API:', error);
+        displayError('Initialization failed.');
+    }
+}
+
+function onFetchSuccess(issuesResponse, options) {
+    console.log("Fetched issues:", issuesResponse);
+    drawIssuesTable(issuesResponse, options); // Pass options to the function
+}
+
+function onFetchError(error) {
+    toggleVisibility('div[id=loader-container]');
+    genericResponseError(error);
+}
+
+function getWorklog(issueId, JIRA) {
+    const totalTime = document.querySelector(`div.issue-total-time-spent[data-issue-id="${issueId}"]`);
+    const loader = totalTime.previousSibling;
+
+    totalTime.style.display = 'none';
+    loader.style.display = 'block';
+
+    JIRA.getIssueWorklog(issueId)
+        .then((response) => onWorklogFetchSuccess(response, totalTime, loader))
+        .catch((error) => onWorklogFetchError(error, totalTime, loader));
+}
+
+function onWorklogFetchSuccess(response, totalTime, loader) {
+    totalTime.innerText = sumWorklogs(response.worklogs);
+    totalTime.style.display = 'block';
+    loader.style.display = 'none';
+    document.querySelectorAll('input.issue-time-input, input.issue-comment-input').forEach(input => input.value = '');
+}
+
+function onWorklogFetchError(error, totalTime, loader) {
+    totalTime.style.display = 'block';
+    loader.style.display = 'none';
+    genericResponseError(error);
+}
+
+async function logTimeClick(evt) {
+    displayError('');
+
+    const issueId = evt.target.getAttribute('data-issue-id');
+    const timeInput = document.querySelector(`input.issue-time-input[data-issue-id="${issueId}"]`);
+    const dateInput = document.querySelector(`input.issue-log-date-input[data-issue-id="${issueId}"]`);
+    const commentInput = document.querySelector(`input.issue-comment-input[data-issue-id="${issueId}"]`);
+    const totalTimeSpans = document.querySelector(`div.issue-total-time-spent[data-issue-id="${issueId}"]`);
+    const loader = document.querySelector(`div.loader-mini[data-issue-id="${issueId}"]`);
+
+    console.log(`Processing issue ID: ${issueId}`);
+    console.log('timeInput:', timeInput);
+    console.log('dateInput:', dateInput);
+    console.log('commentInput:', commentInput);
+    console.log('totalTimeSpans:', totalTimeSpans);
+    console.log('loader:', loader);
+
+    if (!timeInput || !timeInput.value) {
+        displayError('Time input element not found or is empty.');
+        return;
     }
 
+    const timeMatches = timeInput.value.match(/[0-9]{1,4}[wdhm]/g);
+    if (!timeMatches) {
+        displayError('Time input in wrong format. You can specify a time unit after a time value "X", such as Xw, Xd, Xh, or Xm, to represent weeks (w), days (d), hours (h), and minutes (m), respectively.');
+        return;
+    }
+
+    const timeSpentSeconds = convertTimeToSeconds(timeInput.value);
+    if (isNaN(timeSpentSeconds) || timeSpentSeconds <= 0) {
+        displayError('Invalid time input value. Please provide a valid time format.');
+        return;
+    }
+
+    if (totalTimeSpans && loader) {
+        totalTimeSpans.style.display = 'none';
+        loader.style.display = 'block';
+    } else {
+        console.warn(`This issue does not have matching total time or loader spans: ${issueId}`);
+        return;
+    }
+
+    const startedTime = getStartedTime(dateInput.value);
+
+    try {
+        const options = await new Promise((resolve, reject) =>
+            chrome.storage.sync.get(['baseUrl', 'apiToken', 'jql'], items => {
+                if (chrome.runtime.lastError) {
+                    return reject(chrome.runtime.lastError);
+                }
+                resolve(items);
+            })
+        );
+
+        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+
+        console.log(`Update worklog details: issueId=${issueId}, timeSpentSeconds=${timeSpentSeconds}, startedTime=${startedTime}, comment=${commentInput.value}`);
+        
+        const result = await JIRA.updateWorklog(issueId, timeSpentSeconds, startedTime, commentInput.value);
+        
+        // Handle successful response
+        console.log("Worklog successfully updated:", result);
+
+        // Clear the input fields upon success
+        timeInput.value = '';
+        commentInput.value = '';
+
+        // Optionally, trigger a refresh or re-fetch of the worklogs if needed
+        getWorklog(issueId, JIRA);
+    } catch (error) {
+        console.error(`Error in logTimeClick function: ${error.stack}`);
+
+        totalTimeSpans.style.display = 'block';
+        loader.style.display = 'none';
+        genericResponseError(error);
+    }
+}
+
+function convertTimeToSeconds(timeStr) {
+    const timeUnits = {
+        w: 60 * 60 * 24 * 7,
+        d: 60 * 60 * 24,
+        h: 60 * 60,
+        m: 60,
+    };
+
+    const regex = /(\d+)([wdhm])/g;
+    let match;
+    let totalSeconds = 0;
+
+    while ((match = regex.exec(timeStr)) !== null) {
+        const value = parseInt(match[1], 10);
+        const unit = match[2];
+        totalSeconds += value * timeUnits[unit];
+    }
+
+    return totalSeconds;
+}
+
+/***************
+HTML Interaction Helpers
+****************/
+function toggleVisibility(query) {
+    const element = document.querySelector(query);
+    if (element) {
+        element.style.display = element.style.display === 'none' || element.style.display === '' ? 'block' : 'none';
+    } else {
+        console.warn(`Element not found for query: ${query}`);
+    }
+}
+
+function drawIssuesTable(issues, options) {
+    const logTable = document.getElementById('jira-log-time-table');
+    const tbody = buildHTML('tbody');
+
+    issues.forEach(function(issue) {
+        const row = generateLogTableRow(issue.key, issue.fields.summary, issue.fields.worklog, options);
+        tbody.appendChild(row);
+    });
+
+    logTable.appendChild(tbody);
+}
+
+function generateLogTableRow(id, summary, worklog, options) {
+    const idCell = buildHTML('td', null, { class: 'issue-id', 'data-issue-id': id });
+    const idText = document.createTextNode(id);
+
+    const baseUrl = options.baseUrl.startsWith('http') ? options.baseUrl : `https://${options.baseUrl}`;
+
+    const jiraLink = buildHTML('a', null, {
+        href: `${baseUrl}/browse/${id}`,
+        target: '_blank',
+    });
+
+    jiraLink.appendChild(idText);
+    idCell.appendChild(jiraLink);
+
+    const summaryCell = buildHTML('td', summary, { class: 'issue-summary truncate' });
+
+    // Summing the total time from worklogs into hours
+    const totalTimeSeconds = worklog.worklogs.reduce((total, log) => total + log.timeSpentSeconds, 0);
+    const totalTime = (totalTimeSeconds / 3600).toFixed(2) + ' hrs';
+    const totalTimeCell = buildHTML('td', totalTime, { class: 'issue-total-time' });
+
+    // Ensure loader and total time elements
+    const loader = buildHTML('div', null, { class: 'loader-mini', 'data-issue-id': id });
+    const totalTimeDiv = buildHTML('div', null, { class: 'issue-total-time-spent', 'data-issue-id': id });
+    totalTimeCell.appendChild(loader);
+    totalTimeCell.appendChild(totalTimeDiv);
+
+    const timeInput = buildHTML('input', null, { class: 'issue-time-input', 'data-issue-id': id });
+    const timeInputCell = buildHTML('td');
+    timeInputCell.appendChild(timeInput);
+
+    const commentInput = buildHTML('input', null, { class: 'issue-comment-input', 'data-issue-id': id });
+    const commentInputCell = buildHTML('td');
+    commentInputCell.appendChild(commentInput);
+
+    const dateInput = buildHTML('input', null, {
+        type: 'date',
+        class: 'issue-log-date-input',
+        value: new Date().toDateInputValue(),
+        'data-issue-id': id,
+    });
+    const dateInputCell = buildHTML('td');
+    dateInputCell.appendChild(dateInput);
+
+    const actionButton = buildHTML('input', null, {
+        type: 'button',
+        value: 'Submit',
+        class: 'issue-log-time-btn',
+        'data-issue-id': id,
+    });
+
+    actionButton.addEventListener('click', async (event) => await logTimeClick(event));
+
+    const actionCell = buildHTML('td');
+    actionCell.appendChild(actionButton);
+
+    const row = buildHTML('tr', null, { 'data-issue-id': id });
+    row.appendChild(idCell);
+    row.appendChild(summaryCell);
+    row.appendChild(totalTimeCell);
+    row.appendChild(timeInputCell);
+    row.appendChild(commentInputCell);
+    row.appendChild(dateInputCell);
+    row.appendChild(actionCell);
+
+    return row;
+}
+
+
+function buildHTML(tag, html, attrs) {
+    const element = document.createElement(tag);
+    if (html) element.innerHTML = html;
+    Object.keys(attrs || {}).forEach(attr => {
+        element.setAttribute(attr, attrs[attr]);
+    });
+    return element;
+}
+
+function genericResponseError(error) {
+    const response = error.response || '';
+    const status = error.status || '';
+    const statusText = error.statusText || '';
+
+    if (response) {
+        try {
+            displayError(response.errorMessages.join(' '));
+        } catch (e) {
+            displayError(`Error: ${status} - ${statusText}`);
+        }
+    } else {
+        displayError(`Error: ${status} ${statusText}`);
+    }
+}
+
+function displayError(message) {
+    const error = document.getElementById('error');
+    error.innerText = message;
+    error.style.display = 'block';
+}
+
+
+Date.prototype.toDateInputValue = (function () {
+    const local = new Date(this);
+    local.setMinutes(this.getMinutes() - this.getTimezoneOffset());
+    return local.toJSON().slice(0, 10);
+});
+
+function getStartedTime(dateString) {
+    const date = new Date(dateString);
+    const time = new Date();
+    const tzo = -date.getTimezoneOffset();
+    const dif = tzo >= 0 ? '+' : '-';
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}.${pad(time.getMilliseconds())}${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
+}
+
+function pad(num) {
+    const norm = Math.abs(Math.floor(num));
+    return (norm < 10 ? '0' : '') + norm;
 }

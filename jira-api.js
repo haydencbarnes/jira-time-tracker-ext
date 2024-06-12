@@ -1,176 +1,144 @@
-function JiraAPI (baseUrl, apiExtension, username, password, jql) {
+async function JiraAPI(baseUrl, apiExtension, username, apiToken, defaultJql) {
+    const apiUrl = `${baseUrl}${apiExtension}`;
 
-    var ACTIVE_REQUESTS = 0;
-
-    var apiDefaults = {
-        type: 'GET',
-        url : baseUrl + apiExtension,
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Basic ' + btoa(username + ':' + password)
-        },
-        responseType: 'json',
-        data: ''
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${btoa(`${username}:${apiToken}`)}`
     };
 
     return {
-        login : login,
-        getIssue : getIssue,
-        getIssues: getIssues,
-        getIssueWorklog : getIssueWorklog,
-        updateWorklog : updateWorklog
+        login,
+        getIssue,
+        getIssues,
+        getIssueWorklog,
+        updateWorklog
     };
 
-
-
-
-
-    function login() {
-        var url = '/user?username=' + username;
-        var options = {
-            headers: {
-                'Authorization': 'Basic ' + btoa(username + ':' + password)
-            }            
-        }
-        return ajaxWrapper(url, options);
-    };
-
-    function getIssue (id) {
-        return ajaxWrapper('/issue/' + id);
+    async function login() {
+        const url = `/user?username=${username}`;
+        return apiRequest(url, 'GET');
     }
 
-    function getIssues () {
-        return ajaxWrapper('/search?jql=' + jql);
+    async function getIssue(id) {
+        return apiRequest(`/issue/${id}`);
+    }
+
+    async function getIssues(jql = defaultJql) {
+        if (!jql) {
+            throw new Error("JQL query must be provided.");
+        }
+
+        let modifiedJql = `${jql} AND status NOT IN (Closed, Done)`;
+        const encodedJQL = encodeURIComponent(modifiedJql);
+        const fields = "summary,status,assignee,worklog";
+        const endpoint = `/search?jql=${encodedJQL}&fields=${fields}&startAt=0&maxResults=100`;
+        console.log(`Requesting issues with endpoint: ${endpoint}`);
+
+        const response = await apiRequest(endpoint);
+        return handleIssueResp(response);
+    }
+
+    async function getIssueWorklog(id) {
+        return apiRequest(`/issue/${id}/worklog`);
+    }
+
+    async function updateWorklog(id, timeSpentSeconds, started, comment) {
+        const url = `/issue/${id}/worklog?notifyUsers=false`;
+    
+        const data = {
+            timeSpentSeconds: timeSpentSeconds,  // Assuming timeSpent is in seconds
+            comment: comment || '', 
+            started: parseDate(started)  // Helper function to format the date
+        };
+    
+        console.log("Update worklog payload:", data);  // Log the payload to debug the request
+    
+        return apiRequest(url, 'POST', data);
+    }
+    
+    function parseDate(date) {
+        const dateObj = new Date(date);
+    
+        // ISO string: "2024-06-11T00:15:38.399Z"
+        const isoString = dateObj.toISOString();
+    
+        // Remove "Z" and append "+0000" to make it "2024-06-11T00:15:38.399+0000"
+        const formattedDate = isoString.slice(0, -1) + "+0000";
+    
+        console.log("Parsed Date:", formattedDate); // For debugging purposes
+        return formattedDate;
+    }
+    
+
+    async function apiRequest(endpoint, method = 'GET', data = null) {
+        const url = apiUrl.startsWith('http') ? `${apiUrl}${endpoint}` : `https://${apiUrl}${endpoint}`;
+        const options = {
+            method: method,
+            headers: headers,
+        };
+        if (data && method === 'POST') {
+            options.body = JSON.stringify(data);
+        }
+    
+        console.log(`Making API request to URL: ${url} with options:`, options);
+    
+        try {
+            const response = await fetch(url, options);
+            const contentType = response.headers.get("content-type");
+    
+            console.log(`Response status: ${response.status}, content-type: ${contentType}`);
+    
+            if (response.ok) {
+                console.log("API request successful");
+                if (contentType && contentType.includes("application/json")) {
+                    return await response.json();
+                } else {
+                    const text = await response.text();
+                    console.warn("Expected JSON but received:", text);
+                    return {
+                        status: response.status,
+                        statusText: response.statusText,
+                        responseText: text
+                    };
+                }
+            } else {
+                if (contentType && contentType.includes("application/json")) {
+                    const errorData = await response.json();
+                    handleJiraResponseError(response, errorData);
+                } else {
+                    throw new Error(`Response Error: ${response.statusText}`);
+                }
+            }
+        } catch (error) {
+            console.error(`API Request to ${url} failed:`, error);
+            throw new Error(`API request failed: ${error.message}`);
+        }
     }    
 
-    function getIssueWorklog (id) {
-        return ajaxWrapper('/issue/' + id + '/worklog');
-    }
-
-    function updateWorklog (id, timeSpent, started, comment) {
-        var url = '/issue/' + id + '/worklog';
-        var options = {
-            type: 'POST',
-            data: JSON.stringify({
-                'started': started,
-                'timeSpent': timeSpent,
-				'comment': comment,
-            })
+    function handleJiraResponseError(response, errorData) {
+        let errorMsg = 'Unknown error';
+        if (response.status >= 400) {
+            errorMsg = errorData.errorMessages ? errorData.errorMessages.join(', ') : response.statusText;
         }
-        return ajaxWrapper(url, options);
+
+        console.error(`Error ${response.status}: ${errorMsg}`);
+        throw new Error(`Error ${response.status}: ${errorMsg}`);
     }
 
-    function ajaxWrapper (urlExtension, optionsOverrides) {
-
-        // merge default and override options
-        var options = extend(apiDefaults, optionsOverrides || {});
-
-        // concat url
-        options.url += urlExtension;
-
-        // return promise
-        return new Promise(function(resolve, reject) {
-
-            var req = new XMLHttpRequest();
-
-            // open request
-            req.open(options.type, options.url, true);
-
-            // set response type (json)
-            req.responseType = options.responseType;
-
-            // on load logic
-            req.onload = function() {
-
-                // consider all statuses between 200 and 400 successful
-                if (req.status >= 200 && req.status < 400) {
-                    resolve(req.response);
-                }
-                // all other ones are considered to be errors
-                else {
-                    //reject(req.response, req.status, req.statusText);
-                    reject({
-                        response: req.response, 
-                        status: req.status, 
-                        statusText: req.statusText
-                    });
-                }
-
-                // keep the count of active XMLHttpRequest objects
-                if (!(--ACTIVE_REQUESTS)) {
-
-                    //if it's 0 dispatch a global event
-                    dispatchEvent('jiraStop', document);
-                }
-
-            };
-
-            // Unpredicted error
-            req.onerror = function() {
-                reject({
-                    response: undefined, 
-                    status: undefined, 
-                    statusText: 'Unknown Error'
-                });
-                dispatchEvent('jiraError', document);
-            };
-
-            // set all headers
-            for(header in options.headers){
-                req.setRequestHeader(header, options.headers[header]);
-            }
-
-            // send the request
-            req.send(options.data);
-
-            // increment the count of active XMLHttpRequest objects
-            if (ACTIVE_REQUESTS++ === 0 ) {
-
-                // if it's the first one in the queue, dispatch a global event
-                dispatchEvent('jiraStart', document);
-            }
-
-        });
-
+    function handleIssueResp(resp) {
+        if (!issuesValidator(resp)) {
+            console.error("Invalid issue response format:", resp);
+            return [];
+        }
+        return resp.issues;
     }
 
-
-
-    /*
-        Helper functions
-    */
-    // Event dispatcher
-    function dispatchEvent (name, element) {
-        var event = new Event(name);
-        element.dispatchEvent(event);
+    function issuesValidator(body) {
+        if (typeof body === "object" && body !== null && "issues" in body) {
+            const partial = body;
+            return Array.isArray(partial.issues);
+        }
+        return false;
     }
-
-    // Simple extend function
-    function extend (target, overrides) {
-
-        // new empty object
-        var extended = Object.create(target);
-
-        // copy all properties from default
-        Object.keys(target).map(function (prop) {
-            extended[prop] = target[prop];
-        });
-
-        // iterate through overrides
-        Object.keys(overrides).map(function (prop) {
-
-            // if the attribute is an object, extend it too
-            if(typeof overrides[prop] === 'object'){
-                extended[prop] = extend(extended[prop], overrides[prop]);
-            }
-            // otherwise just assign value to the extended object
-            else{
-                extended[prop] = overrides[prop];
-            }
-        });
-
-        return extended;
-
-    };
 
 }
