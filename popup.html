@@ -70,10 +70,25 @@
         }
 
         th {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             color: #000000;
-            border-bottom: 2px solid #dddddd;
+            border-bottom: 2px solid #0052CC;
+			position: sticky;
+            top: 0;
+            background-color: #ffffff; /* Background color for the sticky header */
+			z-index: 1;
+        }
+		th::after {
+            content: '';
+            display: block;
+            position: absolute;
+            left: 0;
+            bottom: 0px; /* Adjust based on border thickness */
+            width: 100%;
+            height: 2px; /* Adjust based on border thickness */
+            background: #0052CC; /* Border color */
+            z-index: -1; /* Ensure it stays below the sticky header */
         }
 
         th,
