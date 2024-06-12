@@ -1,38 +1,25 @@
 ![jira_logo](jira_logo128.png)
 
-# Jira Log Time Chrome plugin
+# Jira Log Time Chrome Extension
 
-Code repo for [Jira Log Time](https://chrome.google.com/webstore/detail/jira-log-time/peboekgeiffcaddndeonkmkledekeegl) chrome plugin.
+## Settings
 
-Thanks to [Oliver Debenc](https://www.linkedin.com/in/oliver-debenc-01821770) for the design
+### Jira Domain/URL
 
-## Options
+This is your Jira Domain URL, whether that be Server or Cloud. For example: `https://jira.atlassian.com/.
 
-### Description
-
-Label which will be presented at the top
-
-### URL 
-
-This is your Jira server URL. Copy entire url, with protocol and port (if not default).
-
-### REST Api Extension
-
-This is your Jira server REST Api version. Default value is `/rest/api/2` because that is the default extension for most recent jira. 
-
-If you are using older server of Jira it might be `/rest/api/1`.
-
-### Username
+### Username/Email
 
 Your Jira username.
 
-### Password
+### REST Api Token
 
-Your Jira password.
+This is your Jira server REST Api Token.
 
-### JQL - Jira Query Language
 
-JQL which will be used to display all items which are available to log time. 
-Default option is `assignee=currentUser()`, which will display all issues assigned to you. 
+Default value is `/rest/api/2` because that is the default extension for most recent jira. 
 
-If you are not familiar with JQL, you can go to Jira and adjust all basic filters. Then switch to Advanced mode and just copy generated JQL to this field.
+If you are using older server of Jira it might be `/rest/api/1`.
+
+### Special Thanks
+This code repo was originally modified from this [Jira Log Time](https://chrome.google.com/webstore/detail/jira-log-time/peboekgeiffcaddndeonkmkledekeegl) Chrome extension. Credit to [Oliver Debenc](https://www.linkedin.com/in/oliver-debenc-01821770) for the previous/original design, but I have made some modications.
