@@ -1,3 +1,5 @@
+![jira_logo128](path/to/jira_logo128.png)
+
 # Jira Log Time Chrome plugin
 
 Code repo for [Jira Log Time](https://chrome.google.com/webstore/detail/jira-log-time/peboekgeiffcaddndeonkmkledekeegl) chrome plugin.
