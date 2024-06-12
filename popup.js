@@ -127,9 +127,9 @@ async function logTimeClick(evt) {
         return;
     }
 
-    const timeMatches = timeInput.value.match(/[0-9]{1,4}[wdhm]/g);
+    const timeMatches = timeInput.value.match(/[0-9]{1,4}[dhm]/g);
     if (!timeMatches) {
-        displayError('Time input in wrong format. You can specify a time unit after a time value "X", such as Xw, Xd, Xh, or Xm, to represent weeks, days, hours, and minutes (m), respectively.');
+        displayError('Time input in wrong format. You can specify a time unit after a time value "X", such as Xd, Xh, or Xm, to represent days, hours, and minutes (m), respectively.');
         return;
     }
 
@@ -197,7 +197,6 @@ async function logTimeClick(evt) {
 
 function convertTimeToSeconds(timeStr) {
     const timeUnits = {
-        w: 60 * 60 * 24 * 7,
         d: 60 * 60 * 24,
         h: 60 * 60,
         m: 60,
@@ -283,11 +282,11 @@ function generateLogTableRow(id, summary, worklog, options) {
         return worklogResponse.worklogs;
     }
 
-    const timeInput = buildHTML('input', null, { class: 'issue-time-input', 'data-issue-id': id });
+    const timeInput = buildHTML('input', null, { class: 'issue-time-input', 'data-issue-id': id, placeholder: 'Xhms' });
     const timeInputCell = buildHTML('td');
     timeInputCell.appendChild(timeInput);
 
-    const commentInput = buildHTML('input', null, { class: 'issue-comment-input', 'data-issue-id': id });
+    const commentInput = buildHTML('input', null, { class: 'issue-comment-input', 'data-issue-id': id, placeholder: 'Work description' });
     const commentInputCell = buildHTML('td');
     commentInputCell.appendChild(commentInput);
 
