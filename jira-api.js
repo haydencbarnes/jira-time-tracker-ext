@@ -101,12 +101,13 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, jql) {
                     };
                 }
             } else {
+                let errorData;
                 if (contentType && contentType.includes("application/json")) {
-                    const errorData = await response.json();
-                    handleJiraResponseError(response, errorData);
+                    errorData = await response.json();
                 } else {
-                    throw new Error(`Response Error: ${response.statusText}`);
+                    errorData = await response.text();
                 }
+                handleJiraResponseError(response, errorData);
             }
         } catch (error) {
             console.error(`API Request to ${url} failed:`, error);
@@ -117,9 +118,17 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, jql) {
     function handleJiraResponseError(response, errorData) {
         let errorMsg = 'Unknown error';
         if (response.status >= 400) {
-            errorMsg = errorData.errorMessages ? errorData.errorMessages.join(', ') : response.statusText;
+            if (typeof errorData === 'string') {
+                errorMsg = errorData;
+            } else if (errorData && errorData.errorMessages) {
+                errorMsg = errorData.errorMessages.join(', ');
+            } else if (errorData && errorData.errors) {
+                errorMsg = JSON.stringify(errorData.errors);
+            } else {
+                errorMsg = response.statusText;
+            }
         }
-
+    
         console.error(`Error ${response.status}: ${errorMsg}`);
         throw new Error(`Error ${response.status}: ${errorMsg}`);
     }
