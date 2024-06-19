@@ -77,7 +77,7 @@ async function populateIssues(JIRA, projectKey) {
     console.log('Fetched issues for project', projectKey, ':', issues); // Debug issue fetching
     issues.forEach(issue => {
       const option = document.createElement('option');
-      option.value = issue.id;
+      option.value = issue.key;  // Use issue.key for the option value
       option.textContent = `${issue.key}: ${issue.fields.summary}`;
       issueSelect.appendChild(option);
     });
@@ -117,7 +117,11 @@ async function logTimeClick(evt) {
       });  // Log payload for debugging
 
       await JIRA.updateWorklog(issueKey, timeSpentSeconds, startedTime, description);
-      displaySuccess(`Successfully logged ${timeSpent} on issue ${issueKey}`);
+      displaySuccess(`You successfully logged: ${timeSpent} on ${issueKey}`);
+      
+      // Clear the form fields after success
+      document.getElementById('timeSpent').value = '';
+      document.getElementById('description').value = '';
     } catch (error) {
       console.error('Error logging time:', error);
       displayError(`Error logging time: ${error.message}`);
@@ -174,6 +178,10 @@ function displaySuccess(message) {
   if (success) {
     success.innerText = message;
     success.style.display = 'block';
+    
+    // Clear the form fields after success
+    document.getElementById('timeSpent').value = '';
+    document.getElementById('description').value = '';
   } else {
     console.warn('Success element not found');
   }
