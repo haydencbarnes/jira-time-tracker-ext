@@ -7,13 +7,16 @@ async function onDOMContentLoaded() {
   }, async (options) => {
     await init(options);
   });
+
+  // Set today's date as default
+  const datePicker = document.getElementById('datePicker');
+  datePicker.value = new Date().toISOString().split('T')[0];
 }
 
 async function init(options) {
   console.log("Options received:", options);
 
   try {
-    // Initialize the JIRA API with the provided options
     const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken);
     console.log("JIRA API Object:", JIRA);
 
@@ -24,17 +27,13 @@ async function init(options) {
     }
 
     await populateProjects(JIRA);
+
     document.getElementById('projectId').addEventListener('change', () => {
       const selectedProject = document.getElementById('projectId').value;
       populateIssues(JIRA, selectedProject);
     });
 
     document.getElementById('search').addEventListener('click', searchIssues);
-
-    flatpickr("#datePicker", {
-      enableTime: true,
-      dateFormat: "Y-m-d H:i",
-    });
   } catch (error) {
     console.error('Error initializing JIRA API:', error);
     displayError('Initialization failed.');
@@ -181,7 +180,7 @@ function displayError(message) {
     error.innerText = message;
     error.style.display = 'block';
   }
-  
+
   const success = document.getElementById('success');
   if (success) success.style.display = 'none';
 }
