@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Jira Log Time",
-  "version": "0.0.1",
-  "description": "Log your time to Jira in seconds!",
+  "version": "1.1.0",
+  "description": "Log/Track your time in Jira in seconds!",
   "host_permissions": [
     "<all_urls>"
   ],
