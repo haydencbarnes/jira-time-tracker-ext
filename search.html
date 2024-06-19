@@ -5,29 +5,44 @@
     <title>Jira Issue Search</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.9/flatpickr.min.css" />
     <style>
+        a {
+            color: #0052CC;
+            text-decoration: none;
+        }
+
+        a:hover,
+        a:active,
+        a:focus {
+            text-decoration: underline;
+        }
+        
         body {
             width: 750px;
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
-            color: black;
-            background-color: #f6f8fa;
-            border-radius: 12px;
+            padding-top: 20px; /* Add space at the top */
         }
 
         .form-group {
             margin-bottom: 20px;
         }
 
-        label {
-            display: block;
-            font-size: 14px;
-            margin-bottom: 6px;
+        .form-group.flex {
+            display: flex;
+            align-items: center; /* Vertically align items */
         }
 
-        input[type="text"], select, input[type="date"], textarea {
-            width: 100%;
-            padding: 10px;
+        label {
+            font-size: 11px;
+            font-weight: bold;
+            width: 150px; /* Set a fixed width for label */
+            text-align: right; /* Align the text to the right */
+            margin-right: 10px; /* Add space between label and input */
+        }
+
+        input[type="text"], select, textarea {
+            width: 63.5%;
+            box-sizing: border-box;
             border-radius: 8px;
             border: 1px solid #ccc;
             font-size: 14px;
@@ -35,14 +50,18 @@
         }
 
         button {
-            width: 100%;
-            padding: 10px;
+            width: 70%;
             border-radius: 8px;
             border: none;
             background: #0052CC;
             color: white;
-            font-size: 14px;
+            font-weight: bold;
+            padding: 10px;
+            font-size: 11px;
             font-family: Arial, sans-serif;
+            cursor: pointer;
+            margin: 0 auto;
+            display: block;
         }
 
         button:hover {
@@ -51,18 +70,17 @@
 
         .date-picker {
             position: relative;
+            width: 50%; /* Ensure the date-picker fits within the flex container */
+            display: flex; /* Use flex for the date-picker container */
         }
 
         .date-picker input[type="text"] {
-            width: calc(100% - 34px);
-            padding-right: 34px;
+            flex: 1; /* Allow the input to grow and fill space */
+            width: auto; /* Reset width to auto */
+            margin-right: 5px; /* Add space between input and button */
         }
 
         .date-picker button {
-            position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
             background: none;
             border: none;
             padding: 0 10px;
@@ -73,10 +91,8 @@
         #brand {
             height: 50px;
             background: #f3f3f3;
-            margin: 20px -20px 0 -20px;
+            margin: 0;
             border-top: 1px solid #e5e5e5;
-            padding: 0 20px;
-            border-radius: 0 0 12px 12px;
         }
 
         #info {
@@ -86,51 +102,34 @@
             vertical-align: top;
         }
 
-        #info img {
-            vertical-align: middle;
-            margin-right: 10px;
-            width: 20px;
-            height: 20px;
-        }
-
         #nav {
             font-size: 14px;
-            color: #0052CC;
-            width: 50%;
+            color: #cccccc;
+            width: 44%;
             display: inline-block;
             text-align: right;
             vertical-align: top;
             padding: 15px 0 0 0;
         }
-
-        #nav a {
-            color: #0052CC;
-            text-decoration: none;
-            margin-left: 15px;
-        }
-
-        #nav a:hover {
-            text-decoration: underline;
-        }
     </style>
 </head>
 
 <body>
-    <div class="form-group">
+    <div class="form-group flex">
         <label for="projectId">Project Id</label>
         <select id="projectId">
             <!-- Populate dynamically -->
         </select>
     </div>
 
-    <div class="form-group">
+    <div class="form-group flex">
         <label for="issueKey">Issue Key</label>
         <select id="issueKey">
             <!-- Populate dynamically -->
         </select>
     </div>
 
-    <div class="form-group">
+    <div class="form-group flex">
         <label for="date">Date</label>
         <div class="date-picker">
             <input type="text" id="datePicker" placeholder="Select date and time">
@@ -140,17 +139,18 @@
         </div>
     </div>
 
-    <div class="form-group">
+    <div class="form-group flex">
         <label for="timeSpent">Time (e.g., 2h 15m 30s)</label>
         <input type="text" id="timeSpent" placeholder="Enter time as 'Xh Ym Zs'">
     </div>
 
-    <div class="form-group">
+    <div class="form-group flex">
         <label for="description">Description</label>
         <textarea id="description" placeholder="Description of work completed..."></textarea>
     </div>
 
-    <button id="search" onclick="searchIssues()">Search</button>
+    <button id="search" onclick="searchIssues()">Submit</button>
+    <br></br>
 
     <div id="searchResults"></div>
 
@@ -164,7 +164,7 @@
         <div id="nav">
             <a href="popup.html" tabindex="1"><b>Time Table</b></a> |
             <a href="options.html" tabindex="1"><b>Settings</b></a> |
-            <a href="https://github.com/haydencbarnes/jira-log-time" target="_blank" tabindex="1">Learn More</a>
+            <a href="https://github.com/haydencbarnes/jira-log-time" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
         </div>
     </div>
 
