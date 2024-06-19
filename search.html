@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Jira Issue Search</title>
     <style>
@@ -109,6 +110,23 @@
             vertical-align: top;
             padding: 15px 0 0 0;
         }
+
+        #error, #success {
+            display: none;
+            padding: 10px;
+        }
+
+        #error {
+            color: #cc0000;
+            background-color: #ffdddd;
+            font-weight: bold;
+        }
+
+        #success {
+            color: #4F8A10;
+            background-color: #DFF2BF;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -144,10 +162,11 @@
         <textarea id="description" placeholder="Description of work completed..."></textarea>
     </div>
 
-    <button id="search" onclick="searchIssues()">Submit</button>
+    <button id="search">Submit</button>
     <br></br>
-
-    <div id="searchResults"></div>
+    
+    <div id="error"></div>
+    <div id="success"></div>
 
     <div id="brand">
         <div id="info">
@@ -166,4 +185,5 @@
     <script src="jira-api.js"></script>
     <script src="search.js"></script>
 </body>
+
 </html>

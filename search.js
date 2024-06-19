@@ -3,10 +3,13 @@ document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 async function onDOMContentLoaded() {
   chrome.storage.sync.get({
     apiToken: '',
-    baseUrl: ''
+    baseUrl: '',
   }, async (options) => {
     console.log('Storage options:', options); // Debug storage retrieval
     await init(options);
+
+    // Attach event listener to the submit button
+    document.getElementById('search').addEventListener('click', logTimeClick);
   });
 
   // Set today's date as default
@@ -18,7 +21,7 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
-    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken);
+    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
     console.log("JIRA API Object initialized:", JIRA);
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
@@ -33,7 +36,8 @@ async function init(options) {
       populateIssues(JIRA, selectedProject);
     });
 
-    document.getElementById('search').addEventListener('click', searchIssues);
+    // Replace the previously inline `onclick` assignment
+    document.getElementById('search').addEventListener('click', logTimeClick);
   } catch (error) {
     console.error('Error initializing JIRA API:', error);
     displayError('Initialization failed.');
@@ -64,83 +68,113 @@ async function populateProjects(JIRA) {
 }
 
 async function populateIssues(JIRA, projectKey) {
-    const issueSelect = document.getElementById('issueKey');
-    issueSelect.innerHTML = '';
-  
-    try {
-      // Correct the JQL query to use the proper syntax
-      const issues = await JIRA.getIssues(`project=${projectKey}`);
-      console.log('Fetched issues for project', projectKey, ':', issues); // Debug issue fetching
-      issues.forEach(issue => {
-        const option = document.createElement('option');
-        option.value = issue.id;
-        option.textContent = `${issue.key}: ${issue.fields.summary}`;
-        issueSelect.appendChild(option);
-      });
-    } catch (error) {
-      console.error('Error fetching issues:', error);
-      displayError(`Error fetching issues: ${error.message}`);
-    }
-  }
+  const issueSelect = document.getElementById('issueKey');
+  issueSelect.innerHTML = '';
 
-async function searchIssues() {
+  try {
+    // Correct the JQL query to use the proper syntax ("project=...")
+    const issues = await JIRA.getIssues(`project=${projectKey}`);
+    console.log('Fetched issues for project', projectKey, ':', issues); // Debug issue fetching
+    issues.forEach(issue => {
+      const option = document.createElement('option');
+      option.value = issue.id;
+      option.textContent = `${issue.key}: ${issue.fields.summary}`;
+      issueSelect.appendChild(option);
+    });
+  } catch (error) {
+    console.error('Error fetching issues:', error);
+    displayError(`Error fetching issues: ${error.message}`);
+  }
+}
+
+// Adjust the function to submit time log
+async function logTimeClick(evt) {
+  evt.preventDefault();  // Prevent default form submission behavior
+  
   const projectId = document.getElementById('projectId').value;
   const issueKey = document.getElementById('issueKey').value;
   const date = document.getElementById('datePicker').value;
   const timeSpent = document.getElementById('timeSpent').value;
   const description = document.getElementById('description').value;
 
-  console.log("Search parameters:", { projectId, issueKey, date, timeSpent, description });
+  console.log("Logging time with parameters:", { projectId, issueKey, date, timeSpent, description });
 
   chrome.storage.sync.get({
     apiToken: '',
-    baseUrl: ''
+    baseUrl: '',
   }, async (options) => {
     const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken);
+
     try {
-      const issues = await JIRA.getIssuesForSearch(`project="${projectId}" AND key="${issueKey}"`);
-      displayResults(issues, date, timeSpent, description);
+      const startedTime = getStartedTime(date);  // Get formatted start time
+      const timeSpentSeconds = convertTimeToSeconds(timeSpent);
+
+      console.log({
+        issueKey,
+        timeSpentSeconds,
+        startedTime,
+        description
+      });  // Log payload for debugging
+
+      await JIRA.updateWorklog(issueKey, timeSpentSeconds, startedTime, description);
+      displaySuccess(`Successfully logged ${timeSpent} on issue ${issueKey}`);
     } catch (error) {
-      console.error('Error searching issues:', error);
-      displayError(`Error searching issues: ${error.message}`);
+      console.error('Error logging time:', error);
+      displayError(`Error logging time: ${error.message}`);
     }
   });
 }
 
-function displayResults(issues, date, timeSpent, description) {
-  const resultsDiv = document.getElementById('searchResults');
-  resultsDiv.innerHTML = '';  // Clear previous results
+function getStartedTime(dateString) {
+  const date = new Date(dateString);
+  const time = new Date();
+  const tzo = -date.getTimezoneOffset();
+  const dif = tzo >= 0 ? '+' : '-';
 
-  if (!issues || issues.length === 0) {
-    resultsDiv.innerHTML = '<p>No issues found.</p>';
-    return;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}.${pad(time.getMilliseconds())}${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
+}
+
+function convertTimeToSeconds(timeStr) {
+  const timeUnits = {
+      d: 60 * 60 * 24,
+      h: 60 * 60,
+      m: 60
+  };
+
+  const regex = /(\d+)([dhm])/g;
+  let match;
+  let totalSeconds = 0;
+
+  while ((match = regex.exec(timeStr)) !== null) {
+      const value = parseInt(match[1], 10);
+      const unit = match[2];
+      totalSeconds += value * timeUnits[unit];
   }
 
-  issues.forEach(issue => {
-    const { key, fields } = issue;
-    const issueDiv = document.createElement('div');
-    issueDiv.style.border = '1px solid #ccc';
-    issueDiv.style.padding = '10px';
-    issueDiv.style.marginBottom = '10px';
-    issueDiv.style.borderRadius = '8px';
-    issueDiv.style.backgroundColor = '#fff';
-    issueDiv.style.color = '#000';
+  return totalSeconds;
+}
 
-    const title = document.createElement('h3');
-    title.textContent = `${key}: ${fields.summary}`;
-    issueDiv.appendChild(title);
+function pad(num) {
+  return (num < 10 ? '0' : '') + num;
+}
 
-    const details = document.createElement('p');
-    details.innerHTML = `
-      <strong>Assignee:</strong> ${fields.assignee ? fields.assignee.displayName : 'Unassigned'}<br>
-      <strong>Status:</strong> ${fields.status.name}<br>
-      <strong>Description:</strong> ${fields.description || 'No description available'}<br>
-      <strong>Date:</strong> ${new Date(date).toLocaleString()}<br>
-      <strong>Time Spent:</strong> ${timeSpent}<br>
-      <strong>Additional Description:</strong> ${description}
-    `;
-    issueDiv.appendChild(details);
+function displayError(message) {
+  const error = document.getElementById('error');
+  if (error) {
+    error.innerText = message;
+    error.style.display = 'block';
+  }
 
-    resultsDiv.appendChild(issueDiv);
-  });
+  const success = document.getElementById('success');
+  if (success) success.style.display = 'none';
+}
+
+function displaySuccess(message) {
+  const success = document.getElementById('success');
+  if (success) {
+    success.innerText = message;
+    success.style.display = 'block';
+  } else {
+    console.warn('Success element not found');
+  }
 }
