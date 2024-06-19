@@ -3,8 +3,9 @@ document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 async function onDOMContentLoaded() {
   chrome.storage.sync.get({
     apiToken: '',
-    baseUrl: '',
+    baseUrl: ''
   }, async (options) => {
+    console.log('Storage options:', options); // Debug storage retrieval
     await init(options);
   });
 
@@ -18,7 +19,7 @@ async function init(options) {
 
   try {
     const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken);
-    console.log("JIRA API Object:", JIRA);
+    console.log("JIRA API Object initialized:", JIRA);
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
       console.error('JIRA API instantiation failed: Methods missing', JIRA);
@@ -27,7 +28,6 @@ async function init(options) {
     }
 
     await populateProjects(JIRA);
-
     document.getElementById('projectId').addEventListener('change', () => {
       const selectedProject = document.getElementById('projectId').value;
       populateIssues(JIRA, selectedProject);
@@ -46,6 +46,7 @@ async function populateProjects(JIRA) {
 
   try {
     const projects = await JIRA.getProjects();
+    console.log('Fetched projects:', projects); // Debug project fetching
     projects.forEach(project => {
       const option = document.createElement('option');
       option.value = project.key;
@@ -58,25 +59,29 @@ async function populateProjects(JIRA) {
     }
   } catch (error) {
     console.error('Error fetching projects:', error);
+    displayError(`Error fetching projects: ${error.message}`);
   }
 }
 
 async function populateIssues(JIRA, projectKey) {
-  const issueSelect = document.getElementById('issueKey');
-  issueSelect.innerHTML = '';
-
-  try {
-    const issues = await JIRA.getIssues(projectKey);
-    issues.forEach(issue => {
-      const option = document.createElement('option');
-      option.value = issue.id;
-      option.textContent = `${issue.key}: ${issue.fields.summary}`;
-      issueSelect.appendChild(option);
-    });
-  } catch (error) {
-    console.error('Error fetching issues:', error);
+    const issueSelect = document.getElementById('issueKey');
+    issueSelect.innerHTML = '';
+  
+    try {
+      // Correct the JQL query to use the proper syntax
+      const issues = await JIRA.getIssues(`project=${projectKey}`);
+      console.log('Fetched issues for project', projectKey, ':', issues); // Debug issue fetching
+      issues.forEach(issue => {
+        const option = document.createElement('option');
+        option.value = issue.id;
+        option.textContent = `${issue.key}: ${issue.fields.summary}`;
+        issueSelect.appendChild(option);
+      });
+    } catch (error) {
+      console.error('Error fetching issues:', error);
+      displayError(`Error fetching issues: ${error.message}`);
+    }
   }
-}
 
 async function searchIssues() {
   const projectId = document.getElementById('projectId').value;
@@ -89,11 +94,16 @@ async function searchIssues() {
 
   chrome.storage.sync.get({
     apiToken: '',
-    baseUrl: '',
+    baseUrl: ''
   }, async (options) => {
     const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken);
-    const issues = await JIRA.getIssuesForSearch(`project="${projectId}" AND key="${issueKey}"`);
-    displayResults(issues, date, timeSpent, description);
+    try {
+      const issues = await JIRA.getIssuesForSearch(`project="${projectId}" AND key="${issueKey}"`);
+      displayResults(issues, date, timeSpent, description);
+    } catch (error) {
+      console.error('Error searching issues:', error);
+      displayError(`Error searching issues: ${error.message}`);
+    }
   });
 }
 
@@ -133,71 +143,4 @@ function displayResults(issues, date, timeSpent, description) {
 
     resultsDiv.appendChild(issueDiv);
   });
-}
-
-async function JiraAPI(baseUrl, apiExtension, username, apiToken) {
-  const apiUrl = `${baseUrl}${apiExtension}`;
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Basic ${btoa(username + ':' + apiToken)}`
-  };
-
-  async function getProjects() {
-    const response = await fetch(`${apiUrl}/project`, { headers });
-    return await handleResponse(response);
-  }
-
-  async function getIssues(projectKey) {
-    const response = await fetch(`${apiUrl}/search?jql=project=${projectKey}`, { headers });
-    const data = await handleResponse(response);
-    return data.issues;
-  }
-
-  async function getIssuesForSearch(jql) {
-    const response = await fetch(`${apiUrl}/search?jql=${encodeURIComponent(jql)}`, { headers });
-    const data = await handleResponse(response);
-    return data.issues;
-  }
-
-  async function handleResponse(response) {
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error);
-    }
-    return await response.json();
-  }
-
-  return {
-    getProjects,
-    getIssues,
-    getIssuesForSearch,
-  };
-}
-
-function displayError(message) {
-  const error = document.getElementById('error');
-  if (error) {
-    error.innerText = message;
-    error.style.display = 'block';
-  }
-
-  const success = document.getElementById('success');
-  if (success) success.style.display = 'none';
-}
-
-function displaySuccess(message) {
-  const success = document.getElementById('success');
-  if (success) {
-    success.innerText = message;
-    success.style.display = 'block';
-  } else {
-    console.warn('Success element not found');
-  }
-}
-
-function clearMessages() {
-  const error = document.getElementById('error');
-  const success = document.getElementById('success');
-  if (error) error.style.display = 'none';
-  if (success) success.style.display = 'none';
 }

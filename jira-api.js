@@ -12,6 +12,7 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, jql) {
         getIssues,
         getIssueWorklog,
         updateWorklog,
+        getProjects,
     };
 
     async function login() {
@@ -39,6 +40,11 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, jql) {
 
     async function getIssueWorklog(id) {
         return apiRequest(`/issue/${id}/worklog`);
+    }
+
+    async function getProjects() {
+        console.log(`Requesting projects`);
+        return apiRequest('/project', 'GET');  // Use generic apiRequest function
     }
 
     async function updateWorklog(id, timeSpentSeconds, started, comment) {
