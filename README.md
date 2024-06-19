@@ -8,7 +8,15 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 - Currently only works with Jira Server (API V2).
 
 ### How it Works
-...More details coming soon.
+How Search Works
+	1.	Select Project: Use the dropdown menu to select your project.
+	2.	Select Issue: Choose the specific issue from the dropdown list.
+	3.	Fill Out Details: Enter the date, time spent (e.g., 2h 15m), and a brief description of the work completed.
+	4.	Submit: Click the "Submit" button to log your time. You will receive a success message and the form fields will clear automatically.
+How Time Table Works
+	1.	View Entries: Navigate to the "Time Table" tab to see a summary (or your custom JQL query summary) of your logged time.
+	2.	Edit Entries: You can add your logged time entries as needed.
+	3.	Detailed View: Click on any issue to open it in Jira.
 
 ### Settings/Preferences
 The below settings must be set for this extension to work properly.
