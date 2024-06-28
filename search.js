@@ -173,6 +173,7 @@ function displayError(message) {
   if (success) success.style.display = 'none';
 }
 
+
 function displaySuccess(message) {
   const success = document.getElementById('success');
   if (success) {
@@ -182,6 +183,13 @@ function displaySuccess(message) {
     // Clear the form fields after success
     document.getElementById('timeSpent').value = '';
     document.getElementById('description').value = '';
+    
+    // Clear any existing error message if there is one
+    const error = document.getElementById('error');
+    if (error) {
+      error.innerText = '';
+      error.style.display = 'none';
+    }
   } else {
     console.warn('Success element not found');
   }
