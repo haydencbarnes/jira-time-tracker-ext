@@ -5,14 +5,12 @@ async function onDOMContentLoaded() {
     apiToken: '',
     baseUrl: '',
   }, async (options) => {
-    console.log('Storage options:', options); // Debug storage retrieval
+    console.log('Storage options:', options);
     await init(options);
 
-    // Attach event listener to the submit button
     document.getElementById('search').addEventListener('click', logTimeClick);
   });
 
-  // Set today's date as default
   const datePicker = document.getElementById('datePicker');
   datePicker.value = new Date().toISOString().split('T')[0];
 }
@@ -30,13 +28,8 @@ async function init(options) {
       return;
     }
 
-    await populateProjects(JIRA);
-    document.getElementById('projectId').addEventListener('change', () => {
-      const selectedProject = document.getElementById('projectId').value;
-      populateIssues(JIRA, selectedProject);
-    });
+    await setupAutocomplete(JIRA);
 
-    // Replace the previously inline `onclick` assignment
     document.getElementById('search').addEventListener('click', logTimeClick);
   } catch (error) {
     console.error('Error initializing JIRA API:', error);
@@ -44,55 +37,141 @@ async function init(options) {
   }
 }
 
-async function populateProjects(JIRA) {
-  const projectSelect = document.getElementById('projectId');
-  projectSelect.innerHTML = '';
+async function setupAutocomplete(JIRA) {
+  const projectInput = document.getElementById('projectId');
+  const issueInput = document.getElementById('issueKey');
+  const projectList = document.getElementById('projectList');
+  const issueList = document.getElementById('issueList');
 
-  try {
-    const projects = await JIRA.getProjects();
-    console.log('Fetched projects:', projects); // Debug project fetching
-    projects.forEach(project => {
-      const option = document.createElement('option');
-      option.value = project.key;
-      option.textContent = project.name;
-      projectSelect.appendChild(option);
-    });
+  let projects = await JIRA.getProjects();
+  let projectMap = new Map(projects.map(p => [p.key, p]));
 
-    if (projects.length > 0) {
-      populateIssues(JIRA, projects[0].key);
+  setupDropdownArrow(projectInput);
+  setupDropdownArrow(issueInput);
+  setupInputFocus(projectInput);
+  setupInputFocus(issueInput);
+
+  autocomplete(projectInput, projects.map(p => `${p.key}: ${p.name}`), projectList, async (selected) => {
+    let selectedKey = selected.split(':')[0].trim();
+    let selectedProject = projectMap.get(selectedKey);
+    if (selectedProject) {
+      let issues = await JIRA.getIssues(`project=${selectedProject.key}`);
+      autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary}`), issueList);
     }
-  } catch (error) {
-    console.error('Error fetching projects:', error);
-    displayError(`Error fetching projects: ${error.message}`);
-  }
+  });
 }
 
-async function populateIssues(JIRA, projectKey) {
-  const issueSelect = document.getElementById('issueKey');
-  issueSelect.innerHTML = '';
-
-  try {
-    // Correct the JQL query to use the proper syntax ("project=...")
-    const issues = await JIRA.getIssues(`project=${projectKey}`);
-    console.log('Fetched issues for project', projectKey, ':', issues); // Debug issue fetching
-    issues.forEach(issue => {
-      const option = document.createElement('option');
-      option.value = issue.key;  // Use issue.key for the option value
-      option.textContent = `${issue.key}: ${issue.fields.summary}`;
-      issueSelect.appendChild(option);
-    });
-  } catch (error) {
-    console.error('Error fetching issues:', error);
-    displayError(`Error fetching issues: ${error.message}`);
-  }
+function setupDropdownArrow(input) {
+  const arrow = input.nextElementSibling;
+  arrow.addEventListener('click', (event) => {
+    event.stopPropagation(); // Prevent the click from immediately closing the dropdown
+    input.focus();
+    toggleDropdown(input);
+  });
 }
 
-// Adjust the function to submit time log
-async function logTimeClick(evt) {
-  evt.preventDefault();  // Prevent default form submission behavior
+function toggleDropdown(input) {
+  const event = new Event('toggleDropdown', { bubbles: true });
+  input.dispatchEvent(event);
+}
+
+function autocomplete(inp, arr, listElement, onSelect = null) {
+  let currentFocus;
+  let isOpen = false;
   
-  const projectId = document.getElementById('projectId').value;
-  const issueKey = document.getElementById('issueKey').value;
+  inp.addEventListener("input", function(e) {
+    showDropdown(this.value);
+  });
+
+  inp.addEventListener("toggleDropdown", function(e) {
+    if (isOpen) {
+      closeAllLists();
+    } else {
+      showDropdown('');
+    }
+  });
+
+  function showDropdown(val) {
+    closeAllLists();
+    currentFocus = -1;
+    isOpen = true;
+    
+    let matches = arr.filter(item => item.toLowerCase().includes(val.toLowerCase()));
+    if (matches.length === 0 && !val) {
+      matches = arr; // Show all options if input is empty
+    }
+    matches.forEach(item => {
+      let li = document.createElement("li");
+      li.innerHTML = item;
+      li.addEventListener("click", function(e) {
+        inp.value = this.innerHTML;
+        closeAllLists();
+        if (onSelect) onSelect(this.innerHTML);
+      });
+      listElement.appendChild(li);
+    });
+  }
+
+  inp.addEventListener("keydown", function(e) {
+    let x = listElement.getElementsByTagName("li");
+    if (e.keyCode == 40) {
+      currentFocus++;
+      addActive(x);
+    } else if (e.keyCode == 38) {
+      currentFocus--;
+      addActive(x);
+    } else if (e.keyCode == 13) {
+      e.preventDefault();
+      if (currentFocus > -1) {
+        if (x) x[currentFocus].click();
+      }
+    }
+  });
+
+  function addActive(x) {
+    if (!x) return false;
+    removeActive(x);
+    if (currentFocus >= x.length) currentFocus = 0;
+    if (currentFocus < 0) currentFocus = (x.length - 1);
+    x[currentFocus].classList.add("autocomplete-active");
+  }
+
+  function removeActive(x) {
+    for (var i = 0; i < x.length; i++) {
+      x[i].classList.remove("autocomplete-active");
+    }
+  }
+
+  function closeAllLists(elmnt) {
+    var x = document.getElementsByClassName("autocomplete-list");
+    for (var i = 0; i < x.length; i++) {
+      if (elmnt != x[i] && elmnt != inp) {
+        x[i].innerHTML = '';
+      }
+    }
+    isOpen = false;
+  }
+
+  document.addEventListener("click", function (e) {
+    if (e.target !== inp && e.target !== inp.nextElementSibling) {
+      closeAllLists(e.target);
+    }
+  });
+}
+
+function setupInputFocus(input) {
+  input.addEventListener("focus", function(e) {
+    if (!this.value) {
+      toggleDropdown(this);
+    }
+  });
+}
+
+async function logTimeClick(evt) {
+  evt.preventDefault();
+  
+  const projectId = document.getElementById('projectId').value.split(':')[0].trim();
+  const issueKey = document.getElementById('issueKey').value.split(':')[0].trim();
   const date = document.getElementById('datePicker').value;
   const timeSpent = document.getElementById('timeSpent').value;
   const description = document.getElementById('description').value;
@@ -106,7 +185,7 @@ async function logTimeClick(evt) {
     const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken);
 
     try {
-      const startedTime = getStartedTime(date);  // Get formatted start time
+      const startedTime = getStartedTime(date);
       const timeSpentSeconds = convertTimeToSeconds(timeSpent);
 
       console.log({
@@ -114,12 +193,11 @@ async function logTimeClick(evt) {
         timeSpentSeconds,
         startedTime,
         description
-      });  // Log payload for debugging
+      });
 
       await JIRA.updateWorklog(issueKey, timeSpentSeconds, startedTime, description);
       displaySuccess(`You successfully logged: ${timeSpent} on ${issueKey}`);
       
-      // Clear the form fields after success
       document.getElementById('timeSpent').value = '';
       document.getElementById('description').value = '';
     } catch (error) {
@@ -173,18 +251,15 @@ function displayError(message) {
   if (success) success.style.display = 'none';
 }
 
-
 function displaySuccess(message) {
   const success = document.getElementById('success');
   if (success) {
     success.innerText = message;
     success.style.display = 'block';
     
-    // Clear the form fields after success
     document.getElementById('timeSpent').value = '';
     document.getElementById('description').value = '';
     
-    // Clear any existing error message if there is one
     const error = document.getElementById('error');
     if (error) {
       error.innerText = '';

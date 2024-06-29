@@ -1,3 +1,7 @@
+## 1.1.2 (jun 28, 2024)
+- Fixed error messages and other UI/UX issues
+- Added autocomplete for search feature
+
 ## 1.1.1 (Jun 19, 2024)
 - Removed unnecessary permission for activeTab, will re-add if needed in future versions
 
