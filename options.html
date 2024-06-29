@@ -4,45 +4,53 @@
 <head>
     <title>Jira Log Time Settings</title>
     <style>
-        a {
-            color: #0052CC;
-            text-decoration: none;
-        }
-
-        a:hover,
-        a:active,
-        a:focus {
-            text-decoration: underline;
-        }
-        
         body {
             width: 750px;
             font-family: Arial, sans-serif;
             margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
-        table,
-        tbody,
-        input {
-            width: 95%;
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        table {
+            width: 100%;
+            margin-bottom: 10px;
         }
 
         td {
-            width: 50%;
-            padding: 6px 0;
-            text-align: center;
+            padding: 5px 0px 5px 0;
+            vertical-align: middle;
+        }
+
+        td:first-child {
+            width: 20%;
+        }
+
+        input {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
         }
 
         #status {
-            height: 20px;
+            height: 10px;
             font-size: 11px;
             font-weight: bold;
             color: #666;
             text-align: right;
+            margin-bottom: 5px;
         }
 
         .btn {
-            width: 50%;
+            width: 100%;
             background: #0052CC;
             color: #fff;
             border-radius: 8px;
@@ -51,27 +59,7 @@
             font-size: 11px;
             font-weight: bold;
             cursor: pointer;
-        }
-
-        #save {
-            margin: 0 0 0 50%;
-            background: #0052CC;
-            color: #fff;
-            box-shadow: none;
-        }
-
-        #cancel {
-            margin: 0;
-            background: #666;
-            color: #fff;
-            box-shadow: none;
-        }
-
-        #info {
-            padding: 15px 0 0 10px;
-            width: 50%;
-            display: inline-block;
-            vertical-align: top;
+            margin-bottom: 10px;
         }
 
         #brand {
@@ -79,6 +67,13 @@
             background: #f3f3f3;
             margin: 0;
             border-top: 1px solid #e5e5e5;
+        }
+
+        #info {
+            padding: 15px 0 0 10px;
+            width: 50%;
+            display: inline-block;
+            vertical-align: top;
         }
 
         #nav {
@@ -91,67 +86,68 @@
             padding: 15px 0 0 0;
         }
 
+        a {
+            color: #0052CC;
+            text-decoration: none;
+        }
+
+        a:hover, a:active, a:focus {
+            text-decoration: underline;
+        }
     </style>
 </head>
 
 <body>
-    <table>
-        <tr>
-            <td><span><b>*</b> = required to input/edit</span></td>
-        </tr>
-        <tr>
-            <td><b>Jira Domain/URL*</b></td>
-            <td>
-                <input id="baseUrl" type="text" placeholder="https://your-domain.atlassian.net"></input>
-            </td>
-        </tr>
-        <tr>
-            <td><b>Username/Email*</b></td>
-            <td>
-                <input id="username" type="text" placeholder="your-email@example.com"></input>
-            </td>
-        </tr>
-        <tr>
-            <td><b>API Token*</b></td>
-            <td>
-                <input id="password" type="password" placeholder="Your API Token"></input>
-            </td>
-        </tr>
-        <tr>
-            <td>Custom JQL</td>
-            <td>
-                <input id="jql" type="text" value="(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)"></input>
-            </td>
-        </tr>
-        <tr>
-            <td></td>
-            <td>
-                <button id="save" class="btn">Save</button>
-            </td>
-        </tr>
-        <tr>
-            <td></td>
-            <td>
-                <script src="options.js"></script>
-            </td>
-        </tr>
-    </table>
-    <div id="status"></div>
-    <script src="jira-api.js"></script>
+    <div class="container">
+        <table>
+            <tr>
+                <td colspan="2"><span><b>*</b> = required to input/edit</span></td>
+                <td> <div id="status"></div> </td>
+            </tr>
+            <tr>
+                <td><b>Jira Domain/URL*</b></td>
+                <td>
+                    <input id="baseUrl" type="text" placeholder="https://your-domain.atlassian.net">
+                </td>
+            </tr>
+            <tr>
+                <td><b>Username/Email*</b></td>
+                <td>
+                    <input id="username" type="text" placeholder="your-email@example.com">
+                </td>
+            </tr>
+            <tr>
+                <td><b>API Token*</b></td>
+                <td>
+                    <input id="password" type="password" placeholder="Your API Token">
+                </td>
+            </tr>
+            <tr>
+                <td>Custom JQL</td>
+                <td>
+                    <input id="jql" type="text" value="(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)">
+                </td>
+            </tr>
+        </table>
 
+        <button id="save" class="btn">Save</button>
+
+    </div>
     <div id="brand">
         <div id="info">
             <div style="text-align: center;">
-                <img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align: middle; margin-right: 10px; width:20px;height:20px;">
-                <span>Designed by <a href="https://github.com/haydencbarnes" target="_blank" style="color: #0052CC;">Hayden Barnes</a> in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></span>
-            </div>
-        </div>
+				<img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align: middle; margin-right: 10px; width:20px;height:20px;"">
+				<span>Designed by <a href="https://github.com/haydencbarnes" target="_blank" style="color: #0052CC;"> Hayden Barnes </a>in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></span>
+			  </div>
+		</div>
         <div id="nav">
             <a href="search.html" tabindex="1" style="color: #0052CC;"><b>Search</b></a> |
             <a href="popup.html" tabindex="1" style="color: #0052CC;"><b>Time Table</b></a> |
             <a href="https://github.com/haydencbarnes/jira-log-time" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
         </div>
     </div>
+    <script src="options.js"></script>
+    <script src="jira-api.js"></script>
 </body>
 
 </html>
