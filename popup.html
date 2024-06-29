@@ -21,13 +21,18 @@
         a:focus {
             text-decoration: underline;
         }
-
+        
         #error {
             padding: 10px;
             color: #cc0000;
             background-color: #ffdddd;
             font-weight: bold;
             display: none;
+            word-wrap: break-word;
+            white-space: normal;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         #error::before {
