@@ -26,7 +26,7 @@ async function JiraAPI(baseUrl, apiExtension, username, apiToken, jql) {
 
     async function getIssues(jql) {
         if (!jql) {
-            throw new Error("JQL query must be provided.");
+            throw new Error("Settings must be set up or JQL query must be provided.");
         }
 
         const encodedJQL = encodeURIComponent(jql);
