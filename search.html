@@ -20,18 +20,23 @@
             padding: 10px;
         }
 
-        .form-group {
+        table {
+            width: 100%;
             margin-bottom: 10px;
-            display: flex;
-            align-items: flex-start;
+        }
+
+        td {
+            padding: 5px 0;
+            vertical-align: middle;
+        }
+
+        td:first-child {
+            width: 20%;
         }
 
         label {
             font-size: 11px;
             font-weight: bold;
-            width: 150px;
-            text-align: right;
-            margin-right: 10px;
         }
 
         input[type="text"], textarea, input[type="date"] {
@@ -42,19 +47,18 @@
 
         .input-wrapper {
             position: relative;
-            width: 63.5%;
+            width: 100%;
         }
 
         .date-picker {
             position: relative;
-            width: 64.25%;
+            width: 100%;
             display: flex;
         }
 
         .date-picker input[type="date"] {
             flex: 1;
             width: auto;
-            margin-right: 5px;
         }
 
         .autocomplete-input {
@@ -176,47 +180,49 @@
 
 <body>
     <div class="container">
-        <div class="form-group">
-            <label for="projectId">Project Id</label>
-            <div class="input-wrapper">
-                <input type="text" id="projectId" class="autocomplete-input" placeholder="Type to search projects">
-                <span class="dropdown-arrow">&#9662;</span>
-                <ul class="autocomplete-list" id="projectList"></ul>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="issueKey">Issue Key</label>
-            <div class="input-wrapper">
-                <input type="text" id="issueKey" class="autocomplete-input" placeholder="Type to search issues">
-                <span class="dropdown-arrow">&#9662;</span>
-                <ul class="autocomplete-list" id="issueList"></ul>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="date">Date</label>
-            <div class="date-picker">
-                <input type="date" id="datePicker">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="timeSpent">Time (e.g., 2h 15m 30s)</label>
-            <div class="input-wrapper">
-                <input type="text" id="timeSpent" placeholder="Enter time as 'Xh Ym Zs'">
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="description">Description</label>
-            <div class="input-wrapper">
-                <textarea id="description" placeholder="Description of work completed..."></textarea>
-            </div>
-        </div>
-
+        <table>
+            <tr>
+                <td><label for="projectId">Project Id</label></td>
+                <td>
+                    <div class="input-wrapper">
+                        <input type="text" id="projectId" class="autocomplete-input" placeholder="Type to search projects">
+                        <span class="dropdown-arrow">&#9662;</span>
+                        <ul class="autocomplete-list" id="projectList"></ul>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="issueKey">Issue Key</label></td>
+                <td>
+                    <div class="input-wrapper">
+                        <input type="text" id="issueKey" class="autocomplete-input" placeholder="Type to search issues">
+                        <span class="dropdown-arrow">&#9662;</span>
+                        <ul class="autocomplete-list" id="issueList"></ul>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="date">Date</label></td>
+                <td>
+                    <div class="date-picker">
+                        <input type="date" id="datePicker">
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td><label for="timeSpent">Time (e.g., 2h 15m 30s)</label></td>
+                <td>
+                    <input type="text" id="timeSpent" placeholder="Enter time as 'Xh Ym Zs'">
+                </td>
+            </tr>
+            <tr>
+                <td><label for="description">Description</label></td>
+                <td>
+                    <textarea id="description" placeholder="Description of work completed..."></textarea>
+                </td>
+            </tr>
+        </table>
         <button id="search">Submit</button>
-        
     </div>
 
     <div id="error"></div>
