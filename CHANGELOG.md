@@ -1,4 +1,7 @@
-## 1.1.2 (jun 28, 2024)
+## 1.1.3 (Jul 03, 2024)
+- Minor UX cleanup/standardization across the extension
+
+## 1.1.2 (Jun 28, 2024)
 - Fixed error messages and other UI/UX issues
 - Added autocomplete for search feature
 
