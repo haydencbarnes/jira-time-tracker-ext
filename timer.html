@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Jira Issue Search</title>
+    <title>Jira Issue Timer</title>
     <style>
         body {
             width: 750px;
@@ -39,7 +39,7 @@
             font-weight: bold;
         }
 
-        input[type="text"], textarea, input[type="date"] {
+        input[type="text"], textarea {
             width: 100%;
             box-sizing: border-box;
             padding: 5px;
@@ -48,17 +48,6 @@
         .input-wrapper {
             position: relative;
             width: 100%;
-        }
-
-        .date-picker {
-            position: relative;
-            width: 100%;
-            display: flex;
-        }
-
-        .date-picker input[type="date"] {
-            flex: 1;
-            width: auto;
         }
 
         .autocomplete-input {
@@ -120,27 +109,33 @@
             font-size: 11px;
             font-weight: bold;
             cursor: pointer;
+            margin-bottom: 10px;
         }
 
         button:hover {
             background: #0041a8;
         }
 
+        #timer {
+            font-size: 24px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
         #error, #success {
             display: none;
             padding: 10px;
+            margin-top: 10px;
         }
 
         #error {
             color: #cc0000;
             background-color: #ffdddd;
-            font-weight: bold;
         }
 
         #success {
             color: #4F8A10;
             background-color: #DFF2BF;
-            font-weight: bold;
         }
 
         #brand {
@@ -201,28 +196,14 @@
                     </div>
                 </td>
             </tr>
-            <tr>
-                <td><label for="date">Date</label></td>
-                <td>
-                    <div class="date-picker">
-                        <input type="date" id="datePicker">
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td><label for="timeSpent">Time (e.g., 2h 15m 30s)</label></td>
-                <td>
-                    <input type="text" id="timeSpent" placeholder="Enter time as 'Xh Ym Zs'">
-                </td>
-            </tr>
-            <tr>
-                <td><label for="description">Description</label></td>
-                <td>
-                    <textarea id="description" placeholder="Description of work completed..."></textarea>
-                </td>
-            </tr>
         </table>
-        <button id="search">Submit</button>
+
+        <div id="timer">00:00:00</div>
+        <button id="startStop">Start Timer</button>
+        <button id="reset">Reset Timer</button>
+
+        <textarea id="description" placeholder="Description of work completed..." rows="4"></textarea>
+        <button id="logTime">Log Time</button>
     </div>
 
     <div id="error"></div>
@@ -236,9 +217,7 @@
             </div>
         </div>
         <div id="nav">
-            <span id="timerLinkContainer" style="display: none;">
-                <a href="timer.html" id="timerLink" tabindex="1" style="color: #0052CC;"><img src="src/icons/timer.png" alt="Timer" style="vertical-align: middle; width:20px; height:20px;"></a> |
-            </span>
+            <a href="search.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/magnifying-glass.png" alt="Search" style="vertical-align: middle; width:19px; height:19px;"></a> |
             <a href="popup.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/cells.png" alt="Time Table" style="vertical-align: middle; width:20px; height:20px;"></a> |
             <a href="options.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/settings.png" alt="Settings" style="vertical-align: middle; width:20px; height:20px;"></a> |
             <a href="https://github.com/haydencbarnes/jira-time-tracker-ext" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
@@ -246,7 +225,7 @@
     </div>
 
     <script src="jira-api.js"></script>
-    <script src="search.js"></script>
+    <script src="timer.js"></script>
 </body>
 
 </html>

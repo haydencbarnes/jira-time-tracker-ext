@@ -7,7 +7,23 @@ async function onDOMContentLoaded() {
         jql: '',
     }, async (options) => {
         await init(options);
+        updateTimerLinkVisibility();
     });
+
+    chrome.storage.onChanged.addListener(function(changes, namespace) {
+        if (namespace === 'sync' && 'experimentalFeatures' in changes) {
+            updateTimerLinkVisibility();
+        }
+    });
+}
+
+function updateTimerLinkVisibility() {
+    const timerLinkContainer = document.getElementById('timerLinkContainer');
+    if (timerLinkContainer) {
+        chrome.storage.sync.get('experimentalFeatures', function(data) {
+            timerLinkContainer.style.display = data.experimentalFeatures ? 'inline' : 'none';
+        });
+    }
 }
 
 function buildHTML(tag, html, attrs) {

@@ -9,10 +9,26 @@ async function onDOMContentLoaded() {
     await init(options);
 
     document.getElementById('search').addEventListener('click', logTimeClick);
+    updateTimerLinkVisibility(); // Add this line
   });
 
   const datePicker = document.getElementById('datePicker');
   datePicker.value = new Date().toISOString().split('T')[0];
+
+  chrome.storage.onChanged.addListener(function(changes, namespace) {
+    if (namespace === 'sync' && 'experimentalFeatures' in changes) {
+      updateTimerLinkVisibility();
+    }
+  });
+}
+
+function updateTimerLinkVisibility() {
+  const timerLinkContainer = document.getElementById('timerLinkContainer');
+  if (timerLinkContainer) {
+      chrome.storage.sync.get('experimentalFeatures', function(data) {
+          timerLinkContainer.style.display = data.experimentalFeatures ? 'inline' : 'none';
+      });
+  }
 }
 
 async function init(options) {

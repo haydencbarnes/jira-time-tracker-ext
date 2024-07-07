@@ -4,6 +4,7 @@
 
     const experimentalFeaturesToggle = document.getElementById('experimentalFeatures');
     const slider = document.querySelector('.slider');
+    const timerLinkContainer = document.getElementById('timerLinkContainer');
 
     // Create shapes
     const shapeCount = 15;
@@ -20,6 +21,12 @@
         slider.appendChild(shape);
     }
 
+    function updateTimerLinkVisibility() {
+        if (timerLinkContainer) {
+            timerLinkContainer.style.display = experimentalFeaturesToggle.checked ? 'inline' : 'none';
+        }
+    }
+
     experimentalFeaturesToggle.addEventListener('change', function() {
         if (this.checked) {
             slider.querySelectorAll('.shape').forEach(shape => {
@@ -30,6 +37,7 @@
                 shape.style.opacity = '0';
             });
         }
+        updateTimerLinkVisibility();
     });
 
     function saveOptions() {
@@ -51,6 +59,7 @@
             setTimeout(function () {
                 status.textContent = '';
             }, 1000);
+            updateTimerLinkVisibility();
         });
     }
 
@@ -68,6 +77,8 @@
             document.getElementById('jql').value = items.jql;
             experimentalFeaturesToggle.checked = items.experimentalFeatures;
     
+            updateTimerLinkVisibility();
+
             const jira = await JiraAPI(items.baseUrl, '/rest/api/2', items.username, items.apiToken, items.jql);
             const issues = await jira.getIssues(items.jql);
         });
