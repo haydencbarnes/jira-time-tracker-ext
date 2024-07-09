@@ -1,3 +1,6 @@
+## 1.1.4 (Jul 09, 2024)
+- Added experimental timer feature
+
 ## 1.1.3 (Jul 03, 2024)
 - Minor UX cleanup/standardization across the extension
 
