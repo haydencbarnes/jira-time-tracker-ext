@@ -48,7 +48,7 @@ async function init(options) {
     await setupAutocomplete(JIRA);
   } catch (error) {
     console.error('Error initializing JIRA API:', error);
-    displayError('Initialization failed.');
+    displayError('Initialization failed. (Settings may need set up.)');
   }
 }
 

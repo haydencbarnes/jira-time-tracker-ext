@@ -49,7 +49,7 @@ async function init(options) {
     document.getElementById('search').addEventListener('click', logTimeClick);
   } catch (error) {
     console.error('Error initializing JIRA API:', error);
-    displayError('Initialization failed.');
+    displayError('Initialization failed. (Settings may need set up.)');
   }
 }
 
