@@ -4,6 +4,7 @@ async function onDOMContentLoaded() {
   chrome.storage.sync.get({
     apiToken: '',
     baseUrl: '',
+    username: '',
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
@@ -35,7 +36,7 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
-    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
     console.log("JIRA API Object initialized:", JIRA);
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
@@ -198,7 +199,7 @@ async function logTimeClick(evt) {
     apiToken: '',
     baseUrl: '',
   }, async (options) => {
-    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken);
+    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken);
 
     try {
       const startedTime = getStartedTime(date);

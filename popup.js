@@ -5,6 +5,7 @@ async function onDOMContentLoaded() {
         apiToken: '',
         baseUrl: '',
         jql: '',
+        username: '',
     }, async (options) => {
         await init(options);
         updateTimerLinkVisibility();
@@ -41,7 +42,7 @@ async function init(options) {
 
     try {
         // Initialize the JIRA API with the provided options
-        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
         console.log("JIRA API Object:", JIRA);
 
         if (!JIRA || typeof JIRA.getIssues !== 'function') {
@@ -176,7 +177,7 @@ async function logTimeClick(evt) {
             })
         );
 
-        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
 
         console.log(`Update worklog details: issueId=${issueId}, timeSpentSeconds=${timeSpentSeconds}, startedTime=${startedTime}, comment=${commentInput.value}`);
         
@@ -293,7 +294,7 @@ function generateLogTableRow(id, summary, worklog, options) {
     });
 
     async function fetchWorklogDetails(issueId, options) {
-        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
         const worklogResponse = await JIRA.getIssueWorklog(issueId);
         return worklogResponse.worklogs;
     }

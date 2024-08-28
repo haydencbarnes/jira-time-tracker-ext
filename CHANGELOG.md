@@ -1,3 +1,6 @@
+## 1.1.5 (Aug 28, 2024)
+- Updated API path requests structure for Jira versions above 7.4.0 (correcting basic auth issues)
+
 ## 1.1.4 (Jul 09, 2024)
 - Added experimental timer feature
 

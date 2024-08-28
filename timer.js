@@ -11,6 +11,7 @@ async function onDOMContentLoaded() {
     baseUrl: '',
     projectId: '',
     issueKey: '',
+    username: '',
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
@@ -36,7 +37,7 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
-    JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', '', options.apiToken, options.jql);
+    JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
     console.log("JIRA API Object initialized:", JIRA);
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
