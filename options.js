@@ -5,6 +5,9 @@
     const experimentalFeaturesToggle = document.getElementById('experimentalFeatures');
     const slider = document.querySelector('.slider');
     const timerLinkContainer = document.getElementById('timerLinkContainer');
+    const jiraTypeSelect = document.getElementById('jiraType');
+    const urlRow = document.getElementById('urlRow');
+    const baseUrlInput = document.getElementById('baseUrl');
 
     // Create shapes
     const shapeCount = 15;
@@ -40,14 +43,26 @@
         updateTimerLinkVisibility();
     });
 
+    jiraTypeSelect.addEventListener('change', function() {
+        if (this.value === 'server') {
+            baseUrlInput.placeholder = 'https://your-jira-server.com';
+            urlRow.querySelector('td:first-child b').textContent = 'Jira Server URL*';
+        } else {
+            baseUrlInput.placeholder = 'https://your-domain.atlassian.net';
+            urlRow.querySelector('td:first-child b').textContent = 'Jira Cloud URL*';
+        }
+    });
+
     function saveOptions() {
+        const jiraType = jiraTypeSelect.value;
         const username = document.getElementById('username').value;
         const apiToken = document.getElementById('password').value;
-        const baseUrl = document.getElementById('baseUrl').value;
+        const baseUrl = baseUrlInput.value;
         const jql = document.getElementById('jql').value;
         const experimentalFeatures = experimentalFeaturesToggle.checked;
 
         chrome.storage.sync.set({
+            jiraType,
             username,
             apiToken,
             baseUrl,
@@ -63,23 +78,28 @@
         });
     }
 
+
     async function restoreOptions() {
         chrome.storage.sync.get({
+            jiraType: 'cloud',
             username: '',
             apiToken: '',
             baseUrl: '',
             jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)',
             experimentalFeatures: false
         }, async function (items) {
+            jiraTypeSelect.value = items.jiraType;
             document.getElementById('username').value = items.username;
             document.getElementById('password').value = items.apiToken;
-            document.getElementById('baseUrl').value = items.baseUrl;
+            baseUrlInput.value = items.baseUrl;
             document.getElementById('jql').value = items.jql;
             experimentalFeaturesToggle.checked = items.experimentalFeatures;
     
             updateTimerLinkVisibility();
+            jiraTypeSelect.dispatchEvent(new Event('change'));
 
-            const jira = await JiraAPI(items.baseUrl, '/rest/api/2', items.username, items.apiToken, items.jql);
+            const apiExtension = items.jiraType === 'cloud' ? '/rest/api/3' : '/rest/api/2';
+            const jira = await JiraAPI(items.jiraType, items.baseUrl, apiExtension, items.username, items.apiToken, items.jql);
             const issues = await jira.getIssues(items.jql);
         });
     }

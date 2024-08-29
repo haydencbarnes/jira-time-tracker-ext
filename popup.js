@@ -370,20 +370,43 @@ function clearMessages() {
 }
 
 
-Date.prototype.toDateInputValue = (function () {
+Date.prototype.toDateInputValue = function () {
     const local = new Date(this);
     local.setMinutes(this.getMinutes() - this.getTimezoneOffset());
     return local.toJSON().slice(0, 10);
-});
+};
 
 function getStartedTime(dateString) {
-    const date = new Date(dateString);
-    const time = new Date();
+    // Parse the input date string
+    const [year, month, day] = dateString.split('-').map(Number);
+    
+    // Create a date object using the local timezone
+    const date = new Date(year, month - 1, day);
+    const now = new Date();
+  
+    // Combine the input date with the current time
+    date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+  
+    // Calculate timezone offset
     const tzo = -date.getTimezoneOffset();
     const dif = tzo >= 0 ? '+' : '-';
-
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}.${pad(time.getMilliseconds())}${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
-}
+  
+    // Format the date string
+    const formattedDate = 
+      `${date.getFullYear()}-` +
+      `${pad(date.getMonth() + 1)}-` +
+      `${pad(date.getDate())}T` +
+      `${pad(date.getHours())}:` +
+      `${pad(date.getMinutes())}:` +
+      `${pad(date.getSeconds())}.` +
+      `${pad(date.getMilliseconds(), 3)}` +
+      `${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
+  
+    console.log("Input date string:", dateString);
+    console.log("Formatted start time:", formattedDate);
+    
+    return formattedDate;
+  }
 
 function pad(num) {
     const norm = Math.abs(Math.floor(num));

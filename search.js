@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
 async function onDOMContentLoaded() {
   chrome.storage.sync.get({
+    jiraType: 'cloud',
     apiToken: '',
     baseUrl: '',
     username: '',
@@ -10,7 +11,7 @@ async function onDOMContentLoaded() {
     await init(options);
 
     document.getElementById('search').addEventListener('click', logTimeClick);
-    updateTimerLinkVisibility(); // Add this line
+    updateTimerLinkVisibility();
   });
 
   const datePicker = document.getElementById('datePicker');
@@ -36,31 +37,37 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
-    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
+    const apiExtension = options.jiraType === 'cloud' ? 'rest/api/3' : 'rest/api/2';
+    
+    // Remove trailing slash from baseUrl if present
+    options.baseUrl = options.baseUrl.replace(/\/$/, '');
+    
+    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, apiExtension, options.username, options.apiToken, options.jql);
     console.log("JIRA API Object initialized:", JIRA);
 
-    if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
-      console.error('JIRA API instantiation failed: Methods missing', JIRA);
-      displayError('JIRA API instantiation failed.');
-      return;
-    }
+      if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
+          console.error('JIRA API instantiation failed: Methods missing', JIRA);
+          displayError('JIRA API instantiation failed.');
+          return;
+      }
 
-    await setupAutocomplete(JIRA);
+      await setupAutocomplete(JIRA);
 
-    document.getElementById('search').addEventListener('click', logTimeClick);
+      document.getElementById('search').addEventListener('click', logTimeClick);
   } catch (error) {
-    console.error('Error initializing JIRA API:', error);
-    displayError('Initialization failed. (Settings may need set up.)');
+      console.error('Error initializing JIRA API:', error);
+      displayError('Initialization failed. (Settings may need set up.)');
   }
 }
 
 async function setupAutocomplete(JIRA) {
   const projectInput = document.getElementById('projectId');
-  const issueInput = document.getElementById('issueKey');
+  const issueInput = document.getElementById('issueKey'); 
   const projectList = document.getElementById('projectList');
   const issueList = document.getElementById('issueList');
 
-  let projects = await JIRA.getProjects();
+  let projectsResponse = await JIRA.getProjects();
+  let projects = projectsResponse.data;
   let projectMap = new Map(projects.map(p => [p.key, p]));
 
   setupDropdownArrow(projectInput);
@@ -72,8 +79,9 @@ async function setupAutocomplete(JIRA) {
     let selectedKey = selected.split(':')[0].trim();
     let selectedProject = projectMap.get(selectedKey);
     if (selectedProject) {
-      let issues = await JIRA.getIssues(`project=${selectedProject.key}`);
-      autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary}`), issueList);
+      let issuesResponse = await JIRA.getIssues(0, selectedProject.key);
+      let issues = issuesResponse.data;
+      autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary || ''}`), issueList);
     }
   });
 }
@@ -196,10 +204,17 @@ async function logTimeClick(evt) {
   console.log("Logging time with parameters:", { projectId, issueKey, date, timeSpent, description });
 
   chrome.storage.sync.get({
+    jiraType: 'cloud',
     apiToken: '',
     baseUrl: '',
+    username: '',
   }, async (options) => {
-    const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken);
+    const apiExtension = options.jiraType === 'cloud' ? 'rest/api/3' : 'rest/api/2';
+    
+    // Remove trailing slash from baseUrl if present
+    options.baseUrl = options.baseUrl.replace(/\/$/, '');
+    
+    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, apiExtension, options.username, options.apiToken);
 
     try {
       const startedTime = getStartedTime(date);
@@ -225,12 +240,39 @@ async function logTimeClick(evt) {
 }
 
 function getStartedTime(dateString) {
-  const date = new Date(dateString);
-  const time = new Date();
+  // Parse the input date string
+  const [year, month, day] = dateString.split('-').map(Number);
+  
+  // Create a date object using the local timezone
+  const date = new Date(year, month - 1, day);
+  const now = new Date();
+
+  // Combine the input date with the current time
+  date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
+  // Calculate timezone offset
   const tzo = -date.getTimezoneOffset();
   const dif = tzo >= 0 ? '+' : '-';
 
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}.${pad(time.getMilliseconds())}${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
+  // Format the date string
+  const formattedDate = 
+    `${date.getFullYear()}-` +
+    `${pad(date.getMonth() + 1)}-` +
+    `${pad(date.getDate())}T` +
+    `${pad(date.getHours())}:` +
+    `${pad(date.getMinutes())}:` +
+    `${pad(date.getSeconds())}.` +
+    `${pad(date.getMilliseconds(), 3)}` +
+    `${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
+
+  console.log("Input date string:", dateString);
+  console.log("Formatted start time:", formattedDate);
+  
+  return formattedDate;
+}
+
+function pad(num, size = 2) {
+  return num.toString().padStart(size, '0');
 }
 
 function convertTimeToSeconds(timeStr) {

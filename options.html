@@ -152,6 +152,13 @@
             50% { transform: translateY(-10px) rotate(180deg); }
             100% { transform: translateY(0) rotate(360deg); }
         }
+
+        select {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
     </style>
 </head>
 
@@ -163,7 +170,16 @@
                 <td> <div id="status"></div> </td>
             </tr>
             <tr>
-                <td><b>Jira Domain/URL*</b></td>
+                <td><b>Jira Instance Type*</b></td>
+                <td>
+                    <select id="jiraType">
+                        <option value="cloud">Jira Cloud</option>
+                        <option value="server">Jira Server</option>
+                    </select>
+                </td>
+            </tr>
+            <tr id="urlRow">
+                <td><b>Jira URL*</b></td>
                 <td>
                     <input id="baseUrl" type="text" placeholder="https://your-domain.atlassian.net">
                 </td>
