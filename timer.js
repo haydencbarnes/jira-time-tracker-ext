@@ -12,6 +12,7 @@ async function onDOMContentLoaded() {
     projectId: '',
     issueKey: '',
     username: '',
+    jiraType: 'server' // Default to 'server', change if needed
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
@@ -37,7 +38,8 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
-    JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
+    // Initialize the JIRA API with the provided options
+    JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
     console.log("JIRA API Object initialized:", JIRA);
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
@@ -59,7 +61,8 @@ async function setupAutocomplete(JIRA) {
   const projectList = document.getElementById('projectList');
   const issueList = document.getElementById('issueList');
 
-  let projects = await JIRA.getProjects();
+  let projectsResponse = await JIRA.getProjects();
+  let projects = projectsResponse.data;
   let projectMap = new Map(projects.map(p => [p.key, p]));
 
   setupDropdownArrow(projectInput);
@@ -71,10 +74,13 @@ async function setupAutocomplete(JIRA) {
     let selectedKey = selected.split(':')[0].trim();
     let selectedProject = projectMap.get(selectedKey);
     if (selectedProject) {
-      let issues = await JIRA.getIssues(`project=${selectedProject.key}`);
+      let jql = `project=${selectedProject.key}`;
+      let issuesResponse = await JIRA.getIssues(0, jql);
+      let issues = issuesResponse.data;
       autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary}`), issueList, (selectedIssue) => {
         // Save selected issue
         chrome.storage.sync.set({ issueKey: selectedIssue.split(':')[0].trim() });
+        issueInput.value = selectedIssue; // Set the issue input field to the selected issue with title
       });
     }
     // Save selected project
@@ -97,88 +103,88 @@ function toggleDropdown(input) {
 }
 
 function autocomplete(inp, arr, listElement, onSelect = null) {
-    let currentFocus;
-    let isOpen = false;
-    
-    inp.addEventListener("input", function(e) {
-      showDropdown(this.value);
-    });
+  let currentFocus;
+  let isOpen = false;
   
-    inp.addEventListener("toggleDropdown", function(e) {
-      if (isOpen) {
-        closeAllLists();
-      } else {
-        showDropdown('');
-      }
-    });
-  
-    function showDropdown(val) {
+  inp.addEventListener("input", function(e) {
+    showDropdown(this.value);
+  });
+
+  inp.addEventListener("toggleDropdown", function(e) {
+    if (isOpen) {
       closeAllLists();
-      currentFocus = -1;
-      isOpen = true;
-      
-      let matches = arr.filter(item => item.toLowerCase().includes(val.toLowerCase()));
-      if (matches.length === 0 && !val) {
-        matches = arr; // Show all options if input is empty
-      }
-      matches.forEach(item => {
-        let li = document.createElement("li");
-        li.innerHTML = item;
-        li.addEventListener("click", function(e) {
-          inp.value = this.innerHTML;
-          closeAllLists();
-          if (onSelect) onSelect(this.innerHTML);
-        });
-        listElement.appendChild(li);
+    } else {
+      showDropdown('');
+    }
+  });
+
+  function showDropdown(val) {
+    closeAllLists();
+    currentFocus = -1;
+    isOpen = true;
+    
+    let matches = arr.filter(item => item.toLowerCase().includes(val.toLowerCase()));
+    if (matches.length === 0 && !val) {
+      matches = arr; // Show all options if input is empty
+    }
+    matches.forEach(item => {
+      let li = document.createElement("li");
+      li.innerHTML = item;
+      li.addEventListener("click", function(e) {
+        inp.value = this.innerHTML;
+        closeAllLists();
+        if (onSelect) onSelect(this.innerHTML);
       });
-    }
-  
-    inp.addEventListener("keydown", function(e) {
-      let x = listElement.getElementsByTagName("li");
-      if (e.keyCode == 40) {
-        currentFocus++;
-        addActive(x);
-      } else if (e.keyCode == 38) {
-        currentFocus--;
-        addActive(x);
-      } else if (e.keyCode == 13) {
-        e.preventDefault();
-        if (currentFocus > -1) {
-          if (x) x[currentFocus].click();
-        }
-      }
-    });
-  
-    function addActive(x) {
-      if (!x) return false;
-      removeActive(x);
-      if (currentFocus >= x.length) currentFocus = 0;
-      if (currentFocus < 0) currentFocus = (x.length - 1);
-      x[currentFocus].classList.add("autocomplete-active");
-    }
-  
-    function removeActive(x) {
-      for (var i = 0; i < x.length; i++) {
-        x[i].classList.remove("autocomplete-active");
-      }
-    }
-  
-    function closeAllLists(elmnt) {
-      var x = document.getElementsByClassName("autocomplete-list");
-      for (var i = 0; i < x.length; i++) {
-        if (elmnt != x[i] && elmnt != inp) {
-          x[i].innerHTML = '';
-        }
-      }
-      isOpen = false;
-    }
-  
-    document.addEventListener("click", function (e) {
-      if (e.target !== inp && e.target !== inp.nextElementSibling) {
-        closeAllLists(e.target);
-      }
+      listElement.appendChild(li);
     });
   }
+
+  inp.addEventListener("keydown", function(e) {
+    let x = listElement.getElementsByTagName("li");
+    if (e.keyCode == 40) {
+      currentFocus++;
+      addActive(x);
+    } else if (e.keyCode == 38) {
+      currentFocus--;
+      addActive(x);
+    } else if (e.keyCode == 13) {
+      e.preventDefault();
+      if (currentFocus > -1) {
+        if (x) x[currentFocus].click();
+      }
+    }
+  });
+
+  function addActive(x) {
+    if (!x) return false;
+    removeActive(x);
+    if (currentFocus >= x.length) currentFocus = 0;
+    if (currentFocus < 0) currentFocus = (x.length - 1);
+    x[currentFocus].classList.add("autocomplete-active");
+  }
+
+  function removeActive(x) {
+    for (var i = 0; i < x.length; i++) {
+      x[i].classList.remove("autocomplete-active");
+    }
+  }
+
+  function closeAllLists(elmnt) {
+    var x = document.getElementsByClassName("autocomplete-list");
+    for (var i = 0; i < x.length; i++) {
+      if (elmnt != x[i] && elmnt != inp) {
+        x[i].innerHTML = '';
+      }
+    }
+    isOpen = false;
+  }
+
+  document.addEventListener("click", function (e) {
+    if (e.target !== inp && e.target !== inp.nextElementSibling) {
+      closeAllLists(e.target);
+    }
+  });
+}
 
 function setupInputFocus(input) {
   input.addEventListener("focus", function(e) {

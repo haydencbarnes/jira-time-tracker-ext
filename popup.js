@@ -6,6 +6,7 @@ async function onDOMContentLoaded() {
         baseUrl: '',
         jql: '',
         username: '',
+        jiraType: 'server' // Default to 'server', change if needed
     }, async (options) => {
         await init(options);
         updateTimerLinkVisibility();
@@ -36,13 +37,12 @@ function buildHTML(tag, html, attrs) {
     return element;
 }
 
-
 async function init(options) {
     console.log("Options received:", options);
 
     try {
         // Initialize the JIRA API with the provided options
-        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
+        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
         console.log("JIRA API Object:", JIRA);
 
         if (!JIRA || typeof JIRA.getIssues !== 'function') {
@@ -55,7 +55,7 @@ async function init(options) {
         toggleVisibility('div[id=loader-container]');
         try {
             // Fetch the issues from Jira
-            const issuesResponse = await JIRA.getIssues(options.jql);
+            const issuesResponse = await JIRA.getIssues(0, options.jql);
             onFetchSuccess(issuesResponse, options); // Pass options to the function
         } catch (error) {
             console.error('Error fetching issues:', error);
@@ -169,7 +169,7 @@ async function logTimeClick(evt) {
 
     try {
         const options = await new Promise((resolve, reject) => 
-            chrome.storage.sync.get(['baseUrl', 'apiToken', 'jql'], items => {
+            chrome.storage.sync.get(['baseUrl', 'apiToken', 'jql', 'username', 'jiraType'], items => {
                 if (chrome.runtime.lastError) {
                     return reject(chrome.runtime.lastError);
                 }
@@ -177,7 +177,7 @@ async function logTimeClick(evt) {
             })
         );
 
-        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
+        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
 
         console.log(`Update worklog details: issueId=${issueId}, timeSpentSeconds=${timeSpentSeconds}, startedTime=${startedTime}, comment=${commentInput.value}`);
         
@@ -244,10 +244,12 @@ function toggleVisibility(query) {
     }
 }
 
-function drawIssuesTable(issues, options) {
+function drawIssuesTable(issuesResponse, options) {
     const logTable = document.getElementById('jira-log-time-table');
     const tbody = buildHTML('tbody');
 
+    // Ensure issuesResponse.data is an array
+    const issues = issuesResponse.data || [];
     issues.forEach(function(issue) {
         const row = generateLogTableRow(issue.key, issue.fields.summary, issue.fields.worklog, options);
         tbody.appendChild(row);
@@ -271,8 +273,9 @@ function generateLogTableRow(id, summary, worklog, options) {
 
     const summaryCell = buildHTML('td', summary, { class: 'issue-summary truncate' });
 
-    // Sum the total time from all worklogs and convert to hours
-    const totalTimeSeconds = worklog.worklogs.reduce((total, log) => total + log.timeSpentSeconds, 0);
+    // Ensure worklog is defined and has a default value
+    const worklogs = worklog?.worklogs || [];
+    const totalTimeSeconds = worklogs.reduce((total, log) => total + log.timeSpentSeconds, 0);
     const totalTime = (totalTimeSeconds / 3600).toFixed(2) + ' hrs';
 
     // Create the total time cell and loader elements
@@ -294,7 +297,7 @@ function generateLogTableRow(id, summary, worklog, options) {
     });
 
     async function fetchWorklogDetails(issueId, options) {
-        const JIRA = await JiraAPI(options.baseUrl, '/rest/api/2', options.username, options.apiToken, options.jql);
+        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
         const worklogResponse = await JIRA.getIssueWorklog(issueId);
         return worklogResponse.worklogs;
     }
@@ -369,7 +372,6 @@ function clearMessages() {
     if (success) success.style.display = 'none';
 }
 
-
 Date.prototype.toDateInputValue = function () {
     const local = new Date(this);
     local.setMinutes(this.getMinutes() - this.getTimezoneOffset());
@@ -406,7 +408,7 @@ function getStartedTime(dateString) {
     console.log("Formatted start time:", formattedDate);
     
     return formattedDate;
-  }
+}
 
 function pad(num) {
     const norm = Math.abs(Math.floor(num));

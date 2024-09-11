@@ -1,3 +1,6 @@
+## 1.2.0 (Sep 11, 2024)
+- NEW! The extension now supports Jira Cloud users! Atlassian Jira API V2 and V3 are both now supported. All features, including experimental features, are now available for Jira Cloud users.
+
 ## 1.1.5 (Aug 28, 2024)
 - Updated API path requests structure for Jira versions above 7.4.0 (correcting basic auth issues)
 

@@ -1,4 +1,4 @@
-async function JiraAPI(jiraType, baseUrl, apiExtension, username, apiToken, jql) {
+async function JiraAPI(jiraType, baseUrl, username, apiToken) {
     const isJiraCloud = jiraType === 'cloud';
     const apiVersion = isJiraCloud ? '3' : '2';
 
@@ -37,8 +37,7 @@ async function JiraAPI(jiraType, baseUrl, apiExtension, username, apiToken, jql)
         return apiRequest(`/issue/${id}`);
     }
 
-    async function getIssues(begin = 0, projectId) {
-        const jql = projectId ? `project=${projectId}` : "";
+    async function getIssues(begin = 0, jql) {
         const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project&maxResults=500&startAt=${begin}`;
         console.log(`Requesting issues from: ${endpoint}`);
         const response = await apiRequest(endpoint, 'GET');
@@ -80,46 +79,41 @@ async function JiraAPI(jiraType, baseUrl, apiExtension, username, apiToken, jql)
                 ],
             }
             : comment;
-    
+
         const data = {
             timeSpentSeconds,
             comment: formattedComment,
             started: parseDate(started)
         };
-    
+
         return apiRequest(endpoint, 'POST', data);
     }    
-    
+
     function parseDate(date) {
         const dateObj = new Date(date);
-    
+
         // ISO string: "2024-06-11T00:15:38.399Z"
         const isoString = dateObj.toISOString();
-    
+
         // Remove "Z" and append "+0000" to make it "2024-06-11T00:15:38.399+0000"
         const formattedDate = isoString.slice(0, -1) + "+0000";
-    
+
         console.log("Parsed Date:", formattedDate); // For debugging purposes
         return formattedDate;
     }
 
     async function apiRequest(endpoint, method = 'GET', data = null) {
-        let url;
-        if (isJiraCloud) {
-            url = `https://${baseUrl}/rest/api/${apiVersion}${endpoint}`;
-        } else {
-            // Remove any leading '/rest/api/X' from the endpoint as it's already included in the baseUrl
-            const cleanEndpoint = endpoint.replace(/^\/rest\/api\/\d+/, '');
-            url = `${baseUrl}/rest/api/${apiVersion}${cleanEndpoint}`;
-        }
+        // Ensure the endpoint does not duplicate the base URL path
+        const cleanEndpoint = endpoint.replace(/^\/rest\/api\/\d+/, '').replace(/^\/+/, '');
+        const url = isJiraCloud 
+            ? `https://${baseUrl}/rest/api/${apiVersion}/${cleanEndpoint}`
+            : `${baseUrl.startsWith('http') ? '' : 'https://'}${baseUrl}/rest/api/${apiVersion}/${cleanEndpoint}`;
         
         const options = {
-            method: method,
-            headers: headers,
+            method,
+            headers,
+            ...(data && method === 'POST' && { body: JSON.stringify(data) })
         };
-        if (data && method === 'POST') {
-            options.body = JSON.stringify(data);
-        }
     
         console.log(`Making API request to URL: ${url} with options:`, options);
     
@@ -131,46 +125,24 @@ async function JiraAPI(jiraType, baseUrl, apiExtension, username, apiToken, jql)
     
             if (response.ok) {
                 console.log("API request successful");
-                if (contentType && contentType.includes("application/json")) {
-                    return await response.json();
-                } else {
-                    const text = await response.text();
-                    console.warn("Expected JSON but received:", text);
-                    return {
-                        status: response.status,
-                        statusText: response.statusText,
-                        responseText: text
-                    };
-                }
+                return contentType?.includes("application/json") ? await response.json() : await response.text();
             } else {
-                let errorData;
-                if (contentType && contentType.includes("application/json")) {
-                    errorData = await response.json();
-                } else {
-                    errorData = await response.text();
-                }
+                const errorData = contentType?.includes("application/json") ? await response.json() : await response.text();
                 handleJiraResponseError(response, errorData);
             }
         } catch (error) {
             console.error(`API Request to ${url} failed:`, error);
             throw new Error(`API request failed: ${error.message}`);
         }
-    }
+    }    
 
     function handleJiraResponseError(response, errorData) {
-        let errorMsg = 'Unknown error';
-        if (response.status >= 400) {
-            if (typeof errorData === 'string') {
-                errorMsg = errorData;
-            } else if (errorData && errorData.errorMessages) {
-                errorMsg = errorData.errorMessages.join(', ');
-            } else if (errorData && errorData.errors) {
-                errorMsg = JSON.stringify(errorData.errors);
-            } else {
-                errorMsg = response.statusText;
-            }
-        }
-    
+        const errorMsg = typeof errorData === 'string' 
+            ? errorData 
+            : errorData?.errorMessages?.join(', ') 
+            || JSON.stringify(errorData?.errors) 
+            || response.statusText;
+
         console.error(`Error ${response.status}: ${errorMsg}`);
         throw new Error(`Error ${response.status}: ${errorMsg}`);
     }
@@ -197,9 +169,9 @@ async function JiraAPI(jiraType, baseUrl, apiExtension, username, apiToken, jql)
             return { total: 0, data: [] };
         }
     }    
-    
+
     function handleIssueResp(resp) {
-        if (!resp || !resp.issues) {
+        if (!resp?.issues) {
             console.error("Invalid issue response format:", resp);
             return { total: 0, data: [] };
         }
@@ -209,22 +181,10 @@ async function JiraAPI(jiraType, baseUrl, apiExtension, username, apiToken, jql)
                 key: issue.key,
                 fields: {
                     summary: issue.fields.summary,
-                    project: issue.fields.project
+                    project: issue.fields.project,
+                    worklog: issue.fields.worklog || { worklogs: [] }
                 }
             }))
         };
     }  
-
-    function issuesValidator(body) {
-        if (typeof body === "object" && body !== null && "issues" in body) {
-            const partial = body;
-            return Array.isArray(partial.issues);
-        }
-        return false;
-    }
-
-    function handlePaginationResp(resp) {
-        return resp.total || 0;
-    }
-
 }

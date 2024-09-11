@@ -37,26 +37,22 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
-    const apiExtension = options.jiraType === 'cloud' ? 'rest/api/3' : 'rest/api/2';
-    
-    // Remove trailing slash from baseUrl if present
-    options.baseUrl = options.baseUrl.replace(/\/$/, '');
-    
-    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, apiExtension, options.username, options.apiToken, options.jql);
+    // Initialize the JIRA API with the provided options
+    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
     console.log("JIRA API Object initialized:", JIRA);
 
-      if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
-          console.error('JIRA API instantiation failed: Methods missing', JIRA);
-          displayError('JIRA API instantiation failed.');
-          return;
-      }
+    if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
+      console.error('JIRA API instantiation failed: Methods missing', JIRA);
+      displayError('JIRA API instantiation failed.');
+      return;
+    }
 
-      await setupAutocomplete(JIRA);
+    await setupAutocomplete(JIRA);
 
-      document.getElementById('search').addEventListener('click', logTimeClick);
+    document.getElementById('search').addEventListener('click', logTimeClick);
   } catch (error) {
-      console.error('Error initializing JIRA API:', error);
-      displayError('Initialization failed. (Settings may need set up.)');
+    console.error('Error initializing JIRA API:', error);
+    displayError('Initialization failed. (Settings may need set up.)');
   }
 }
 
@@ -79,7 +75,8 @@ async function setupAutocomplete(JIRA) {
     let selectedKey = selected.split(':')[0].trim();
     let selectedProject = projectMap.get(selectedKey);
     if (selectedProject) {
-      let issuesResponse = await JIRA.getIssues(0, selectedProject.key);
+      let jql = `project=${selectedProject.key}`;
+      let issuesResponse = await JIRA.getIssues(0, jql);
       let issues = issuesResponse.data;
       autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary || ''}`), issueList);
     }
@@ -209,12 +206,7 @@ async function logTimeClick(evt) {
     baseUrl: '',
     username: '',
   }, async (options) => {
-    const apiExtension = options.jiraType === 'cloud' ? 'rest/api/3' : 'rest/api/2';
-    
-    // Remove trailing slash from baseUrl if present
-    options.baseUrl = options.baseUrl.replace(/\/$/, '');
-    
-    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, apiExtension, options.username, options.apiToken);
+    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
 
     try {
       const startedTime = getStartedTime(date);
