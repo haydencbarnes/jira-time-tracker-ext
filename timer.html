@@ -3,6 +3,7 @@
 
 <head>
     <title>Jira Issue Timer</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         body {
             width: 750px;
@@ -22,7 +23,7 @@
 
         table {
             width: 100%;
-            margin-bottom: 10px;
+            margin-bottom: 0px;
         }
 
         td {
@@ -99,6 +100,38 @@
             background-color: #e9e9e9 !important; 
         }
 
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .time-button {
+            background: #0052CC;
+            color: #fff;
+            border-radius: 8px;
+            border: none;
+            padding: 10px 20px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0;
+            flex-grow: 1;
+            margin-left: 5px; 
+            margin-right: 5px; 
+        }
+
+        .time-button:first-child {
+            margin-left: 0;
+        }
+
+        .time-button:last-child {
+            margin-right: 0;
+        }
+
+        .time-button:hover {
+            background: #0041a8;
+        }
+
         button {
             width: 100%;
             background: #0052CC;
@@ -119,7 +152,7 @@
         #timer {
             font-size: 24px;
             text-align: center;
-            margin: 20px 0;
+            margin: 8px 0;
         }
 
         #error, #success {
@@ -197,13 +230,23 @@
                 </td>
             </tr>
         </table>
-
+        
         <div id="timer">00:00:00</div>
-        <button id="startStop">Start Timer</button>
-        <button id="reset">Reset Timer</button>
+        <div class="button-container">
+            <button id="add15min" class="time-button">+ 15 min</button>
+            <button id="add30min" class="time-button">+ 30 min</button>
+            <button id="add1hr" class="time-button">+ 1 hr</button>
+        </div>
+        <button id="startStop">
+            <span class="material-icons" id="startStopIcon">play_arrow</span>
+        </button>
+        <!-- Reset button with refresh icon -->
+        <button id="reset">
+            <span class="material-icons">refresh</span>
+        </button>
 
         <textarea id="description" placeholder="Description of work completed..." rows="4"></textarea>
-        <button id="logTime" style="margin-top: 10px;">Log Time</button>
+        <button id="logTime" style="margin-top: 10px;">Submit</button>
     </div>
 
     <div id="error"></div>

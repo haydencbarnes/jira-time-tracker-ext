@@ -196,13 +196,16 @@ function setupInputFocus(input) {
 
 function toggleTimer() {
   const startStopButton = document.getElementById('startStop');
+  const startStopIcon = document.getElementById('startStopIcon');
+
   if (isRunning) {
     clearInterval(timer);
-    startStopButton.textContent = 'Start Timer';
+    startStopIcon.textContent = 'play_arrow';
   } else {
     timer = setInterval(updateTimer, 1000);
-    startStopButton.textContent = 'Stop Timer';
+    startStopIcon.textContent = 'stop';
   }
+
   isRunning = !isRunning;
   saveTimerState();
 }
@@ -228,7 +231,8 @@ function resetTimer() {
   isRunning = false;
   seconds = 0;
   updateTimerDisplay();
-  document.getElementById('startStop').textContent = 'Start Timer';
+  const startStopIcon = document.getElementById('startStopIcon');
+  startStopIcon.textContent = 'play_arrow';
   chrome.storage.sync.remove(['timerSeconds', 'timerIsRunning', 'timerLastUpdated']);
 }
 
@@ -299,16 +303,45 @@ function restoreTimerState() {
   }, function(items) {
     seconds = items.timerSeconds;
     isRunning = items.timerIsRunning;
-    
+
     if (isRunning && items.timerLastUpdated) {
       const elapsedSeconds = Math.floor((new Date().getTime() - items.timerLastUpdated) / 1000);
       seconds += elapsedSeconds;
     }
-    
+
     updateTimerDisplay();
+    const startStopIcon = document.getElementById('startStopIcon');
     if (isRunning) {
       timer = setInterval(updateTimer, 1000);
-      document.getElementById('startStop').textContent = 'Stop Timer';
+      startStopIcon.textContent = 'stop';
+    } else {
+      startStopIcon.textContent = 'play_arrow';
     }
   });
+}
+
+document.getElementById('add15min').addEventListener('click', function() {
+  addTime(15 * 60);  // Add 15 minutes in seconds
+});
+
+document.getElementById('add30min').addEventListener('click', function() {
+  addTime(30 * 60);  // Add 30 minutes in seconds
+});
+
+document.getElementById('add1hr').addEventListener('click', function() {
+  addTime(60 * 60);  // Add 1 hour in seconds
+});
+
+document.getElementById('addCustomTime').addEventListener('click', function() {
+  const customMinutes = parseInt(document.getElementById('customTime').value, 10);
+  if (!isNaN(customMinutes)) {
+    addTime(customMinutes * 60);  // Convert custom minutes to seconds and add
+  }
+});
+
+// Function to add time to the timer
+function addTime(secondsToAdd) {
+  seconds += secondsToAdd;  // Add the provided seconds to the timer
+  updateTimerDisplay();  // Update the displayed time
+  saveTimerState();  // Save the updated time to storage
 }
