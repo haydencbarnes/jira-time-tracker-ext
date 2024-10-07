@@ -197,13 +197,16 @@ function setupInputFocus(input) {
 function toggleTimer() {
   const startStopButton = document.getElementById('startStop');
   const startStopIcon = document.getElementById('startStopIcon');
+  const timerAnimation = document.getElementById('timer-animation');
 
   if (isRunning) {
     clearInterval(timer);
     startStopIcon.textContent = 'play_arrow';
+    timerAnimation.style.display = 'none'; // Stop the animation when timer stops
   } else {
     timer = setInterval(updateTimer, 1000);
     startStopIcon.textContent = 'stop';
+    timerAnimation.style.display = 'block'; // Start the animation when timer starts
   }
 
   isRunning = !isRunning;
@@ -232,7 +235,9 @@ function resetTimer() {
   seconds = 0;
   updateTimerDisplay();
   const startStopIcon = document.getElementById('startStopIcon');
+  const timerAnimation = document.getElementById('timer-animation');
   startStopIcon.textContent = 'play_arrow';
+  timerAnimation.style.display = 'none'; // Hide animation when timer is reset
   chrome.storage.sync.remove(['timerSeconds', 'timerIsRunning', 'timerLastUpdated']);
 }
 
@@ -311,11 +316,14 @@ function restoreTimerState() {
 
     updateTimerDisplay();
     const startStopIcon = document.getElementById('startStopIcon');
+    const timerAnimation = document.getElementById('timer-animation');
     if (isRunning) {
       timer = setInterval(updateTimer, 1000);
       startStopIcon.textContent = 'stop';
+      timerAnimation.style.display = 'block'; // Show animation if timer was running
     } else {
       startStopIcon.textContent = 'play_arrow';
+      timerAnimation.style.display = 'none'; // Hide animation if timer was stopped
     }
   });
 }

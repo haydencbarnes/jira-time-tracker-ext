@@ -18,6 +18,12 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 2. **Edit Entries**: You can add your logged time entries as needed.
 3. **Detailed View**: Click on any issue to open it in Jira.
 
+### How Timer Works
+1. **Start Timer**: Click the "play" button to begin tracking time spent on a task.
+2. **Stop Timer**: Click the "stop" button to end the timer.
+3. **Fill Out Details**: Enter a brief description of the work completed.
+4. **Submit**: Click the "Submit" button to log your time. You will receive a success message and the timer fields will clear automatically.
+
 ## Settings/Preferences
 The below settings must be set for this extension to work properly.
 

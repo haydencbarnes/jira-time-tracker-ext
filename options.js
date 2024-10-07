@@ -24,12 +24,6 @@
         slider.appendChild(shape);
     }
 
-    function updateTimerLinkVisibility() {
-        if (timerLinkContainer) {
-            timerLinkContainer.style.display = experimentalFeaturesToggle.checked ? 'inline' : 'none';
-        }
-    }
-
     experimentalFeaturesToggle.addEventListener('change', function() {
         if (this.checked) {
             slider.querySelectorAll('.shape').forEach(shape => {
@@ -74,7 +68,6 @@
             setTimeout(function () {
                 status.textContent = '';
             }, 1000);
-            updateTimerLinkVisibility();
         });
     }
 
@@ -95,7 +88,6 @@
             document.getElementById('jql').value = items.jql;
             experimentalFeaturesToggle.checked = items.experimentalFeatures;
     
-            updateTimerLinkVisibility();
             jiraTypeSelect.dispatchEvent(new Event('change'));
 
             const apiExtension = items.jiraType === 'cloud' ? '/rest/api/3' : '/rest/api/2';

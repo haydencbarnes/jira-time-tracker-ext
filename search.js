@@ -24,15 +24,6 @@ async function onDOMContentLoaded() {
   });
 }
 
-function updateTimerLinkVisibility() {
-  const timerLinkContainer = document.getElementById('timerLinkContainer');
-  if (timerLinkContainer) {
-      chrome.storage.sync.get('experimentalFeatures', function(data) {
-          timerLinkContainer.style.display = data.experimentalFeatures ? 'inline' : 'none';
-      });
-  }
-}
-
 async function init(options) {
   console.log("Options received:", options);
 

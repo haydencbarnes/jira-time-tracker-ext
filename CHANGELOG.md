@@ -1,3 +1,6 @@
+## 1.2.1 (Oct 07, 2024)
+- New feature: Added timer feature to the extension. Users can now start and stop a timer to track time spent on Jira tasks. The feature alsp includes quick add functionality to add time in 15min, 30min, and 1hr increments.
+
 ## 1.2.0 (Sep 11, 2024)
 - NEW! The extension now supports Jira Cloud users! Atlassian Jira API V2 and V3 are both now supported. All features, including experimental features, are now available for Jira Cloud users.
 

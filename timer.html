@@ -88,16 +88,16 @@
         .autocomplete-list li {
             padding: 10px;
             cursor: pointer;
-            background-color: #fff; 
-            border-bottom: 1px solid #d4d4d4; 
+            background-color: #fff;
+            border-bottom: 1px solid #d4d4d4;
         }
 
         .autocomplete-list li:hover {
-            background-color: #e9e9e9; 
+            background-color: #e9e9e9;
         }
 
         .autocomplete-active {
-            background-color: #e9e9e9 !important; 
+            background-color: #e9e9e9 !important;
         }
 
         .button-container {
@@ -116,8 +116,8 @@
             cursor: pointer;
             margin: 0;
             flex-grow: 1;
-            margin-left: 5px; 
-            margin-right: 5px; 
+            margin-left: 5px;
+            margin-right: 5px;
         }
 
         .time-button:first-child {
@@ -149,10 +149,43 @@
             background: #0041a8;
         }
 
+        #startStop,
+        #reset {
+            width: calc(50% - 5px);
+            padding: 10px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #startStop-reset-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
         #timer {
             font-size: 24px;
             text-align: center;
             margin: 8px 0;
+        }
+
+        #timer-animation {
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, #0052CC 0%, #0052CC 20%, #e0e0e0 20%, #e0e0e0 100%);
+            background-size: 200% auto;
+            animation: slide 2s linear infinite;
+            margin-bottom: 8px;
+            display: none;
+        }
+
+        @keyframes slide {
+            0% {
+                background-position: 0% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
         }
 
         #error, #success {
@@ -208,6 +241,7 @@
 
 <body>
     <div class="container">
+        <div id="timer-animation"></div>
         <table>
             <tr>
                 <td><label for="projectId">Project Id</label></td>
@@ -237,13 +271,14 @@
             <button id="add30min" class="time-button">+ 30 min</button>
             <button id="add1hr" class="time-button">+ 1 hr</button>
         </div>
-        <button id="startStop">
-            <span class="material-icons" id="startStopIcon">play_arrow</span>
-        </button>
-        <!-- Reset button with refresh icon -->
-        <button id="reset">
-            <span class="material-icons">refresh</span>
-        </button>
+        <div id="startStop-reset-container">
+            <button id="startStop">
+                <span class="material-icons" id="startStopIcon">play_arrow</span>
+            </button>
+            <button id="reset">
+                <span class="material-icons">refresh</span>
+            </button>
+        </div>
 
         <textarea id="description" placeholder="Description of work completed..." rows="4"></textarea>
         <button id="logTime" style="margin-top: 10px;">Submit</button>
