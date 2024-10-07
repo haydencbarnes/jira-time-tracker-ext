@@ -9,7 +9,6 @@ async function onDOMContentLoaded() {
         jiraType: 'server' // Default to 'server', change if needed
     }, async (options) => {
         await init(options);
-        updateTimerLinkVisibility();
     });
 
 }

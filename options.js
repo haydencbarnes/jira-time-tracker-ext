@@ -34,7 +34,6 @@
                 shape.style.opacity = '0';
             });
         }
-        updateTimerLinkVisibility();
     });
 
     jiraTypeSelect.addEventListener('change', function() {

@@ -11,7 +11,6 @@ async function onDOMContentLoaded() {
     await init(options);
 
     document.getElementById('search').addEventListener('click', logTimeClick);
-    updateTimerLinkVisibility();
   });
 
   const datePicker = document.getElementById('datePicker');
@@ -19,7 +18,6 @@ async function onDOMContentLoaded() {
 
   chrome.storage.onChanged.addListener(function(changes, namespace) {
     if (namespace === 'sync' && 'experimentalFeatures' in changes) {
-      updateTimerLinkVisibility();
     }
   });
 }
