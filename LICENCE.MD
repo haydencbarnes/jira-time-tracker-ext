@@ -1,6 +1,7 @@
 MIT License with Commons Clause
 
 Original MIT License Copyright (c) 2016 Luka Siric
+
 Modifications Copyright (c) 2024 Hayden Barnes
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
