@@ -260,8 +260,12 @@ async function logTimeClick() {
     document.getElementById('description').value = '';
     resetTimer();
   } catch (error) {
-    console.error('Error logging time:', error);
-    displayError(`Error logging time: ${error.message}`);
+    if (error.message.includes('API request failed: Error 400: Worklog must not be null.')) {
+      displayError('Error logging time: API request failed: Please stop the current timer before submitting time.');
+    } else {
+      console.error('Error logging time:', error);
+      displayError(`Error logging time: ${error.message}`);
+    }
   }
 }
 
@@ -347,7 +351,6 @@ document.getElementById('addCustomTime').addEventListener('click', function() {
   }
 });
 
-// Function to add time to the timer
 function addTime(secondsToAdd) {
   seconds += secondsToAdd;  // Add the provided seconds to the timer
   updateTimerDisplay();  // Update the displayed time
