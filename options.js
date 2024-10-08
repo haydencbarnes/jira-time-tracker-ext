@@ -1,10 +1,14 @@
 (async function () {
     document.addEventListener('DOMContentLoaded', restoreOptions);
     document.getElementById('save').addEventListener('click', saveOptions);
+    document.addEventListener('DOMContentLoaded', () => {
+        const manifestData = chrome.runtime.getManifest();
+        const version = manifestData.version;
+        document.getElementById('version').value = version;
+    });    
 
     const experimentalFeaturesToggle = document.getElementById('experimentalFeatures');
     const slider = document.querySelector('.slider');
-    const timerLinkContainer = document.getElementById('timerLinkContainer');
     const jiraTypeSelect = document.getElementById('jiraType');
     const urlRow = document.getElementById('urlRow');
     const baseUrlInput = document.getElementById('baseUrl');
