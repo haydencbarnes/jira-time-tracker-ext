@@ -57,6 +57,8 @@
         const baseUrl = baseUrlInput.value;
         const jql = document.getElementById('jql').value;
         const experimentalFeatures = experimentalFeaturesToggle.checked;
+        const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1').value;
+        const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2').value;
 
         chrome.storage.sync.set({
             jiraType,
@@ -65,6 +67,8 @@
             baseUrl,
             jql,
             experimentalFeatures,
+            frequentWorklogDescription1,
+            frequentWorklogDescription2
         }, function () {
             const status = document.getElementById('status');
             status.textContent = 'Options saved.';
@@ -74,7 +78,6 @@
         });
     }
 
-
     async function restoreOptions() {
         chrome.storage.sync.get({
             jiraType: 'cloud',
@@ -82,7 +85,9 @@
             apiToken: '',
             baseUrl: '',
             jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)',
-            experimentalFeatures: false
+            experimentalFeatures: false,
+            frequentWorklogDescription1: '',
+            frequentWorklogDescription2: ''
         }, async function (items) {
             jiraTypeSelect.value = items.jiraType;
             document.getElementById('username').value = items.username;
@@ -90,6 +95,8 @@
             baseUrlInput.value = items.baseUrl;
             document.getElementById('jql').value = items.jql;
             experimentalFeaturesToggle.checked = items.experimentalFeatures;
+            document.getElementById('frequentWorklogDescription1').value = items.frequentWorklogDescription1;
+            document.getElementById('frequentWorklogDescription2').value = items.frequentWorklogDescription2;
     
             jiraTypeSelect.dispatchEvent(new Event('change'));
 

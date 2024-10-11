@@ -6,11 +6,15 @@ async function onDOMContentLoaded() {
     apiToken: '',
     baseUrl: '',
     username: '',
+    frequentWorklogDescription1: '',
+    frequentWorklogDescription2: ''
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
 
     document.getElementById('search').addEventListener('click', logTimeClick);
+    
+    insertFrequentWorklogDescription(options);
   });
 
   const datePicker = document.getElementById('datePicker');
@@ -308,4 +312,54 @@ function displaySuccess(message) {
   } else {
     console.warn('Success element not found');
   }
+}
+
+function insertFrequentWorklogDescription(options) {
+  const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1');
+  const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2');
+  const descriptionField = document.getElementById('description');
+  
+  if (!descriptionField) {
+    console.error('Description field not found');
+    return;
+  }
+  
+  function hideButtons() {
+    if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'none';
+    if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'none';
+  }
+  
+  function showButtons() {
+    if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'block';
+    if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'block';
+  }
+  
+  if (frequentWorklogDescription1) {
+    frequentWorklogDescription1.addEventListener('click', function() {
+      descriptionField.value = options.frequentWorklogDescription1;
+      console.log('frequentWorklogDescription1 clicked');
+      hideButtons();
+    });
+  } else {
+    console.warn('frequentWorklogDescription1 not found');
+  }
+  
+  if (frequentWorklogDescription2) {
+    frequentWorklogDescription2.addEventListener('click', function() {
+      descriptionField.value = options.frequentWorklogDescription2;
+      console.log('frequentWorklogDescription2 clicked');
+      hideButtons();
+    });
+  } else {
+    console.warn('frequentWorklogDescription2 not found');
+  }
+  
+  descriptionField.addEventListener('input', function() {
+    console.log('User started typing in the description field');
+    if (descriptionField.value === '') {
+      showButtons();
+    } else {
+      hideButtons();
+    }
+  });
 }

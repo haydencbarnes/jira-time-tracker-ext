@@ -1,3 +1,7 @@
+## 1.2.2 (Oct 11, 2024)
+- Fix: added version to options/settings page for 🐛 tracking
+- Feature: added new frequent worklog description search button fill feature
+
 ## 1.2.1 (Oct 07, 2024)
 - New feature: Added timer feature to the extension. Users can now start and stop a timer to track time spent on Jira tasks. The feature alsp includes quick add functionality to add time in 15min, 30min, and 1hr increments.
 

@@ -50,6 +50,12 @@
             width: 100%;
         }
 
+        .input-container {
+            position: relative;
+            width: 100%;
+            display: flex;
+        }
+
         .date-picker {
             position: relative;
             width: 100%;
@@ -124,6 +130,42 @@
 
         button:hover {
             background: #0041a8;
+        }
+
+        #frequentWorklogDescription1 {
+            position: absolute;
+            top: 50%;
+            right: 70px;
+            transform: translateY(-50%);
+            background-color: #0052CC;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            z-index: 1;
+            width:10%;
+        }
+
+        #frequentWorklogDescription1:hover {
+            background-color: #0041a8;
+        }
+
+        #frequentWorklogDescription2 {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            background-color: #0052CC;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            z-index: 1;
+            width:10%;
+        }
+
+        #frequentWorklogDescription2:hover {
+            background-color: #0041a8;
         }
 
         #error, #success {
@@ -218,7 +260,11 @@
             <tr>
                 <td><label for="description">Description</label></td>
                 <td>
-                    <textarea id="description" placeholder="Description of work completed..."></textarea>
+                    <div class="input-container">
+                        <textarea id="description" placeholder="Description of work completed..."></textarea>
+                        <button id="frequentWorklogDescription1">1</button>
+                        <button id="frequentWorklogDescription2">2</button>
+                    </div>
                 </td>
             </tr>
         </table>
