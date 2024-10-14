@@ -1,3 +1,7 @@
+## 1.2.3 (Oct 14, 2024)
+- Feature: added new frequent worklog description button fill feature to all features
+- UX: Minor copy changes to improve clarity
+
 ## 1.2.2 (Oct 11, 2024)
 - Fix: added version to options/settings page for 🐛 tracking
 - Feature: added new frequent worklog description search button fill feature
