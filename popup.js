@@ -6,9 +6,12 @@ async function onDOMContentLoaded() {
         baseUrl: '',
         jql: '',
         username: '',
-        jiraType: 'server' // Default to 'server', change if needed
+        jiraType: 'server',
+        frequentWorklogDescription1: '',
+        frequentWorklogDescription2: ''
     }, async (options) => {
         await init(options);
+        insertFrequentWorklogDescription(options);
     });
 
 }
@@ -291,9 +294,32 @@ function generateLogTableRow(id, summary, worklog, options) {
     const timeInputCell = buildHTML('td');
     timeInputCell.appendChild(timeInput);
 
-    const commentInput = buildHTML('input', null, { class: 'issue-comment-input', 'data-issue-id': id, placeholder: 'Work description' });
+    const commentInputContainer = buildHTML('div', null, { style: 'position: relative; display: inline-block;' });
+
+    const commentInput = buildHTML('input', null, { 
+        class: 'issue-comment-input', 
+        'data-issue-id': id, 
+        placeholder: 'Work description', 
+        id: 'description'
+    });
+
+    const commentButton1 = buildHTML('button', '1', { 
+        class: 'frequentWorklogDescription1',
+        id: 'frequentWorklogDescription1'
+    });
+
+    const commentButton2 = buildHTML('button', '2', { 
+        class: 'frequentWorklogDescription2',
+        id: 'frequentWorklogDescription2'
+    });
+
+    commentInputContainer.appendChild(commentInput);
+    commentInputContainer.appendChild(commentButton1);
+    commentInputContainer.appendChild(commentButton2);
+
     const commentInputCell = buildHTML('td');
-    commentInputCell.appendChild(commentInput);
+    commentInputCell.appendChild(commentInputContainer);
+
 
     const dateInput = buildHTML('input', null, {
         type: 'date',
@@ -399,3 +425,53 @@ function pad(num) {
     const norm = Math.abs(Math.floor(num));
     return (norm < 10 ? '0' : '') + norm;
 }
+
+function insertFrequentWorklogDescription(options) {
+    const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1');
+    const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2');
+    const descriptionField = document.getElementById('description');
+    
+    if (!descriptionField) {
+      console.error('Description field not found');
+      return;
+    }
+    
+    function hideButtons() {
+      if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'none';
+      if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'none';
+    }
+    
+    function showButtons() {
+      if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'block';
+      if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'block';
+    }
+    
+    if (frequentWorklogDescription1) {
+      frequentWorklogDescription1.addEventListener('click', function() {
+        descriptionField.value = options.frequentWorklogDescription1;
+        console.log('frequentWorklogDescription1 clicked');
+        hideButtons();
+      });
+    } else {
+      console.warn('frequentWorklogDescription1 not found');
+    }
+    
+    if (frequentWorklogDescription2) {
+      frequentWorklogDescription2.addEventListener('click', function() {
+        descriptionField.value = options.frequentWorklogDescription2;
+        console.log('frequentWorklogDescription2 clicked');
+        hideButtons();
+      });
+    } else {
+      console.warn('frequentWorklogDescription2 not found');
+    }
+    
+    descriptionField.addEventListener('input', function() {
+      console.log('User started typing in the description field');
+      if (descriptionField.value === '') {
+        showButtons();
+      } else {
+        hideButtons();
+      }
+    });
+  }
