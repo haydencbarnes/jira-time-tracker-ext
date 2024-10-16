@@ -33,8 +33,8 @@ async function onDOMContentLoaded() {
 
     insertFrequentWorklogDescription(options);
 
-    // Restore timer state
     restoreTimerState();
+    syncTimeWithBackground();
   });
 }
 
@@ -222,7 +222,7 @@ function toggleTimer() {
 function updateTimer() {
   seconds++;
   updateTimerDisplay();
-  chrome.runtime.sendMessage({ action: 'updateBadge', seconds: seconds, isRunning: true });
+  chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
   if (seconds % 5 === 0) {  // Save every 5 seconds
     saveTimerState();
   }
@@ -364,7 +364,7 @@ document.getElementById('addCustomTime').addEventListener('click', function() {
 function addTime(secondsToAdd) {
   seconds += secondsToAdd;
   updateTimerDisplay();
-  chrome.runtime.sendMessage({ action: 'updateBadge', seconds: seconds, isRunning: isRunning });
+  chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
   saveTimerState();
 }
 
@@ -416,4 +416,8 @@ function insertFrequentWorklogDescription(options) {
       hideButtons();
     }
   });
+}
+
+function syncTimeWithBackground() {
+  chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
 }

@@ -1,4 +1,6 @@
 let badgeUpdateInterval;
+let currentSeconds = 0;
+let isRunning = false;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startTimer') {
@@ -9,27 +11,51 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     resetBadge();
   } else if (request.action === 'updateBadge') {
     updateBadge(request.seconds, request.isRunning);
+  } else if (request.action === 'syncTime') {
+    syncTime(request.seconds, request.isRunning);
   }
 });
 
-function startBadgeUpdate(initialSeconds) {
-  updateBadge(initialSeconds, true);
+function startBadgeUpdate(seconds) {
+  currentSeconds = seconds;
+  isRunning = true;
+  updateBadge(currentSeconds, isRunning);
+  clearInterval(badgeUpdateInterval);
   badgeUpdateInterval = setInterval(() => {
-    initialSeconds++;
-    updateBadge(initialSeconds, true);
+    currentSeconds++;
+    updateBadge(currentSeconds, isRunning);
   }, 1000);
 }
 
 function stopBadgeUpdate() {
   clearInterval(badgeUpdateInterval);
+  isRunning = false;
+  updateBadge(currentSeconds, isRunning);
 }
 
 function resetBadge() {
-  stopBadgeUpdate();
-  updateBadge(0, false);
+  clearInterval(badgeUpdateInterval);
+  currentSeconds = 0;
+  isRunning = false;
+  updateBadge(currentSeconds, isRunning);
+}
+
+function syncTime(seconds, running) {
+  currentSeconds = seconds;
+  isRunning = running;
+  if (isRunning) {
+    startBadgeUpdate(currentSeconds);
+  } else {
+    stopBadgeUpdate();
+  }
 }
 
 function updateBadge(seconds, isRunning) {
+  if (!isRunning) {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   
@@ -42,11 +68,10 @@ function updateBadge(seconds, isRunning) {
     badgeText = `${seconds}s`;
   }
 
-  // Truncate the badge text if it's too long
   if (badgeText.length > 4) {
     badgeText = badgeText.substring(0, 4);
   }
 
   chrome.action.setBadgeText({ text: badgeText });
-  chrome.action.setBadgeBackgroundColor({ color: isRunning ? '#0052CC' : '#F44336' });
+  chrome.action.setBadgeBackgroundColor({ color: '#0052CC' });
 }
