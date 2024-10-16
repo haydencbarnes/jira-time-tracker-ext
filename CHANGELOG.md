@@ -1,3 +1,6 @@
+## 1.2.5 (Oct 16, 2024)
+- Fixed issue with timer badge not updating when timer is stopped
+
 ## 1.2.4 (Oct 15, 2024)
 - Feature: added new timer badge feature that will continously show the current time spent on a task from wherever you have the extension placed when timer is running.
 
