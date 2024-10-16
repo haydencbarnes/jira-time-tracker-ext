@@ -1,3 +1,6 @@
+## 1.2.4 (Oct 15, 2024)
+- Feature: added new timer badge feature that will continously show the current time spent on a task from wherever you have the extension placed when timer is running.
+
 ## 1.2.3 (Oct 14, 2024)
 - Feature: added new frequent worklog description button fill feature to all features
 - UX: Minor copy changes to improve clarity

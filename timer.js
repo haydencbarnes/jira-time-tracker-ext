@@ -206,11 +206,13 @@ function toggleTimer() {
   if (isRunning) {
     clearInterval(timer);
     startStopIcon.textContent = 'play_arrow';
-    timerAnimation.style.display = 'none'; // Stop the animation when timer stops
+    timerAnimation.style.display = 'none';
+    chrome.runtime.sendMessage({ action: 'stopTimer' });
   } else {
     timer = setInterval(updateTimer, 1000);
     startStopIcon.textContent = 'stop';
-    timerAnimation.style.display = 'block'; // Start the animation when timer starts
+    timerAnimation.style.display = 'block';
+    chrome.runtime.sendMessage({ action: 'startTimer', seconds: seconds });
   }
 
   isRunning = !isRunning;
@@ -220,6 +222,7 @@ function toggleTimer() {
 function updateTimer() {
   seconds++;
   updateTimerDisplay();
+  chrome.runtime.sendMessage({ action: 'updateBadge', seconds: seconds, isRunning: true });
   if (seconds % 5 === 0) {  // Save every 5 seconds
     saveTimerState();
   }
@@ -241,7 +244,8 @@ function resetTimer() {
   const startStopIcon = document.getElementById('startStopIcon');
   const timerAnimation = document.getElementById('timer-animation');
   startStopIcon.textContent = 'play_arrow';
-  timerAnimation.style.display = 'none'; // Hide animation when timer is reset
+  timerAnimation.style.display = 'none';
+  chrome.runtime.sendMessage({ action: 'resetTimer' });
   chrome.storage.sync.remove(['timerSeconds', 'timerIsRunning', 'timerLastUpdated']);
 }
 
@@ -323,15 +327,17 @@ function restoreTimerState() {
     }
 
     updateTimerDisplay();
+    chrome.runtime.sendMessage({ action: 'updateBadge', seconds: seconds, isRunning: isRunning });
     const startStopIcon = document.getElementById('startStopIcon');
     const timerAnimation = document.getElementById('timer-animation');
     if (isRunning) {
       timer = setInterval(updateTimer, 1000);
       startStopIcon.textContent = 'stop';
-      timerAnimation.style.display = 'block'; // Show animation if timer was running
+      timerAnimation.style.display = 'block';
+      chrome.runtime.sendMessage({ action: 'startTimer', seconds: seconds });
     } else {
       startStopIcon.textContent = 'play_arrow';
-      timerAnimation.style.display = 'none'; // Hide animation if timer was stopped
+      timerAnimation.style.display = 'none';
     }
   });
 }
@@ -356,9 +362,10 @@ document.getElementById('addCustomTime').addEventListener('click', function() {
 });
 
 function addTime(secondsToAdd) {
-  seconds += secondsToAdd;  // Add the provided seconds to the timer
-  updateTimerDisplay();  // Update the displayed time
-  saveTimerState();  // Save the updated time to storage
+  seconds += secondsToAdd;
+  updateTimerDisplay();
+  chrome.runtime.sendMessage({ action: 'updateBadge', seconds: seconds, isRunning: isRunning });
+  saveTimerState();
 }
 
 function insertFrequentWorklogDescription(options) {

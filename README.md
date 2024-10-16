@@ -19,7 +19,7 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 3. **Detailed View**: Click on any issue to open it in Jira.
 
 ### How Timer Works
-1. **Start Timer**: Click the "play" button to begin tracking time spent on a task.
+1. **Start Timer**: Click the "play" button to begin tracking time spent on a task. The timer will run in the background, even if you navigate to a different tab, and the badge will display the current time spent as well.
 2. **Stop Timer**: Click the "stop" button to end the timer.
 3. **Fill Out Details**: Enter a brief description of the work completed.
 4. **Submit**: Click the "Submit" button to log your time. You will receive a success message and the timer fields will clear automatically.
