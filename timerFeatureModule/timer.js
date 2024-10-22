@@ -42,7 +42,6 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
-    // Initialize the JIRA API with the provided options
     JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
     console.log("JIRA API Object initialized:", JIRA);
 
@@ -82,9 +81,8 @@ async function setupAutocomplete(JIRA) {
       let issuesResponse = await JIRA.getIssues(0, jql);
       let issues = issuesResponse.data;
       autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary}`), issueList, (selectedIssue) => {
-        // Save selected issue
         chrome.storage.sync.set({ issueKey: selectedIssue.split(':')[0].trim() });
-        issueInput.value = selectedIssue; // Set the issue input field to the selected issue with title
+        issueInput.value = selectedIssue;
       });
     }
     // Save selected project
