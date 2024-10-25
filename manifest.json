@@ -11,7 +11,7 @@
     "action"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "/timerFeatureModule/background.js"
   },
   "action": {
     "default_icon": "src/icons/jira_logo.png",
