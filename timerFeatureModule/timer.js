@@ -352,13 +352,6 @@ document.getElementById('add1hr').addEventListener('click', function() {
   addTime(60 * 60);  // Add 1 hour in seconds
 });
 
-document.getElementById('addCustomTime').addEventListener('click', function() {
-  const customMinutes = parseInt(document.getElementById('customTime').value, 10);
-  if (!isNaN(customMinutes)) {
-    addTime(customMinutes * 60);  // Convert custom minutes to seconds and add
-  }
-});
-
 function addTime(secondsToAdd) {
   seconds += secondsToAdd;
   updateTimerDisplay();
