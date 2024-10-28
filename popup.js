@@ -451,6 +451,11 @@ function insertFrequentWorklogDescription(options) {
             if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'block';
         }
 
+        if (options.frequentWorklogDescription1 === '' && options.frequentWorklogDescription2 === '') {
+            console.warn('No frequent worklog descriptions found in options');
+            hideButtons();
+        }
+
         if (frequentWorklogDescription1) {
             frequentWorklogDescription1.addEventListener('click', function() {
                 descriptionField.value = options.frequentWorklogDescription1;
