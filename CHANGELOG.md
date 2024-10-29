@@ -1,3 +1,6 @@
+## 1.2.6 (Oct 29, 2024)
+- Bug fix: Fixed frequent worklog description buttons feature that was not working as expected
+
 ## 1.2.5 (Oct 16, 2024)
 - Fixed issue with timer badge not updating when timer is stopped
 
