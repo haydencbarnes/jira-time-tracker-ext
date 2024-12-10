@@ -52,4 +52,4 @@ All issues that meet the above criteria will be displayed in the extension table
 You can edit/customize the custom JQL query in the Settings tab under preferences.
 
 #### Experimental Features Toggle
-This toggle allows you to enable/disable the experimental features of the extension. Currently, the only experimental feature is the timer, a Google calendar feature is also being explored.
+This toggle allows you to enable/disable the experimental features of the extension. Currently, the only experimental feature is a Google calendar feature being explored.
