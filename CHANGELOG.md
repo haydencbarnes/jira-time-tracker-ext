@@ -1,3 +1,10 @@
+## 1.2.7 (Jan 10, 2025)
+- Feature: Added starring functionality to prioritize issues in the pop-up table.
+- Enhancement: Starred issues now appear at the top of the table, sorted dynamically.
+- Bug Fix: Frequent worklog description buttons now properly reinitialize after table redraws.
+- Maintenance: Added a cleaned up of old starred items automatically after 90 days to prevent data accumulation.
+- UX Improvement: Improved table re-rendering logic to ensure all features and buttons remain functional after updates.
+
 ## 1.2.6 (Oct 29, 2024)
 - Bug fix: Fixed frequent worklog description buttons feature that was not working as expected
 

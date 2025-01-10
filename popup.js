@@ -8,12 +8,30 @@ async function onDOMContentLoaded() {
         username: '',
         jiraType: 'server',
         frequentWorklogDescription1: '',
-        frequentWorklogDescription2: ''
+        frequentWorklogDescription2: '',
+        starredIssues: {}
     }, async (options) => {
+        // Clean out any stars older than 90 days
+        options.starredIssues = filterExpiredStars(options.starredIssues, 90);
+        
+        // Save any cleaned out stars back to storage so they don’t accumulate
+        chrome.storage.sync.set({ starredIssues: options.starredIssues }, () => {});
+        
         await init(options);
         insertFrequentWorklogDescription(options);
     });
+}
 
+function filterExpiredStars(starredIssues, days) {
+    const now = Date.now();
+    const cutoff = days * 24 * 60 * 60 * 1000;
+    const filtered = {};
+    for (const issueId in starredIssues) {
+        if (now - starredIssues[issueId] < cutoff) {
+            filtered[issueId] = starredIssues[issueId];
+        }
+    }
+    return filtered;
 }
 
 function buildHTML(tag, html, attrs) {
@@ -234,121 +252,167 @@ function toggleVisibility(query) {
 
 function drawIssuesTable(issuesResponse, options) {
     const logTable = document.getElementById('jira-log-time-table');
-    const tbody = buildHTML('tbody');
 
-    // Ensure issuesResponse.data is an array
+    // Remove any existing <tbody>
+    const oldTbody = logTable.querySelector('tbody');
+    if (oldTbody) {
+        oldTbody.remove();
+    }
+
+    // Create a fresh <tbody>
+    const newTbody = document.createElement('tbody');
+
     const issues = issuesResponse.data || [];
-    issues.forEach(function(issue) {
-        const row = generateLogTableRow(issue.key, issue.fields.summary, issue.fields.worklog, options);
-        tbody.appendChild(row);
+
+    // ⭐️ Reorder so starred issues appear on top
+    const sortedIssues = sortByStar(issues, options.starredIssues);
+
+    sortedIssues.forEach((issue) => {
+        const row = generateLogTableRow(
+            issue.key,
+            issue.fields.summary,
+            issue.fields.worklog,
+            options
+        );
+        newTbody.appendChild(row);
     });
 
-    logTable.appendChild(tbody);
+    logTable.appendChild(newTbody);
+}
+
+// ⭐️ utility function that sorts starred issues to top
+function sortByStar(issues, starredIssues) {
+    // Return a new array sorted by whether the item is starred
+    return issues.slice().sort((a, b) => {
+        const aStar = starredIssues[a.key] ? 1 : 0;
+        const bStar = starredIssues[b.key] ? 1 : 0;
+        // Sort descending so starred=1 goes first
+        return bStar - aStar;
+    });
 }
 
 function generateLogTableRow(id, summary, worklog, options) {
-    const idCell = buildHTML('td', null, { class: 'issue-id', 'data-issue-id': id });
-    const idText = document.createTextNode(id);
+    const row = buildHTML('tr', null, { 'data-issue-id': id });
 
-    const baseUrl = options.baseUrl.startsWith('http') ? options.baseUrl : `https://${options.baseUrl}`;
-    const jiraLink = buildHTML('a', null, {
+    // 1) Create a single <td> for the star + Jira ID (to keep 7 total columns)
+    const idCell = buildHTML('td', '', { class: 'issue-id', 'data-issue-id': id });
+
+    // (A) Star icon
+    const isStarred = !!options.starredIssues[id];
+    const starIcon = buildHTML('span', '', { class: 'star-icon' });
+    // Use textContent so we don't get any weird encoding
+    starIcon.textContent = isStarred ? '\u2605' : '\u2606'; // ★ or ☆
+
+    // Apply the correct color class
+    starIcon.classList.add(isStarred ? 'starred' : 'unstarred');
+
+    // Toggle star on click
+    starIcon.addEventListener('click', () => toggleStar(id, options));
+
+    idCell.appendChild(starIcon);
+    idCell.appendChild(document.createTextNode(' ')); // small spacer
+
+    // (B) Jira ID link
+    const baseUrl = options.baseUrl.startsWith('http')
+        ? options.baseUrl
+        : `https://${options.baseUrl}`;
+    const jiraLink = buildHTML('a', id, {
         href: `${baseUrl}/browse/${id}`,
-        target: '_blank',
+        target: '_blank'
     });
-
-    jiraLink.appendChild(idText);
     idCell.appendChild(jiraLink);
 
+    row.appendChild(idCell);
+
+    // 2) Summary cell
     const summaryCell = buildHTML('td', summary, { class: 'issue-summary truncate' });
+    row.appendChild(summaryCell);
 
-    // Ensure worklog is defined and has a default value
+    // 3) Total Time cell
     const worklogs = worklog?.worklogs || [];
-    const totalTimeSeconds = worklogs.reduce((total, log) => total + log.timeSpentSeconds, 0);
-    const totalTime = (totalTimeSeconds / 3600).toFixed(2) + ' hrs';
+    const totalSecs = worklogs.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
+    const totalTime = (totalSecs / 3600).toFixed(2) + ' hrs';
 
-    // Create the total time cell and loader elements
-    const totalTimeCell = buildHTML('td', '', { class: 'issue-total-time' });
-    const totalTimeDiv = buildHTML('div', totalTime, { class: 'issue-total-time-spent', 'data-issue-id': id });
-    const loader = buildHTML('div', null, { class: 'loader-mini', 'data-issue-id': id });
-
-    // Clear any existing content before appending new elements
-    totalTimeCell.innerHTML = '';
+    const totalTimeCell = buildHTML('td', null, { class: 'issue-total-time' });
+    const loader = buildHTML('div', '', {
+        class: 'loader-mini',
+        'data-issue-id': id
+    });
+    const totalTimeDiv = buildHTML('div', totalTime, {
+        class: 'issue-total-time-spent',
+        'data-issue-id': id
+    });
     totalTimeCell.appendChild(loader);
     totalTimeCell.appendChild(totalTimeDiv);
+    row.appendChild(totalTimeCell);
 
-    // Fetch latest worklog details and update total time spent dynamically
-    fetchWorklogDetails(id, options).then((worklogDetails) => {
-        const totalTimeSeconds = worklogDetails.reduce((total, log) => total + log.timeSpentSeconds, 0);
-        const totalTime = (totalTimeSeconds / 3600).toFixed(2) + ' hrs';
-        totalTimeDiv.innerText = totalTime;
+    // Fetch updated worklog details
+    fetchWorklogDetails(id, options).then((details) => {
+        const secs = details.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
+        totalTimeDiv.textContent = (secs / 3600).toFixed(2) + ' hrs';
         loader.style.display = 'none';
     });
 
-    async function fetchWorklogDetails(issueId, options) {
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+    async function fetchWorklogDetails(issueId, opts) {
+        const JIRA = await JiraAPI(opts.jiraType, opts.baseUrl, opts.username, opts.apiToken);
         const worklogResponse = await JIRA.getIssueWorklog(issueId);
         return worklogResponse.worklogs;
     }
 
-    const timeInput = buildHTML('input', null, { class: 'issue-time-input', 'data-issue-id': id, placeholder: 'Xhms' });
+    // 4) Time input cell
+    const timeInput = buildHTML('input', null, {
+        class: 'issue-time-input',
+        'data-issue-id': id,
+        placeholder: 'Xhms'
+    });
     const timeInputCell = buildHTML('td');
     timeInputCell.appendChild(timeInput);
+    row.appendChild(timeInputCell);
 
-    const commentInputContainer = buildHTML('div', null, { style: 'position: relative; display: inline-block;' });
-
-    const commentInput = buildHTML('input', null, { 
-        class: 'issue-comment-input', 
-        'data-issue-id': id, 
-        placeholder: 'Work description', 
-        id: 'description'
+    // 5) Comment input cell (with frequent buttons)
+    const commentInputContainer = buildHTML('div', null, {
+        style: 'position: relative; display: inline-block;'
     });
-
-    const commentButton1 = buildHTML('button', '1', { 
-        class: 'frequentWorklogDescription1',
-        id: 'frequentWorklogDescription1'
+    const commentInput = buildHTML('input', null, {
+        class: 'issue-comment-input',
+        'data-issue-id': id,
+        placeholder: 'Work description'
     });
-
-    const commentButton2 = buildHTML('button', '2', { 
-        class: 'frequentWorklogDescription2',
-        id: 'frequentWorklogDescription2'
+    const commentButton1 = buildHTML('button', '1', {
+        class: 'frequentWorklogDescription1'
     });
-
+    const commentButton2 = buildHTML('button', '2', {
+        class: 'frequentWorklogDescription2'
+    });
     commentInputContainer.appendChild(commentInput);
     commentInputContainer.appendChild(commentButton1);
     commentInputContainer.appendChild(commentButton2);
+    
+    const commentCell = buildHTML('td');
+    commentCell.appendChild(commentInputContainer);
+    row.appendChild(commentCell);
 
-    const commentInputCell = buildHTML('td');
-    commentInputCell.appendChild(commentInputContainer);
-
-
+    // 6) Date input cell
     const dateInput = buildHTML('input', null, {
         type: 'date',
         class: 'issue-log-date-input',
         value: new Date().toDateInputValue(),
-        'data-issue-id': id,
+        'data-issue-id': id
     });
-    const dateInputCell = buildHTML('td');
-    dateInputCell.appendChild(dateInput);
+    const dateCell = buildHTML('td');
+    dateCell.appendChild(dateInput);
+    row.appendChild(dateCell);
 
+    // 7) Submit button cell
     const actionButton = buildHTML('input', null, {
         type: 'button',
         value: 'Submit',
         class: 'issue-log-time-btn',
-        'data-issue-id': id,
+        'data-issue-id': id
     });
-
     actionButton.addEventListener('click', async (event) => await logTimeClick(event));
-
     const actionCell = buildHTML('td');
     actionCell.appendChild(actionButton);
-
-    const row = buildHTML('tr', null, { 'data-issue-id': id });
-    row.appendChild(idCell);
-    row.appendChild(summaryCell);
-    row.appendChild(totalTimeCell);
-    row.appendChild(timeInputCell);
-    row.appendChild(commentInputCell);
-    row.appendChild(dateInputCell);
     row.appendChild(actionCell);
 
     return row;
@@ -427,62 +491,90 @@ function pad(num) {
 }
 
 function insertFrequentWorklogDescription(options) {
-    // Select all description fields and corresponding buttons
     const descriptionFields = document.querySelectorAll('.issue-comment-input');
     const frequentWorklogButtons1 = document.querySelectorAll('.frequentWorklogDescription1');
     const frequentWorklogButtons2 = document.querySelectorAll('.frequentWorklogDescription2');
 
-    descriptionFields.forEach((descriptionField, index) => {
-        const frequentWorklogDescription1 = frequentWorklogButtons1[index];
-        const frequentWorklogDescription2 = frequentWorklogButtons2[index];
+    // If both frequent descriptions are empty, remove the buttons entirely
+    // so they never appear on input.
+    const bothAreEmpty = options.frequentWorklogDescription1 === '' 
+                      && options.frequentWorklogDescription2 === '';
 
-        if (!descriptionField) {
-            console.error('Description field not found');
+    descriptionFields.forEach((descriptionField, index) => {
+        const button1 = frequentWorklogButtons1[index];
+        const button2 = frequentWorklogButtons2[index];
+
+        // If no frequent descriptions, remove the buttons from the DOM and skip the rest
+        if (bothAreEmpty) {
+            if (button1) button1.remove();
+            if (button2) button2.remove();
             return;
         }
 
+        // Otherwise, wire them up as before:
+        // 1) Hide/show logic
+        // 2) Clicking sets the input, etc.
         function hideButtons() {
-            if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'none';
-            if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'none';
+            if (button1) button1.style.display = 'none';
+            if (button2) button2.style.display = 'none';
         }
-
         function showButtons() {
-            if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'block';
-            if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'block';
+            if (button1) button1.style.display = 'block';
+            if (button2) button2.style.display = 'block';
         }
 
-        if (options.frequentWorklogDescription1 === '' && options.frequentWorklogDescription2 === '') {
-            console.warn('No frequent worklog descriptions found in options');
+        // If user didn’t fill anything in options, we hide by default
+        if (!options.frequentWorklogDescription1 && !options.frequentWorklogDescription2) {
             hideButtons();
         }
 
-        if (frequentWorklogDescription1) {
-            frequentWorklogDescription1.addEventListener('click', function() {
+        if (button1) {
+            button1.addEventListener('click', () => {
                 descriptionField.value = options.frequentWorklogDescription1;
-                console.log('frequentWorklogDescription1 clicked');
                 hideButtons();
             });
-        } else {
-            console.warn('frequentWorklogDescription1 not found');
         }
-
-        if (frequentWorklogDescription2) {
-            frequentWorklogDescription2.addEventListener('click', function() {
+        if (button2) {
+            button2.addEventListener('click', () => {
                 descriptionField.value = options.frequentWorklogDescription2;
-                console.log('frequentWorklogDescription2 clicked');
                 hideButtons();
             });
-        } else {
-            console.warn('frequentWorklogDescription2 not found');
         }
 
-        descriptionField.addEventListener('input', function() {
-            console.log('User started typing in the description field');
-            if (descriptionField.value === '') {
+        // If either description is non-empty, we only show the buttons 
+        // if the field is empty, else hide.
+        descriptionField.addEventListener('input', () => {
+            if (descriptionField.value.trim() === '') {
                 showButtons();
             } else {
                 hideButtons();
             }
         });
     });
+}
+
+async function toggleStar(issueId, options) {
+    if (options.starredIssues[issueId]) {
+        delete options.starredIssues[issueId];
+    } else {
+        options.starredIssues[issueId] = Date.now();
+    }
+
+    chrome.storage.sync.set({ starredIssues: options.starredIssues }, () => {
+        console.log(`Star state updated for ${issueId}`, options.starredIssues[issueId]);
+    });
+
+    try {
+        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const issuesResponse = await JIRA.getIssues(0, options.jql);
+        
+        // Redraw table so starred item jumps to top
+        drawIssuesTable(issuesResponse, options);
+        
+        // ⭐️ Re-run your frequent-worklog setup after the new table is in the DOM
+        insertFrequentWorklogDescription(options);
+
+    } catch (err) {
+        console.error('Error fetching issues after star update:', err);
+    }
 }
