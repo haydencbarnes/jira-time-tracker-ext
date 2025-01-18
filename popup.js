@@ -65,7 +65,7 @@ async function init(options) {
             onFetchSuccess(issuesResponse, options); // Pass options to the function
         } catch (error) {
             console.error('Error fetching issues:', error);
-            displayError(`Fetching Issues Error: ${error.message}`);
+            displayError(`Fetching Issues Error: (Settings may need set up.)`);
         } finally {
             toggleVisibility('div[id=loader-container]'); // Hide loader
         }
