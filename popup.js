@@ -9,8 +9,16 @@ async function onDOMContentLoaded() {
         jiraType: 'server',
         frequentWorklogDescription1: '',
         frequentWorklogDescription2: '',
-        starredIssues: {}
+        starredIssues: {},
+        defaultPage: 'popup.html'
     }, async (options) => {
+        // Check if we need to redirect to a different default page
+        const currentPage = window.location.pathname.split('/').pop();
+        if (currentPage !== options.defaultPage) {
+            window.location.href = options.defaultPage;
+            return;
+        }
+        
         // Clean out any stars older than 90 days
         options.starredIssues = filterExpiredStars(options.starredIssues, 90);
         

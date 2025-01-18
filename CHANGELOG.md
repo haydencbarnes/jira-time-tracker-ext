@@ -1,3 +1,7 @@
+## 1.2.8 (Jan 18, 2025)
+- Feature: Added new ability to set a default open tab for the extension. Users can now choose between the Time Table, Timer, or Search tab to open by default.
+- Bug fix: Fixed and aligned frontend error messages.
+
 ## 1.2.7 (Jan 10, 2025)
 - Feature: Added starring functionality to prioritize issues in the pop-up table.
 - Enhancement: Starred issues now appear at the top of the table, sorted dynamically.

@@ -59,6 +59,7 @@
         const experimentalFeatures = experimentalFeaturesToggle.checked;
         const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1').value;
         const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2').value;
+        const defaultPage = document.getElementById('defaultPage').value;
 
         chrome.storage.sync.set({
             jiraType,
@@ -68,7 +69,8 @@
             jql,
             experimentalFeatures,
             frequentWorklogDescription1,
-            frequentWorklogDescription2
+            frequentWorklogDescription2,
+            defaultPage: defaultPage
         }, function () {
             const status = document.getElementById('status');
             status.textContent = 'Options saved.';
@@ -87,7 +89,8 @@
             jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)',
             experimentalFeatures: false,
             frequentWorklogDescription1: '',
-            frequentWorklogDescription2: ''
+            frequentWorklogDescription2: '',
+            defaultPage: 'popup.html'
         }, async function (items) {
             jiraTypeSelect.value = items.jiraType;
             document.getElementById('username').value = items.username;
@@ -97,6 +100,7 @@
             experimentalFeaturesToggle.checked = items.experimentalFeatures;
             document.getElementById('frequentWorklogDescription1').value = items.frequentWorklogDescription1;
             document.getElementById('frequentWorklogDescription2').value = items.frequentWorklogDescription2;
+            document.getElementById('defaultPage').value = items.defaultPage;
     
             jiraTypeSelect.dispatchEvent(new Event('change'));
 
