@@ -113,7 +113,7 @@ function getWorklog(issueId, JIRA) {
 function sumWorklogs(worklogs) {
     if (!Array.isArray(worklogs)) return '0 hrs';
     const totalSeconds = worklogs.reduce((total, log) => total + log.timeSpentSeconds, 0);
-    const totalHours = (totalSeconds / 3600).toFixed(2);
+    const totalHours = (totalSeconds / 3600).toFixed(1);
     return `${totalHours} hrs`;
 }
 
@@ -339,7 +339,7 @@ function generateLogTableRow(id, summary, worklog, options) {
     // 3) Total Time cell
     const worklogs = worklog?.worklogs || [];
     const totalSecs = worklogs.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
-    const totalTime = (totalSecs / 3600).toFixed(2) + ' hrs';
+    const totalTime = (totalSecs / 3600).toFixed(1) + ' hrs';
 
     const totalTimeCell = buildHTML('td', null, { class: 'issue-total-time' });
     const loader = buildHTML('div', '', {
@@ -357,7 +357,7 @@ function generateLogTableRow(id, summary, worklog, options) {
     // Fetch updated worklog details
     fetchWorklogDetails(id, options).then((details) => {
         const secs = details.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
-        totalTimeDiv.textContent = (secs / 3600).toFixed(2) + ' hrs';
+        totalTimeDiv.textContent = (secs / 3600).toFixed(1) + ' hrs';
         loader.style.display = 'none';
     });
 
