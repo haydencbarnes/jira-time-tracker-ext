@@ -325,7 +325,7 @@ function generateLogTableRow(id, summary, worklog, options) {
         ? options.baseUrl
         : `https://${options.baseUrl}`;
         const jiraLink = buildHTML('a', id, {
-            href: `${baseUrl}/browse/${id}`,
+            href: `${baseUrl}browse/${id}`,
             target: '_blank',
             'data-issue-id': id
         });
