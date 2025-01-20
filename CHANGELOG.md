@@ -1,3 +1,9 @@
+## 1.2.9 (Jan 20, 2025)
+- Feature: Added a worklog history display to the Time Table tab. Users can now see a history of the last 5 worklogs by hovering over the issue Jira ID.
+- Chore: rename frequent worklog description fields to worklog snippets to more align with feature terminology
+- Fix: total hours on time table digit overflow fixes
+
+
 ## 1.2.8 (Jan 18, 2025)
 - Feature: Added new ability to set a default open tab for the extension. Users can now choose between the Time Table, Timer, or Search tab to open by default.
 - Bug fix: Fixed and aligned frontend error messages.

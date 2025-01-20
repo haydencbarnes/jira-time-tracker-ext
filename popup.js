@@ -324,10 +324,62 @@ function generateLogTableRow(id, summary, worklog, options) {
     const baseUrl = options.baseUrl.startsWith('http')
         ? options.baseUrl
         : `https://${options.baseUrl}`;
-    const jiraLink = buildHTML('a', id, {
-        href: `${baseUrl}/browse/${id}`,
-        target: '_blank'
-    });
+        const jiraLink = buildHTML('a', id, {
+            href: `${baseUrl}/browse/${id}`,
+            target: '_blank',
+            'data-issue-id': id
+        });
+        
+        // Add mouseover event listener
+        jiraLink.addEventListener('mouseover', async (e) => {
+            const existingTooltip = document.querySelector('.worklog-tooltip');
+            if (existingTooltip) existingTooltip.remove();
+        
+            const tooltip = document.createElement('div');
+            tooltip.className = 'worklog-tooltip';
+            tooltip.innerHTML = 'Loading worklogs...';
+            
+            // Position tooltip near the link
+            const rect = e.target.getBoundingClientRect();
+            tooltip.style.left = `${rect.left}px`;
+            tooltip.style.top = `${rect.bottom + 5}px`;
+            
+            document.body.appendChild(tooltip);
+        
+            try {
+                const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                const worklogResponse = await JIRA.getIssueWorklog(id);
+                
+                // Show last 5 worklogs with user information
+                const recentLogs = worklogResponse.worklogs
+                    .slice(-5)
+                    .reverse()
+                    .map(log => {
+                        const date = new Date(log.started).toLocaleDateString();
+                        const hours = (log.timeSpentSeconds / 3600).toFixed(1);
+                        const comment = typeof log.comment === 'string' 
+                            ? log.comment 
+                            : log.comment?.content?.[0]?.content?.[0]?.text || 'No comment';
+                        const author = log.author?.displayName || log.author?.name || 'Unknown user';
+                        return `<div style="margin-bottom: 4px;">
+                            <strong>${date}</strong> - ${author}<br>
+                            ${hours}h - ${comment}
+                        </div>`;
+                    })
+                    .join('');
+                    
+                tooltip.innerHTML = recentLogs || 'No recent worklogs';
+            } catch (error) {
+                tooltip.innerHTML = 'Error loading worklogs';
+            }
+        });
+        
+        // Add mouseout event listener
+        jiraLink.addEventListener('mouseout', () => {
+            const tooltip = document.querySelector('.worklog-tooltip');
+            if (tooltip) tooltip.remove();
+        });        
+        
     idCell.appendChild(jiraLink);
 
     row.appendChild(idCell);
