@@ -1,3 +1,6 @@
+## 1.2.10 (Jan 21, 2025)
+- Bug fix: Fixed an issue where snippets/frequentworklogdescriptions were not following the time table layouts header on scroll.
+
 ## 1.2.9 (Jan 20, 2025)
 - Feature: Added a worklog history display to the Time Table tab. Users can now see a history of the last 5 worklogs by hovering over the issue Jira ID.
 - Chore: rename frequent worklog description fields to worklog snippets to more align with feature terminology
