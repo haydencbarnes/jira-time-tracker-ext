@@ -330,33 +330,34 @@ function insertFrequentWorklogDescription(options) {
   }
   
   function showButtons() {
-    if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'block';
-    if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'block';
+    if (frequentWorklogDescription1 && options.frequentWorklogDescription1) {
+      frequentWorklogDescription1.style.display = 'block';
+    }
+    if (frequentWorklogDescription2 && options.frequentWorklogDescription2) {
+      frequentWorklogDescription2.style.display = 'block';
+    }
   }
   
-  if (options.frequentWorklogDescription1 === '' && options.frequentWorklogDescription2 === '') {
-    console.warn('No frequent worklog descriptions found in options');
+  // Initially hide buttons if no descriptions are set
+  if (!options.frequentWorklogDescription1 && !options.frequentWorklogDescription2) {
     hideButtons();
+    return;
   }
   
-  if (frequentWorklogDescription1) {
+  if (frequentWorklogDescription1 && options.frequentWorklogDescription1) {
     frequentWorklogDescription1.addEventListener('click', function() {
       descriptionField.value = options.frequentWorklogDescription1;
       console.log('frequentWorklogDescription1 clicked');
       hideButtons();
     });
-  } else {
-    console.warn('frequentWorklogDescription1 not found');
   }
   
-  if (frequentWorklogDescription2) {
+  if (frequentWorklogDescription2 && options.frequentWorklogDescription2) {
     frequentWorklogDescription2.addEventListener('click', function() {
       descriptionField.value = options.frequentWorklogDescription2;
       console.log('frequentWorklogDescription2 clicked');
       hideButtons();
     });
-  } else {
-    console.warn('frequentWorklogDescription2 not found');
   }
   
   descriptionField.addEventListener('input', function() {
@@ -367,4 +368,12 @@ function insertFrequentWorklogDescription(options) {
       hideButtons();
     }
   });
+  
+  // Check initial description field state
+  if (descriptionField.value !== '') {
+    hideButtons();
+  } else {
+    showButtons();
+  }
 }
+
