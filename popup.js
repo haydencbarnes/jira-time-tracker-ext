@@ -12,9 +12,13 @@ async function onDOMContentLoaded() {
         starredIssues: {},
         defaultPage: 'popup.html'
     }, async (options) => {
-        // Check if we need to redirect to a different default page
+        // Get current URL and check for the 'source' parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const isNavigatingBack = urlParams.get('source') === 'navigation';
+        
+        // Check if we need to redirect
         const currentPage = window.location.pathname.split('/').pop();
-        if (currentPage !== options.defaultPage) {
+        if (currentPage !== options.defaultPage && !isNavigatingBack) {
             window.location.href = options.defaultPage;
             return;
         }
@@ -22,7 +26,7 @@ async function onDOMContentLoaded() {
         // Clean out any stars older than 90 days
         options.starredIssues = filterExpiredStars(options.starredIssues, 90);
         
-        // Save any cleaned out stars back to storage so they don’t accumulate
+        // Save any cleaned out stars back to storage so they don't accumulate
         chrome.storage.sync.set({ starredIssues: options.starredIssues }, () => {});
         
         await init(options);
