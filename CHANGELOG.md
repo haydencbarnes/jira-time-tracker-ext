@@ -1,3 +1,7 @@
+## 1.2.11 (Jan 25, 2025)
+- Bug fix: snippet buttons now properly render on the search and timer tabs
+- Bug fix: default tab setting now properly allows you to go back to non-default tab after changing the setting
+
 ## 1.2.10 (Jan 21, 2025)
 - Bug fix: Fixed an issue where snippets/frequentworklogdescriptions were not following the time table layouts header on scroll.
 
