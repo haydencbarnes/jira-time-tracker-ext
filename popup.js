@@ -440,7 +440,7 @@ function generateLogTableRow(id, summary, worklog, options) {
     const commentInput = buildHTML('input', null, {
         class: 'issue-comment-input',
         'data-issue-id': id,
-        placeholder: 'Work description'
+        placeholder: 'Worklog description'
     });
     const commentButton1 = buildHTML('button', '1', {
         class: 'frequentWorklogDescription1'
