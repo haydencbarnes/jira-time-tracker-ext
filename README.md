@@ -18,6 +18,10 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 2. **Edit Entries**: You can add your logged time entries as needed.
 3. **Detailed View**: Click on any issue to open it in Jira.
 
+**Optional(s)**:
+- Star an issue to keep it at the top of your time table.
+- You can also hover over the issue Jira ID to see a history of the last 5 worklogs.
+
 ### How Timer Works
 1. **Start Timer**: Click the "play" button to begin tracking time spent on a task. The timer will run in the background, even if you navigate to a different tab, and the badge will display the current time spent as well.
 2. **Stop Timer**: Click the "stop" button to end the timer.
