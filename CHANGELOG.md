@@ -1,3 +1,7 @@
+## 1.2.12 (Jan 29, 2025)
+- Bug fix: UI/UX improvements to all tabs
+- Docs: Updated README.md with new features and settings
+
 ## 1.2.11 (Jan 25, 2025)
 - Bug fix: snippet buttons now properly render on the search and timer tabs
 - Bug fix: default tab setting now properly allows you to go back to non-default tab after changing the setting
