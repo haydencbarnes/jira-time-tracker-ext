@@ -11,6 +11,8 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            background-color: #fff;
+            color: #000;
         }
 
         .container {
@@ -101,6 +103,7 @@
             height: 34px;
             vertical-align: middle;
             overflow: hidden; /* Hide overflowing shapes */
+            margin-right: 8px;
         }
 
         .slider {
@@ -158,11 +161,46 @@
             box-sizing: border-box;
         }
 
+        /* ---------------- Dark Mode Styles ---------------- */
+        body.dark-mode {
+        background-color: #121212;
+        color: #e0e0e0;
+        }
+
+        body.dark-mode input,
+        body.dark-mode textarea,
+        body.dark-mode select {
+        background-color: #1e1e1e;
+        color: #e0e0e0;
+        border: 1px solid #333;
+        }
+
+        body.dark-mode .btn {
+        background: #0066cc;
+        }
+
+        body.dark-mode #brand {
+        background: #1e1e1e;
+        border-top: 1px solid #333;
+        }
+
+        body.dark-mode a {
+        color: #4a90e2;
+        }
+
     </style>
 </head>
 
 <body>
     <div class="container">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <label class="toggle-switch">
+              <input type="checkbox" id="darkModeToggle">
+              <span class="slider"></span>
+            </label>
+            <span>Dark Mode</span>
+          </div>
+    
         <table>
             <tr>
                 <td colspan="2"><span><b>*</b> = required to input/edit for extension access to Jira</span></td>

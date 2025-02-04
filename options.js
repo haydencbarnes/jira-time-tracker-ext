@@ -8,12 +8,23 @@
     });    
 
     const experimentalFeaturesToggle = document.getElementById('experimentalFeatures');
-    const slider = document.querySelector('.slider');
+    const experimentalSlider = document.querySelector('#experimentalFeatures + .slider');
     const jiraTypeSelect = document.getElementById('jiraType');
     const urlRow = document.getElementById('urlRow');
     const baseUrlInput = document.getElementById('baseUrl');
+    const darkModeToggle = document.getElementById('darkModeToggle');
 
-    // Create shapes
+    darkModeToggle.addEventListener('change', function() {
+        const isDark = this.checked;
+        if (isDark) {
+          document.body.classList.add('dark-mode');
+        } else {
+          document.body.classList.remove('dark-mode');
+        }
+        chrome.storage.sync.set({ darkMode: isDark });
+    });
+
+    // Create shapes for the experimental features slider
     const shapeCount = 15;
     const shapes = ['circle', 'square', 'triangle'];
     for (let i = 0; i < shapeCount; i++) {
@@ -25,16 +36,16 @@
         shape.style.height = shape.style.width;
         shape.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 75%)`;
         shape.style.animation = `float ${Math.random() * 2 + 1}s infinite ease-in-out`;
-        slider.appendChild(shape);
+        experimentalSlider.appendChild(shape);
     }
 
     experimentalFeaturesToggle.addEventListener('change', function() {
         if (this.checked) {
-            slider.querySelectorAll('.shape').forEach(shape => {
+            experimentalSlider.querySelectorAll('.shape').forEach(shape => {
                 shape.style.opacity = '1';
             });
         } else {
-            slider.querySelectorAll('.shape').forEach(shape => {
+            experimentalSlider.querySelectorAll('.shape').forEach(shape => {
                 shape.style.opacity = '0';
             });
         }
@@ -82,31 +93,39 @@
 
     async function restoreOptions() {
         chrome.storage.sync.get({
-            jiraType: 'cloud',
-            username: '',
-            apiToken: '',
-            baseUrl: '',
-            jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)',
-            experimentalFeatures: false,
-            frequentWorklogDescription1: '',
-            frequentWorklogDescription2: '',
-            defaultPage: 'popup.html'
+          jiraType: 'cloud',
+          username: '',
+          apiToken: '',
+          baseUrl: '',
+          jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)',
+          experimentalFeatures: false,
+          frequentWorklogDescription1: '',
+          frequentWorklogDescription2: '',
+          defaultPage: 'popup.html',
+          darkMode: false
         }, async function (items) {
-            jiraTypeSelect.value = items.jiraType;
-            document.getElementById('username').value = items.username;
-            document.getElementById('password').value = items.apiToken;
-            baseUrlInput.value = items.baseUrl;
-            document.getElementById('jql').value = items.jql;
-            experimentalFeaturesToggle.checked = items.experimentalFeatures;
-            document.getElementById('frequentWorklogDescription1').value = items.frequentWorklogDescription1;
-            document.getElementById('frequentWorklogDescription2').value = items.frequentWorklogDescription2;
-            document.getElementById('defaultPage').value = items.defaultPage;
-    
-            jiraTypeSelect.dispatchEvent(new Event('change'));
-
-            const apiExtension = items.jiraType === 'cloud' ? '/rest/api/3' : '/rest/api/2';
-            const jira = await JiraAPI(items.jiraType, items.baseUrl, apiExtension, items.username, items.apiToken, items.jql);
-            const issues = await jira.getIssues(items.jql);
+          jiraTypeSelect.value = items.jiraType;
+          document.getElementById('username').value = items.username;
+          document.getElementById('password').value = items.apiToken;
+          baseUrlInput.value = items.baseUrl;
+          document.getElementById('jql').value = items.jql;
+          experimentalFeaturesToggle.checked = items.experimentalFeatures;
+          document.getElementById('frequentWorklogDescription1').value = items.frequentWorklogDescription1;
+          document.getElementById('frequentWorklogDescription2').value = items.frequentWorklogDescription2;
+          document.getElementById('defaultPage').value = items.defaultPage;
+      
+          darkModeToggle.checked = items.darkMode;
+          if (items.darkMode) {
+            document.body.classList.add('dark-mode');
+          } else {
+            document.body.classList.remove('dark-mode');
+          }
+      
+          jiraTypeSelect.dispatchEvent(new Event('change'));
+      
+          const apiExtension = items.jiraType === 'cloud' ? '/rest/api/3' : '/rest/api/2';
+          const jira = await JiraAPI(items.jiraType, items.baseUrl, apiExtension, items.username, items.apiToken, items.jql);
+          const issues = await jira.getIssues(items.jql);
         });
     }
 })();
