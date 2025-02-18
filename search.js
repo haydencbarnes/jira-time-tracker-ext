@@ -7,7 +7,8 @@ async function onDOMContentLoaded() {
     baseUrl: '',
     username: '',
     frequentWorklogDescription1: '',
-    frequentWorklogDescription2: ''
+    frequentWorklogDescription2: '',
+    darkMode: false
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
@@ -15,6 +16,14 @@ async function onDOMContentLoaded() {
     document.getElementById('search').addEventListener('click', logTimeClick);
     
     insertFrequentWorklogDescription(options);
+
+    if (options.darkMode === true) {
+            document.body.classList.add('dark-mode');
+          } else {
+            document.body.classList.remove('dark-mode');
+          }
+      
+          jiraTypeSelect.dispatchEvent(new Event('change'));
   });
 
   const datePicker = document.getElementById('datePicker');
