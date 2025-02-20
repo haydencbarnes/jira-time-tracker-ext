@@ -10,7 +10,8 @@ async function onDOMContentLoaded() {
         frequentWorklogDescription1: '',
         frequentWorklogDescription2: '',
         starredIssues: {},
-        defaultPage: 'popup.html'
+        defaultPage: 'popup.html',
+        darkMode: false
     }, async (options) => {
         // Get current URL and check for the 'source' parameter
         const urlParams = new URLSearchParams(window.location.search);
@@ -23,6 +24,12 @@ async function onDOMContentLoaded() {
             return;
         }
         
+        if (options.darkMode === true) {
+            document.body.classList.add('dark-mode');
+          } else {
+            document.body.classList.remove('dark-mode');
+          }
+
         // Clean out any stars older than 90 days
         options.starredIssues = filterExpiredStars(options.starredIssues, 90);
         
