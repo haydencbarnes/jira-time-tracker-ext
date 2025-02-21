@@ -17,13 +17,6 @@ async function onDOMContentLoaded() {
     
     insertFrequentWorklogDescription(options);
 
-    if (options.darkMode === true) {
-            document.body.classList.add('dark-mode');
-          } else {
-            document.body.classList.remove('dark-mode');
-          }
-      
-          jiraTypeSelect.dispatchEvent(new Event('change'));
   });
 
   const datePicker = document.getElementById('datePicker');
@@ -39,6 +32,14 @@ async function init(options) {
   console.log("Options received:", options);
 
   try {
+    if (options.darkMode === true) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  
+    jiraTypeSelect.dispatchEvent(new Event('change'));
+    
     // Initialize the JIRA API with the provided options
     const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
     console.log("JIRA API Object initialized:", JIRA);
