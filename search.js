@@ -16,6 +16,7 @@ async function onDOMContentLoaded() {
     document.getElementById('search').addEventListener('click', logTimeClick);
     
     insertFrequentWorklogDescription(options);
+    jiraTypeSelect.dispatchEvent(new Event('change'));
 
   });
 
@@ -31,15 +32,13 @@ async function onDOMContentLoaded() {
 async function init(options) {
   console.log("Options received:", options);
 
-  try {
-    if (options.darkMode === true) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
-  
-    jiraTypeSelect.dispatchEvent(new Event('change'));
-    
+  if (options.darkMode === true) {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.remove('dark-mode');
+  };
+
+  try {    
     // Initialize the JIRA API with the provided options
     const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
     console.log("JIRA API Object initialized:", JIRA);
