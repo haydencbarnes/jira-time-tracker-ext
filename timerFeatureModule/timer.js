@@ -14,7 +14,8 @@ async function onDOMContentLoaded() {
     username: '',
     jiraType: 'server',
     frequentWorklogDescription1: '',
-    frequentWorklogDescription2: ''
+    frequentWorklogDescription2: '',
+    darkMode: false
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
@@ -39,6 +40,13 @@ async function onDOMContentLoaded() {
 }
 
 async function init(options) {
+  
+  if (options.darkMode === true) {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.remove('dark-mode');
+  };
+
   console.log("Options received:", options);
 
   try {
