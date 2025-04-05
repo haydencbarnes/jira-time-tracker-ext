@@ -11,7 +11,8 @@ async function onDOMContentLoaded() {
         frequentWorklogDescription2: '',
         starredIssues: {},
         defaultPage: 'popup.html',
-        darkMode: false
+        darkMode: false,
+        experimentalFeatures: false
     }, async (options) => {
         // Get current URL and check for the 'source' parameter
         const urlParams = new URLSearchParams(window.location.search);
@@ -38,6 +39,13 @@ async function onDOMContentLoaded() {
         
         await init(options);
         insertFrequentWorklogDescription(options);
+        
+        // Initialize worklog suggestions for all comment inputs only if experimental features are enabled
+        if (options.experimentalFeatures) {
+            document.querySelectorAll('.issue-comment-input').forEach(input => {
+                initializeWorklogSuggestions(input);
+            });
+        }
     });
 }
 
@@ -442,12 +450,14 @@ function generateLogTableRow(id, summary, worklog, options) {
 
     // 5) Comment input cell (with frequent buttons)
     const commentInputContainer = buildHTML('div', null, {
-        style: 'position: relative; display: inline-block;'
+        class: 'suggestion-container',
+        style: 'position: relative; display: inline-block; width: 100%;'
     });
     const commentInput = buildHTML('input', null, {
         class: 'issue-comment-input',
         'data-issue-id': id,
-        placeholder: 'Worklog description'
+        placeholder: 'Comment',
+        style: 'width: 100%; box-sizing: border-box;'
     });
     const commentButton1 = buildHTML('button', '1', {
         class: 'frequentWorklogDescription1'
@@ -590,22 +600,43 @@ function insertFrequentWorklogDescription(options) {
             if (button2) button2.style.display = 'none';
         }
         function showButtons() {
-            if (button1) button1.style.display = 'block';
-            if (button2) button2.style.display = 'block';
+            // Handle single button case
+            const onlyButton1 = options.frequentWorklogDescription1 && !options.frequentWorklogDescription2;
+            const onlyButton2 = !options.frequentWorklogDescription1 && options.frequentWorklogDescription2;
+
+            if (button1 && options.frequentWorklogDescription1) {
+                button1.style.display = 'block';
+                button1.style.zIndex = '2';
+                // If it's the only button, position it on the right
+                if (onlyButton1) {
+                    button1.style.right = '3px';
+                }
+            }
+            if (button2 && options.frequentWorklogDescription2) {
+                button2.style.display = 'block';
+                button2.style.zIndex = '1';
+                // If it's the only button, position it on the right
+                if (onlyButton2) {
+                    button2.style.right = '3px';
+                }
+            }
         }
 
-        // If user didn’t fill anything in options, we hide by default
+        // If user didn't fill anything in options, we hide by default
         if (!options.frequentWorklogDescription1 && !options.frequentWorklogDescription2) {
             hideButtons();
+        } else {
+            // Show buttons initially if they have content
+            showButtons();
         }
 
-        if (button1) {
+        if (button1 && options.frequentWorklogDescription1) {
             button1.addEventListener('click', () => {
                 descriptionField.value = options.frequentWorklogDescription1;
                 hideButtons();
             });
         }
-        if (button2) {
+        if (button2 && options.frequentWorklogDescription2) {
             button2.addEventListener('click', () => {
                 descriptionField.value = options.frequentWorklogDescription2;
                 hideButtons();
@@ -648,4 +679,104 @@ async function toggleStar(issueId, options) {
     } catch (err) {
         console.error('Error fetching issues after star update:', err);
     }
+}
+
+function initializeWorklogSuggestions(input) {
+    const completionElement = document.createElement('div');
+    completionElement.className = 'suggestion-completion';
+    input.parentNode.insertBefore(completionElement, input);
+
+    let originalValue = '';
+    let suggestionActive = false;
+
+    function updateSuggestions() {
+        const cursorPos = input.selectionStart;
+        const text = input.value;
+        
+        // Don't show suggestions if cursor is not at the end
+        if (cursorPos !== text.length) {
+            suggestionActive = false;
+            completionElement.textContent = '';
+            return;
+        }
+
+        const words = text.split(/\s+/);
+        const currentWord = words[words.length - 1] || '';
+        
+        if (!currentWord || currentWord.length < 2) {
+            suggestionActive = false;
+            completionElement.textContent = '';
+            return;
+        }
+
+        // Get suggestions
+        const suggestions = worklogSuggestions.getSuggestions(currentWord);
+        
+        if (suggestions.length > 0) {
+            const suggestion = suggestions[0];
+            if (suggestion.toLowerCase().startsWith(currentWord.toLowerCase())) {
+                const completion = suggestion.slice(currentWord.length);
+                if (completion) {
+                    originalValue = text;
+                    const prefix = text.slice(0, text.length - currentWord.length);
+                    completionElement.textContent = prefix + currentWord + completion;
+                    suggestionActive = true;
+                    return;
+                }
+            }
+        }
+        
+        completionElement.textContent = '';
+        suggestionActive = false;
+    }
+
+    // Handle special keys
+    input.addEventListener('keydown', (e) => {
+        if (suggestionActive) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                input.value = completionElement.textContent;
+                suggestionActive = false;
+                completionElement.textContent = '';
+                // Move cursor to end
+                const length = input.value.length;
+                input.setSelectionRange(length, length);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                input.value = originalValue;
+                suggestionActive = false;
+                completionElement.textContent = '';
+            } else if (e.key === 'Backspace') {
+                // Clear the suggestion and let backspace work on the original text
+                input.value = originalValue;
+                suggestionActive = false;
+                completionElement.textContent = '';
+                // Let the backspace event continue to remove one character
+            } else {
+                // For any other key press while suggestion is active, accept the suggestion
+                suggestionActive = false;
+                completionElement.textContent = '';
+            }
+        }
+    });
+
+    // Handle input changes
+    input.addEventListener('input', () => {
+        if (!suggestionActive) {
+            updateSuggestions();
+        }
+    });
+
+    // Handle focus loss
+    input.addEventListener('blur', () => {
+        if (suggestionActive) {
+            input.value = originalValue;
+            suggestionActive = false;
+            completionElement.textContent = '';
+        }
+        // Learn from the input when it loses focus
+        if (input.value) {
+            worklogSuggestions.learnFromText(input.value);
+        }
+    });
 }

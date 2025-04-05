@@ -1,3 +1,8 @@
+
+## 1.2.14 (Apr 05, 2025)
+- Feature: Added new worklog autosuggestions feature as an experimental feature. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Time Table tabs worklog descriptions/comments. Feature coming soon to the Search and Timer tabs.
+- Bug fix: Fixed an issue where the frequent worklog description buttons were not showing up as expected when the user had only filled in one of the two buttons on the Time Table tab. Fix coming soon to the Search and Timer tabs.
+
 ## 1.2.13 (Apr 05, 2025)
 - Feature: Added dark mode toggle to the options page as an experimental feature. Users can now toggle dark mode on and off from the options page if experimental features are enabled.
 

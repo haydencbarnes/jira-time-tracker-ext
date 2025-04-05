@@ -60,4 +60,8 @@ You can edit/customize the custom JQL query in the Settings tab under preference
 Log work faster by using worklog snippets to store and insert a frequently used worklog description/comment. You can save two snippets in the settings tab and they will appear as buttons accross the extension in the description of work completed field.
 
 #### Experimental Features Toggle
-This toggle allows you to enable/disable the experimental features of the extension. Currently, the only experimental feature is a Google calendar feature being explored.
+This toggle allows you to enable/disable the experimental features of the extension. Currently, the experimental features include:
+- Dark Mode
+- Worklog Autosuggestions
+- Google Calendar Add-on
+- Jira Issue Popups

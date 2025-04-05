@@ -5,108 +5,13 @@
     <meta charset="utf-8">
     <title>Jira Log Time</title>
     <script src="jira-api.js"></script>
+    <script src="worklog-suggestions.js"></script>
     <script src="popup.js"></script>
     <style type="text/css">
+        /* ===== Base/Reset Styles ===== */
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-        }
-
-        a {
-            color: #0052CC;
-            text-decoration: none;
-        }
-
-        a:hover,
-        a:active,
-        a:focus {
-            text-decoration: underline;
-        }
-        
-        #error {
-            padding: 10px;
-            color: #cc0000;
-            background-color: #ffdddd;
-            font-weight: bold;
-            display: none;
-            word-wrap: break-word;
-            white-space: normal;
-            overflow-wrap: break-word;
-            max-width: 100%;
-            box-sizing: border-box;
-        }
-
-        #error::before {
-            color: #000000;
-            content: '!!';
-            margin-right: 5px;
-        }
-
-		#success {
-			padding: 10px;
-			color: #4F8A10;
-			background-color: #DFF2BF;
-			font-weight: bold;
-			display: none;
-		}
-
-        #success::before {
-            color: #000000;
-			font-weight: bold;
-			content: '\2714'; /* Unicode checkmark */
-			margin-right: 10px; /* Spacing between the checkmark and the message */
-		}
-
-        #loader-container {
-            display: none;
-        }
-
-        #jira-log-time-table {
-            width: 740px;
-        }
-
-        #jira-log-time-table thead {
-            position: sticky;
-            top: 0;
-            z-index: 2; /* Ensure header stays above the buttons */
-        }
-
-        .frequentWorklogDescription1 {
-            position: absolute;
-            top: 50%;
-            right: 15px;
-            transform: translateY(-50%);
-            background-color: #0052CC;
-            color: white;
-            border: none;
-            cursor: pointer;
-            padding: 2px 1px;
-            border-radius: 3px;
-            z-index: 1;
-            width:10%;
-        }
-
-        .frequentWorklogDescription1:hover {
-            background-color: #0041a8;
-        }
-
-        .frequentWorklogDescription2 {
-            position: absolute;
-            top: 50%;
-            right: 1px;
-            transform: translateY(-50%);
-            background-color: #0052CC;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 3px;
-            padding: 2px 1px;
-            z-index: 1;
-            width:10%;
-        }
-
-        .frequentWorklogDescription2:hover {
-            background-color: #0041a8;
         }
 
         table {
@@ -121,71 +26,27 @@
             border-collapse: collapse;
         }
 
-        th {
-            font-size: 12px;
-            font-weight: bold;
-            color: #000000;
-            border-bottom: 2px solid #0052CC;
-			position: sticky;
+        /* ===== Typography & Links ===== */
+        a {
+            color: #0052CC;
+            text-decoration: none;
+        }
+
+        a:hover,
+        a:active,
+        a:focus {
+            text-decoration: underline;
+        }
+
+        /* ===== Layout & Structure ===== */
+        #jira-log-time-table {
+            width: 740px;
+        }
+
+        #jira-log-time-table thead {
+            position: sticky;
             top: 0;
-            background-color: #ffffff; /* Background color for the sticky header */
-			z-index: 1;
-        }
-		th::after {
-            content: '';
-            display: block;
-            position: absolute;
-            left: 0;
-            bottom: 0px; /* Adjust based on border thickness */
-            width: 100%;
-            height: 2px; /* Adjust based on border thickness */
-            background: #0052CC; /* Border color */
-            z-index: -1; /* Ensure it stays below the sticky header */
-        }
-
-        th,
-        td {
-            padding: 6px;
-            text-align: left;
-        }
-
-        td {
-            font-size: 12px;
-            color: #333333;
-            border-bottom: 1px solid #dddddd;
-        }
-
-		.truncate {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        input {
-            width: 95%;
-            padding: 4px;
-            font-size: 12px;
-            border-radius: 2px;
-            border: 1px solid #cccccc;
-        }
-
-        .issue-log-date-input {
-            padding: 3.25px;
-			font-size: 12px;
-			border-radius: 2px;
-            border: 1px solid #cccccc;
-        }
-
-        .issue-log-time-btn {
-            width: 100%;
-            background: #0052CC;
-            color: #fff;
-            border-radius: 3px;
-            border: none;
-            padding: 3.5px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
+            z-index: 2;
         }
 
         #brand {
@@ -212,6 +73,145 @@
             padding: 15px 0 0 0;
         }
 
+        /* ===== Table Styles ===== */
+        th {
+            font-size: 12px;
+            font-weight: bold;
+            color: #000000;
+            border-bottom: 2px solid #0052CC;
+            position: sticky;
+            top: 0;
+            background-color: #ffffff;
+            z-index: 1;
+        }
+
+        th::after {
+            content: '';
+            display: block;
+            position: absolute;
+            left: 0;
+            bottom: 0px;
+            width: 100%;
+            height: 2px;
+            background: #0052CC;
+            z-index: -1;
+        }
+
+        th,
+        td {
+            padding: 6px;
+            text-align: left;
+        }
+
+        td {
+            font-size: 12px;
+            color: #333333;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ===== Form Elements & Inputs ===== */
+        input {
+            width: 95%;
+            padding: 4px;
+            font-size: 12px;
+            border-radius: 2px;
+            border: 1px solid #cccccc;
+        }
+
+        .issue-log-date-input {
+            padding: 3.25px;
+            font-size: 12px;
+            border-radius: 2px;
+            border: 1px solid #cccccc;
+        }
+
+        .issue-comment-input {
+            position: relative;
+            z-index: 1;
+            background: transparent !important;
+            color: #000;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+
+        .issue-comment-input:focus {
+            outline: none;
+            border-color: #0052CC;
+        }
+
+        /* ===== Buttons & Interactive Elements ===== */
+        .issue-log-time-btn {
+            width: 100%;
+            background: #0052CC;
+            color: #fff;
+            border-radius: 3px;
+            border: none;
+            padding: 3.5px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .frequentWorklogDescription1,
+        .frequentWorklogDescription2 {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #0052CC;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 2px;
+            padding: 0px 2px;
+            z-index: 1;
+            width: auto;
+            min-width: 12px;
+            text-align: center;
+            font-size: 10px;
+            display: none; /* Hide by default */
+            line-height: 14px;
+        }
+
+        .frequentWorklogDescription1 {
+            right: 17px; /* Default position when both buttons are present */
+        }
+
+        .frequentWorklogDescription2 {
+            right: 3px; /* Default position when both buttons are present */
+        }
+
+        .frequentWorklogDescription1:hover,
+        .frequentWorklogDescription2:hover {
+            background-color: #0041a8;
+        }
+
+        .star-icon {
+            font-size: 12px;
+            cursor: pointer;
+            vertical-align: middle;
+            margin-right: 3px;
+        }
+
+        .star-icon.starred {
+            color: gold;
+        }
+
+        .star-icon.unstarred {
+            color: gray;
+        }
+
+        /* ===== Loader Animations ===== */
+        #loader-container {
+            display: none;
+        }
+
         .loader {
             margin: 30px auto 10px auto;
             font-size: 5px;
@@ -233,45 +233,6 @@
             border-radius: 50%;
             width: 30px;
             height: 30px;
-        }
-
-        .star-icon {
-            font-size: 12px;
-            cursor: pointer;
-            vertical-align: middle;
-            margin-right: 3px;
-        }
-
-        .star-icon.starred {
-            color: gold;
-        }
-
-        .star-icon.unstarred {
-            color: gray;
-        }
-
-        @-webkit-keyframes load8 {
-            0% {
-                -webkit-transform: rotate(0deg);
-                transform: rotate(0deg);
-            }
-
-            100% {
-                -webkit-transform: rotate(360deg);
-                transform: rotate(360deg);
-            }
-        }
-
-        @keyframes load8 {
-            0% {
-                -webkit-transform: rotate(0deg);
-                transform: rotate(0deg);
-            }
-
-            100% {
-                -webkit-transform: rotate(360deg);
-                transform: rotate(360deg);
-            }
         }
 
         .loader-mini:before,
@@ -315,30 +276,47 @@
             top: 0;
         }
 
-        @-webkit-keyframes load7 {
-            0%,
-            80%,
+        @-webkit-keyframes load8 {
+            0% {
+                -webkit-transform: rotate(0deg);
+                transform: rotate(0deg);
+            }
             100% {
+                -webkit-transform: rotate(360deg);
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes load8 {
+            0% {
+                -webkit-transform: rotate(0deg);
+                transform: rotate(0deg);
+            }
+            100% {
+                -webkit-transform: rotate(360deg);
+                transform: rotate(360deg);
+            }
+        }
+
+        @-webkit-keyframes load7 {
+            0%, 80%, 100% {
                 box-shadow: 0 5px 0 -1.3em #6F7280;
             }
-
             40% {
                 box-shadow: 0 5px 0 0 #6F7280;
             }
         }
 
         @keyframes load7 {
-            0%,
-            80%,
-            100% {
+            0%, 80%, 100% {
                 box-shadow: 0 5px 0 -1.3em #6F7280;
             }
-
             40% {
                 box-shadow: 0 5px 0 0 #6F7280;
             }
         }
 
+        /* ===== Tooltips & Suggestions ===== */
         .worklog-tooltip {
             position: absolute;
             background: #fff;
@@ -357,42 +335,65 @@
             overflow-y: auto;
         }
 
-        /* ---------------- Dark Mode Styles ---------------- */
+        .suggestion-container {
+            position: relative;
+            flex: 1;
+            width: 100%;
+        }
+
+        .suggestion-completion {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            color: #999;
+            padding: 4px;
+            box-sizing: border-box;
+            font-size: 12px;
+            background: transparent;
+            border: 1px solid transparent;
+            font-family: Arial, sans-serif;
+            z-index: 0;
+        }
+
+        /* ===== Dark Mode Styles ===== */
         body.dark-mode {
-        background-color: #121212;
-        color: #e0e0e0;
+            background-color: #121212;
+            color: #e0e0e0;
         }
 
         body.dark-mode input,
         body.dark-mode textarea,
         body.dark-mode select {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-        border: 1px solid #333;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            border: 1px solid #333;
         }
 
         body.dark-mode .issue-log-time-btn {
-        background: #0052CC;
+            background: #0052CC;
         }
 
         body.dark-mode #brand {
-        background: #1e1e1e;
-        border-top: 1px solid #333;
+            background: #1e1e1e;
+            border-top: 1px solid #333;
         }
 
         body.dark-mode a {
-        color: #0052CC;
-        font-weight: lighter;
+            color: #0052CC;
+            font-weight: lighter;
         }
 
         body.dark-mode td {
-        background-color: #121212;
-        color: #e0e0e0;
+            background-color: #121212;
+            color: #e0e0e0;
         }
 
         body.dark-mode th {
-        background-color: #121212;
-        color: #e0e0e0;
+            background-color: #121212;
+            color: #e0e0e0;
         }
 
         body.dark-mode .star-icon.unstarred {
@@ -412,6 +413,53 @@
             background-color: #0052CC;
             color: white;
             border: 1px solid #333;
+        }
+
+        body.dark-mode .suggestion-completion {
+            color: #666;
+        }
+
+        body.dark-mode .issue-comment-input {
+            color: #fff;
+        }
+
+        body.dark-mode .issue-comment-input:focus {
+            border-color: #4a90e2;
+        }
+
+        /* ===== Status Messages ===== */
+        #error {
+            padding: 10px;
+            color: #cc0000;
+            background-color: #ffdddd;
+            font-weight: bold;
+            display: none;
+            word-wrap: break-word;
+            white-space: normal;
+            overflow-wrap: break-word;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        #error::before {
+            color: #000000;
+            content: '!!';
+            margin-right: 5px;
+        }
+
+        #success {
+            padding: 10px;
+            color: #4F8A10;
+            background-color: #DFF2BF;
+            font-weight: bold;
+            display: none;
+        }
+
+        #success::before {
+            color: #000000;
+            font-weight: bold;
+            content: '\2714';
+            margin-right: 10px;
         }
     </style>
 </head>
