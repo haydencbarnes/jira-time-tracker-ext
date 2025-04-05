@@ -193,14 +193,6 @@
 
 <body>
     <div class="container">
-        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-            <label class="toggle-switch">
-              <input type="checkbox" id="darkModeToggle">
-              <span class="slider"></span>
-            </label>
-            <span>Dark Mode</span>
-          </div>
-    
         <table>
             <tr>
                 <td colspan="2"><span><b>*</b> = required to input/edit for extension access to Jira</span></td>
@@ -260,7 +252,7 @@
                         <option value="timerFeatureModule/timer.html">Timer</option>
                     </select>
                 </td>
-            </tr> 
+            </tr>
             <tr>
                 <td>Experimental Features</td>
                 <td>
@@ -268,9 +260,19 @@
                         <input type="checkbox" id="experimentalFeatures">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label">(Google Calendar Add-on, Jira Issue Popups + More Coming Soon!)</span>
+                    <span class="toggle-label">(Dark Mode, Google Calendar Add-on, Jira Issue Popups + More Coming Soon!)</span>
                 </td>
             </tr>
+            <tr id="darkModeRow" style="display: none;">
+                <td>Dark Mode</td>
+                <td><div style="display: flex; align-items: center;">
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="darkModeToggle">
+                      <span class="slider"></span>
+                    </label>
+                  </div></td>
+            </tr>
+            <tr>
                 <td>Version</td>
                 <td>
                     <input id="version" type="text" value="" disabled>

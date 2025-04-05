@@ -13,13 +13,23 @@
     const urlRow = document.getElementById('urlRow');
     const baseUrlInput = document.getElementById('baseUrl');
     const darkModeToggle = document.getElementById('darkModeToggle');
+    const darkModeRow = document.getElementById('darkModeRow');
+
+    function updateDarkModeVisibility(isExperimental) {
+        darkModeRow.style.display = isExperimental ? 'table-row' : 'none';
+        if (!isExperimental) {
+            darkModeToggle.checked = false;
+            document.body.classList.remove('dark-mode');
+            chrome.storage.sync.set({ darkMode: false });
+        }
+    }
 
     darkModeToggle.addEventListener('change', function() {
         const isDark = this.checked;
         if (isDark) {
-          document.body.classList.add('dark-mode');
+            document.body.classList.add('dark-mode');
         } else {
-          document.body.classList.remove('dark-mode');
+            document.body.classList.remove('dark-mode');
         }
         chrome.storage.sync.set({ darkMode: isDark });
     });
@@ -49,6 +59,7 @@
                 shape.style.opacity = '0';
             });
         }
+        updateDarkModeVisibility(this.checked);
     });
 
     jiraTypeSelect.addEventListener('change', function() {
@@ -114,11 +125,10 @@
           document.getElementById('frequentWorklogDescription2').value = items.frequentWorklogDescription2;
           document.getElementById('defaultPage').value = items.defaultPage;
       
-          darkModeToggle.checked = items.darkMode;
-          if (items.darkMode) {
+          updateDarkModeVisibility(items.experimentalFeatures);
+          if (items.experimentalFeatures && items.darkMode) {
+            darkModeToggle.checked = items.darkMode;
             document.body.classList.add('dark-mode');
-          } else {
-            document.body.classList.remove('dark-mode');
           }
       
           jiraTypeSelect.dispatchEvent(new Event('change'));

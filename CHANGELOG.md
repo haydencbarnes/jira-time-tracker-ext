@@ -1,3 +1,6 @@
+## 1.2.13 (Apr 05, 2025)
+- Feature: Added dark mode toggle to the options page as an experimental feature. Users can now toggle dark mode on and off from the options page if experimental features are enabled.
+
 ## 1.2.12 (Jan 29, 2025)
 - Bug fix: UI/UX improvements to all tabs
 - Docs: Updated README.md with new features and settings
