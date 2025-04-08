@@ -343,13 +343,15 @@ function generateLogTableRow(id, summary, worklog, options) {
     const baseUrl = options.baseUrl.startsWith('http')
         ? options.baseUrl
         : `https://${options.baseUrl}`;
-        const jiraLink = buildHTML('a', id, {
-            href: `${baseUrl}browse/${id}`,
-            target: '_blank',
-            'data-issue-id': id
-        });
+    const normalizedBaseUrl = baseUrl.endsWith('/')
+        ? baseUrl
+        : `${baseUrl}/`;
+    const jiraLink = buildHTML('a', id, {
+        href: `${normalizedBaseUrl}browse/${id}`,
+        target: '_blank',
+        'data-issue-id': id
+    });
         
-        // Add mouseover event listener
         jiraLink.addEventListener('mouseover', async (e) => {
             const existingTooltip = document.querySelector('.worklog-tooltip');
             if (existingTooltip) existingTooltip.remove();
