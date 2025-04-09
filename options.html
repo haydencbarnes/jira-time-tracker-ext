@@ -163,29 +163,83 @@
 
         /* ---------------- Dark Mode Styles ---------------- */
         body.dark-mode {
-        background-color: #121212;
-        color: #e0e0e0;
+            background-color: #141414;
+            color: #e0e0e0;
         }
 
         body.dark-mode input,
         body.dark-mode textarea,
         body.dark-mode select {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-        border: 1px solid #333;
+            background-color: #1A1A1A;
+            color: #e0e0e0;
+            border: 1px solid #333;
+        }
+
+        body.dark-mode input:focus,
+        body.dark-mode textarea:focus,
+        body.dark-mode select:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: none;
         }
 
         body.dark-mode .btn {
-        background: #0066cc;
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode .btn:hover {
+            background: #5E9FE3;
         }
 
         body.dark-mode #brand {
-        background: #1e1e1e;
-        border-top: 1px solid #333;
+            background: #141414;
+            border-top: 1px solid #333;
         }
 
         body.dark-mode a {
-        color: #4a90e2;
+            color: #4a90e2;
+        }
+
+        body.dark-mode #status {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .slider {
+            background-color: #333;
+        }
+
+        body.dark-mode input:checked + .slider {
+            background-color: #4690DD;
+        }
+
+        body.dark-mode .slider:before {
+            background-color: #e0e0e0;
+        }
+
+        body.dark-mode select {
+            background-color: #1A1A1A;
+            color: #e0e0e0;
+            border: 1px solid #333;
+        }
+
+        body.dark-mode select:focus {
+            border-color: #4a90e2;
+        }
+
+        body.dark-mode input[type="password"] {
+            background-color: #1A1A1A;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode input[type="text"] {
+            background-color: #1A1A1A;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode textarea {
+            background-color: #1A1A1A;
+            color: #e0e0e0;
         }
 
     </style>

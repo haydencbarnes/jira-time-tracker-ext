@@ -108,6 +108,10 @@
             border-bottom: 1px solid #d4d4d4; 
         }
 
+        #description {
+            font-family: 'Arial';
+        }
+
         .autocomplete-list li:hover {
             background-color: #e9e9e9; 
         }
@@ -123,8 +127,8 @@
             border-radius: 8px;
             border: none;
             padding: 10px;
-            font-size: 11px;
-            font-weight: bold;
+            font-size: 13px;
+
             cursor: pointer;
         }
 
@@ -222,33 +226,115 @@
 
         /* ---------------- Dark Mode Styles ---------------- */
         body.dark-mode {
-        background-color: #121212;
-        color: #e0e0e0;
+            background-color: #141414;
+            color: #e0e0e0;
         }
 
         body.dark-mode input,
         body.dark-mode textarea,
         body.dark-mode select {
-        background-color: #1e1e1e;
-        color: #e0e0e0;
-        border: 1px solid #333;
+            background-color: #1A1A1A;
+            color: #e0e0e0;
+            border: 1px solid #333;
         }
 
-        body.dark-mode .btn {
-        background: #0066cc;
+        body.dark-mode input:focus,
+        body.dark-mode textarea:focus,
+        body.dark-mode select:focus,
+        body.dark-mode .autocomplete-input:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: none;
+        }
+
+        body.dark-mode button {
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode button:hover {
+            background: #5E9FE3;
         }
 
         body.dark-mode #brand {
-        background: #1e1e1e;
-        border-top: 1px solid #333;
+            background: #141414;
+            border-top: 1px solid #333;
         }
 
         body.dark-mode a {
-        color: #4a90e2;
+            color: #4a90e2;
+            font-weight: lighter;
         }
 
-        body.dark-mode .autocomplete-list li  {
-        background-color: #1e1e1e;
+        body.dark-mode .autocomplete-list {
+            background-color: #1A1A1A;
+            border: none;
+        }
+
+        body.dark-mode .autocomplete-list li {
+            background-color: #141414;
+            color: #e0e0e0;
+            border-bottom: 1px solid #333;
+        }
+
+        body.dark-mode .autocomplete-list li:hover {
+            background-color: #333;
+        }
+
+        body.dark-mode .autocomplete-active {
+            background-color: #333 !important;
+        }
+
+        body.dark-mode .dropdown-arrow {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #frequentWorklogDescription1,
+        body.dark-mode #frequentWorklogDescription2 {
+            background-color: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode #frequentWorklogDescription1:hover,
+        body.dark-mode #frequentWorklogDescription2:hover {
+            background-color: #5E9FE3;
+        }
+
+        body.dark-mode #error {
+            color: #ff6b6b;
+            background-color: #2a1a1a;
+            border: 1px solid #4a1a1a;
+        }
+
+        body.dark-mode #success {
+            color: #4F8A10;
+            background-color: #1a2a1a;
+            border: 1px solid #1a4a1a;
+        }
+
+        body.dark-mode .input-wrapper {
+            background-color: #1A1A1A;
+            border: none;
+        }
+
+        body.dark-mode .input-wrapper:focus {
+            background-color: #1A1A1A;
+            border: none;
+        }
+
+        body.dark-mode .autocomplete-active:focus {
+            background-color: #1A1A1A;
+            border: none;
+        }
+
+        body.dark-mode .autocomplete-list li:focus {
+            background-color: #1A1A1A;
+            border: none;
+        }
+
+        body.dark-mode .autocomplete-list li:hover {
+            background-color: #1A1A1A;
+            border: none;
         }
 
     </style>
@@ -295,7 +381,7 @@
                 <td><label for="description">Description</label></td>
                 <td>
                     <div class="input-container">
-                        <textarea id="description" placeholder="Description of work completed..."></textarea>
+                        <textarea id="description" placeholder="Describe your work, magic, or craft"></textarea>
                         <button id="frequentWorklogDescription1">1</button>
                         <button id="frequentWorklogDescription2">2</button>
                     </div>

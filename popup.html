@@ -146,6 +146,21 @@
             border-color: #0052CC;
         }
 
+        .issue-time-input {
+            position: relative;
+            z-index: 1;
+            background: transparent !important;
+            color: #000;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+
+        .issue-time-input:focus {
+            outline: none;
+            border-color: #0052CC;
+        }
+
         /* ===== Buttons & Interactive Elements ===== */
         .issue-log-time-btn {
             width: 100%;
@@ -155,8 +170,11 @@
             border: none;
             padding: 3.5px;
             font-size: 11px;
-            font-weight: bold;
             cursor: pointer;
+        }
+
+        .issue-log-time-btn:hover {
+            background: #0041a8;
         }
 
         .frequentWorklogDescription1,
@@ -360,53 +378,61 @@
 
         /* ===== Dark Mode Styles ===== */
         body.dark-mode {
-            background-color: #121212;
+            background-color: #141414;
             color: #e0e0e0;
         }
 
         body.dark-mode input,
         body.dark-mode textarea,
         body.dark-mode select {
-            background-color: #1e1e1e;
+            background-color: #1A1A1A;
             color: #e0e0e0;
             border: 1px solid #333;
         }
 
         body.dark-mode .issue-log-time-btn {
-            background: #0052CC;
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode .issue-log-time-btn:hover {
+            background: #5E9FE3;
         }
 
         body.dark-mode #brand {
-            background: #1e1e1e;
+            background: #141414;
             border-top: 1px solid #333;
         }
 
         body.dark-mode a {
-            color: #0052CC;
+            color: #4a90e2;
             font-weight: lighter;
         }
 
         body.dark-mode td {
-            background-color: #121212;
+            background-color: #141414;
             color: #e0e0e0;
+            border-bottom: 1px solid #333;
         }
 
         body.dark-mode th {
-            background-color: #121212;
+            background-color: #141414;
             color: #e0e0e0;
         }
+
 
         body.dark-mode .star-icon.unstarred {
             color: white;
         }
 
         body.dark-mode .worklog-tooltip {
-            background: #121212;
+            background: #1A1A1A;
             border: 1px solid #333;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
 
         body.dark-mode .issue-log-date-input {
-            background-color: #1E1E1E;
+            background-color: #1A1A1A;
         }
 
         body.dark-mode input[type="date"]:focus {
@@ -424,6 +450,51 @@
         }
 
         body.dark-mode .issue-comment-input:focus {
+            border-color: #4a90e2;
+        }
+
+        body.dark-mode #error {
+            color: #ff6b6b;
+            background-color: #2a1a1a;
+            border: 1px solid #4a1a1a;
+        }
+
+        body.dark-mode #success {
+            color: #4F8A10;
+            background-color: #1a2a1a;
+            border: 1px solid #1a4a1a;
+        }
+
+        body.dark-mode .loader {
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+            border-right: 2px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            border-left: 2px solid #4a90e2;
+        }
+
+        body.dark-mode .loader-mini:before,
+        body.dark-mode .loader-mini:after,
+        body.dark-mode .loader-mini {
+            box-shadow: 0 5px 0 -1.3em #4a90e2;
+        }
+
+        body.dark-mode .frequentWorklogDescription1,
+        body.dark-mode .frequentWorklogDescription2 {
+            background-color: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode .frequentWorklogDescription1:hover,
+        body.dark-mode .frequentWorklogDescription2:hover {
+            background-color: #5E9FE3;
+        }
+
+        body.dark-mode .issue-time-input {
+            background-color: #141414;
+        }
+
+        body.dark-mode .issue-time-input:focus {
+            background-color: #1A1A1A;
             border-color: #4a90e2;
         }
 
@@ -475,12 +546,12 @@
                        style="vertical-align: middle; margin-right: 10px; width:20px; height:20px;">
                   Jira ID
                 </th>
-                <th width="26.75%">Summary</th>
+                <th width="27.75%">Summary</th>
                 <th width="9%">Total</th>
                 <th width="5%">Log</th>
                 <th width="18%">Comment</th>
                 <th width="15%">Date</th>
-                <th width="8%"></th>
+                <th width="7%"></th>
               </tr>
             </thead>
             <!-- <tbody> is created dynamically popup.js -->

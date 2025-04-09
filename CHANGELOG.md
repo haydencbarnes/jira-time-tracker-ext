@@ -1,3 +1,5 @@
+## 1.2.15 (Apr 08, 2025)
+- Feature: Refined dark mode styling for all tabs.
 
 ## 1.2.14 (Apr 07, 2025)
 - Feature: Added new worklog autosuggestions feature as an experimental feature. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Time Table tabs worklog descriptions/comments. Feature coming soon to the Search and Timer tabs.
