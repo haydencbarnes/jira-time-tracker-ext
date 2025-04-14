@@ -1,3 +1,6 @@
+## 1.2.16 (Apr 14, 2025)
+- Feature: Added new experimental side panel feature to the extension. Users can now use Chrome's side panel view to log time, search for issues, and view the time table.
+
 ## 1.2.15 (Apr 08, 2025)
 - Feature: Refined dark mode styling for all tabs.
 

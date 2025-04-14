@@ -14,13 +14,17 @@
     const baseUrlInput = document.getElementById('baseUrl');
     const darkModeToggle = document.getElementById('darkModeToggle');
     const darkModeRow = document.getElementById('darkModeRow');
+    const sidePanelToggle = document.getElementById('sidePanelToggle');
+    const sidePanelRow = document.getElementById('sidePanelRow');
 
     function updateDarkModeVisibility(isExperimental) {
         darkModeRow.style.display = isExperimental ? 'table-row' : 'none';
+        sidePanelRow.style.display = isExperimental ? 'table-row' : 'none';
         if (!isExperimental) {
             darkModeToggle.checked = false;
+            sidePanelToggle.checked = false;
             document.body.classList.remove('dark-mode');
-            chrome.storage.sync.set({ darkMode: false });
+            chrome.storage.sync.set({ darkMode: false, sidePanelEnabled: false });
         }
     }
 
@@ -32,6 +36,11 @@
             document.body.classList.remove('dark-mode');
         }
         chrome.storage.sync.set({ darkMode: isDark });
+    });
+
+    sidePanelToggle.addEventListener('change', function() {
+        const isEnabled = this.checked;
+        chrome.storage.sync.set({ sidePanelEnabled: isEnabled });
     });
 
     // Create shapes for the experimental features slider
@@ -82,6 +91,7 @@
         const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1').value;
         const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2').value;
         const defaultPage = document.getElementById('defaultPage').value;
+        const sidePanelEnabled = sidePanelToggle.checked;
 
         chrome.storage.sync.set({
             jiraType,
@@ -92,7 +102,8 @@
             experimentalFeatures,
             frequentWorklogDescription1,
             frequentWorklogDescription2,
-            defaultPage: defaultPage
+            defaultPage: defaultPage,
+            sidePanelEnabled
         }, function () {
             const status = document.getElementById('status');
             status.textContent = 'Options saved.';
@@ -113,7 +124,8 @@
           frequentWorklogDescription1: '',
           frequentWorklogDescription2: '',
           defaultPage: 'popup.html',
-          darkMode: false
+          darkMode: false,
+          sidePanelEnabled: false
         }, async function (items) {
           jiraTypeSelect.value = items.jiraType;
           document.getElementById('username').value = items.username;
@@ -126,9 +138,14 @@
           document.getElementById('defaultPage').value = items.defaultPage;
       
           updateDarkModeVisibility(items.experimentalFeatures);
-          if (items.experimentalFeatures && items.darkMode) {
-            darkModeToggle.checked = items.darkMode;
-            document.body.classList.add('dark-mode');
+          if (items.experimentalFeatures) {
+            if (items.darkMode) {
+              darkModeToggle.checked = items.darkMode;
+              document.body.classList.add('dark-mode');
+            }
+            if (items.sidePanelEnabled) {
+              sidePanelToggle.checked = items.sidePanelEnabled;
+            }
           }
       
           jiraTypeSelect.dispatchEvent(new Event('change'));

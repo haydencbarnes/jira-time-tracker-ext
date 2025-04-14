@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Jira Log Time",
-  "version": "1.2.15",
+  "version": "1.2.16",
   "description": "Log/Track your time in Jira in seconds!",
   "host_permissions": [
     "<all_urls>"
   ],
   "permissions": [
     "storage",
-    "action"
+    "sidePanel"
   ],
   "background": {
     "service_worker": "/timerFeatureModule/background.js"
@@ -16,6 +16,9 @@
   "action": {
     "default_icon": "src/icons/jira_logo.png",
     "default_popup": "popup.html"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "options_page": "options.html",
   "icons": {

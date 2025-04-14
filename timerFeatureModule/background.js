@@ -2,6 +2,22 @@ let badgeUpdateInterval;
 let currentSeconds = 0;
 let isRunning = false;
 
+// Initialize side panel behavior based on user preference
+chrome.storage.sync.get({ sidePanelEnabled: false }, function(items) {
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: items.sidePanelEnabled })
+    .catch((error) => console.error(error));
+});
+
+// Listen for changes to side panel setting
+chrome.storage.onChanged.addListener(function(changes, namespace) {
+  if (namespace === 'sync' && changes.sidePanelEnabled) {
+    chrome.sidePanel
+      .setPanelBehavior({ openPanelOnActionClick: changes.sidePanelEnabled.newValue })
+      .catch((error) => console.error(error));
+  }
+});
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'startTimer') {
     startBadgeUpdate(request.seconds);
@@ -13,6 +29,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     updateBadge(request.seconds, request.isRunning);
   } else if (request.action === 'syncTime') {
     syncTime(request.seconds, request.isRunning);
+  } else if (request.action === 'openSidePanel') {
+    chrome.sidePanel.open({ windowId: sender.tab.windowId });
   }
 });
 
