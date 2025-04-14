@@ -17,7 +17,7 @@
         table {
             width: 100%;
             table-layout: fixed;
-            margin: 0 5px;
+            margin: 0 3px;
         }
 
         table,
@@ -40,13 +40,14 @@
 
         /* ===== Layout & Structure ===== */
         #jira-log-time-table {
-            width: 740px;
+            width: 744px;
+            table-layout: fixed;
         }
 
         #jira-log-time-table thead {
             position: sticky;
             top: 0;
-            z-index: 2;
+            z-index: 1000;
         }
 
         #brand {
@@ -110,9 +111,15 @@
         }
 
         .truncate {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+        }
+
+        /* Ensure table cells expand to fit content */
+        #jira-log-time-table td {
+            height: auto;
+            min-height: 30px;
         }
 
         /* ===== Form Elements & Inputs ===== */
