@@ -1,3 +1,7 @@
+
+## 1.3.0 (Apr 16, 2025)
+- NEW! Feature: Added dark mode to the extension. Users can now toggle dark mode on and off from the bottom nav bar. You can also toggle dark mode system scheme following on and off from the options page.
+
 ## 1.2.16 (Apr 14, 2025)
 - Feature: Added new experimental side panel feature to the extension. Users can now use Chrome's side panel view to log time, search for issues, and view the time table.
 

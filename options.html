@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
     <title>Jira Log Time Settings</title>
     <style>
         body {
@@ -241,6 +242,114 @@
             color: #e0e0e0;
         }
 
+        /* Theme Toggle Styles */
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            margin: 0 4px;
+            vertical-align: middle;
+        }
+        .theme-toggle input {
+            display: none;
+        }
+        .theme-toggle-track {
+            width: 48px;
+            height: 24px;
+            background-color: #e2e8f0;
+            border-radius: 12px;
+            position: relative;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 4px;
+        }
+        .theme-toggle input:checked + .theme-toggle-track {
+            background-color: #1a1a1a;
+        }
+        .theme-toggle-thumb {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+            z-index: 2;
+        }
+        .theme-toggle input:checked + .theme-toggle-track .theme-toggle-thumb {
+            transform: translateX(24px);
+            background-color: #1a1a1a;
+        }
+        .theme-toggle-icon {
+            font-size: 16px;
+            z-index: 1;
+            transition: opacity 0.3s;
+            height: 24px;
+            width: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            line-height: 1;
+            position: relative;
+            top: 0;
+        }
+        .theme-toggle-icon.sun {
+            opacity: 0;
+            padding-left: 2px;
+            font-size: 14px;
+        }
+        .theme-toggle-icon.moon {
+            opacity: 1;
+            padding-right: 2px;
+            font-size: 14px;
+        }
+        .theme-toggle input:checked + .theme-toggle-track .theme-toggle-icon.sun {
+            opacity: 1;
+        }
+        .theme-toggle input:checked + .theme-toggle-track .theme-toggle-icon.moon {
+            opacity: 0;
+        }
+        body.dark-mode .theme-toggle-track {
+            background-color: #4a5568;
+        }
+        body.dark-mode .theme-toggle-thumb {
+            background-color: #1a1a1a;
+        }
+        /* Simple, minimal theme button with just the emoji - rounded square */
+        .theme-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 24px; 
+            border-radius: 4px; /* Rounded square */
+            cursor: pointer;
+            border: none;
+            vertical-align: middle;
+            transition: background-color 0.3s;
+            margin: 0 2px;
+            padding: 0;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.05); /* Subtle background */
+        }
+        .theme-button:hover {
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+        body.dark-mode .theme-button {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        body.dark-mode .theme-button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        /* Emoji font support */
+        .theme-button .icon {
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+
     </style>
 </head>
 
@@ -306,6 +415,15 @@
                     </select>
                 </td>
             </tr>
+            <tr id="darkModeRow">
+                <td>Follow System Color Scheme</td>
+                <td><div style="display: flex; align-items: center;">
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="systemThemeToggle" aria-label="Follow system color scheme">
+                      <span class="slider"></span>
+                    </label>
+                  </div></td>
+            </tr>
             <tr>
                 <td>Experimental Features</td>
                 <td>
@@ -313,17 +431,8 @@
                         <input type="checkbox" id="experimentalFeatures">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label">(Dark Mode, Autosuggestions, G-Cal Add-on, Jira Issue Popups + More Coming Soon!)</span>
+                    <span class="toggle-label">(Autosuggestions, G-Cal Add-on, Jira Issue Popups + More Coming Soon!)</span>
                 </td>
-            </tr>
-            <tr id="darkModeRow" style="display: none;">
-                <td>Dark Mode</td>
-                <td><div style="display: flex; align-items: center;">
-                    <label class="toggle-switch">
-                      <input type="checkbox" id="darkModeToggle">
-                      <span class="slider"></span>
-                    </label>
-                  </div></td>
             </tr>
             <tr id="sidePanelRow" style="display: none;">
                 <td>Side Panel</td>
@@ -356,6 +465,9 @@
             <a href="timerFeatureModule/timer.html" id="timerLink" tabindex="1" style="color: #0052CC;"><img src="src/icons/timer.png" alt="Timer" style="vertical-align: middle; width:20px; height:20px;"></a> |
             <a href="search.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/magnifying-glass.png" alt="Search" style="vertical-align: middle; width:19px; height:19px;"></a> |
             <a href="popup.html?source=navigation" tabindex="1" style="color: #0052CC;"><img src="src/icons/cells.png" alt="Time Table" style="vertical-align: middle; width:20px; height:20px;"></a> |
+            <button id="themeToggle" class="theme-button" title="Toggle dark mode">
+                <span class="icon">🌙</span>
+            </button> |
             <a href="https://github.com/haydencbarnes/jira-time-tracker-ext" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
         </div>
     </div>

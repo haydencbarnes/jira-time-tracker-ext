@@ -12,30 +12,98 @@
     const jiraTypeSelect = document.getElementById('jiraType');
     const urlRow = document.getElementById('urlRow');
     const baseUrlInput = document.getElementById('baseUrl');
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const darkModeRow = document.getElementById('darkModeRow');
+    const systemThemeToggle = document.getElementById('systemThemeToggle');
     const sidePanelToggle = document.getElementById('sidePanelToggle');
     const sidePanelRow = document.getElementById('sidePanelRow');
 
-    function updateDarkModeVisibility(isExperimental) {
-        darkModeRow.style.display = isExperimental ? 'table-row' : 'none';
-        sidePanelRow.style.display = isExperimental ? 'table-row' : 'none';
-        if (!isExperimental) {
-            darkModeToggle.checked = false;
-            sidePanelToggle.checked = false;
-            document.body.classList.remove('dark-mode');
-            chrome.storage.sync.set({ darkMode: false, sidePanelEnabled: false });
-        }
+    sidePanelRow.style.display = experimentalFeaturesToggle.checked ? 'table-row' : 'none';
+    if (!experimentalFeaturesToggle.checked) {
+        sidePanelToggle.checked = false;
+        chrome.storage.sync.set({ sidePanelEnabled: false });
     }
 
-    darkModeToggle.addEventListener('change', function() {
-        const isDark = this.checked;
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
+    // Add proper theme toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const themeToggle = document.getElementById('themeToggle');
+        
+        // Unified theme logic
+        function applyTheme(followSystem, manualDark) {
+            if (followSystem) {
+                const mql = window.matchMedia('(prefers-color-scheme: dark)');
+                setTheme(mql.matches);
+                mql.onchange = (e) => setTheme(e.matches);
+                window._systemThemeListener = mql;
+            } else {
+                if (window._systemThemeListener) {
+                    window._systemThemeListener.onchange = null;
+                    window._systemThemeListener = null;
+                }
+                setTheme(manualDark);
+            }
         }
-        chrome.storage.sync.set({ darkMode: isDark });
+        
+        function setTheme(isDark) {
+            updateThemeButton(isDark);
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+        }
+        
+        function updateThemeButton(isDark) {
+            const iconSpan = themeToggle.querySelector('.icon');
+            if (isDark) {
+                iconSpan.textContent = '☀️';
+                themeToggle.title = 'Switch to light mode';
+            } else {
+                iconSpan.textContent = '🌙';
+                themeToggle.title = 'Switch to dark mode';
+            }
+        }
+        
+        // Load settings and apply theme
+        chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function(result) {
+            const followSystem = result.followSystemTheme !== false; // default true
+            const manualDark = result.darkMode === true;
+            applyTheme(followSystem, manualDark);
+            
+            // Initialize system theme toggle
+            systemThemeToggle.checked = followSystem;
+        });
+        
+        // Theme button disables system-following and sets manual override
+        themeToggle.addEventListener('click', function() {
+            const isDark = !document.body.classList.contains('dark-mode');
+            updateThemeButton(isDark);
+            setTheme(isDark);
+            chrome.storage.sync.set({ darkMode: isDark, followSystemTheme: false });
+            
+            // Update system theme toggle to match
+            systemThemeToggle.checked = false;
+        });
+        
+        // System theme toggle handler
+        systemThemeToggle.addEventListener('change', function() {
+            const followSystem = this.checked;
+            chrome.storage.sync.set({ followSystemTheme: followSystem }, function() {
+                chrome.storage.sync.get(['darkMode'], function(result) {
+                    applyTheme(followSystem, result.darkMode === true);
+                });
+            });
+        });
+        
+        // Listen for changes from other tabs/options
+        chrome.storage.onChanged.addListener(function(changes, namespace) {
+            if (namespace === 'sync' && ('followSystemTheme' in changes || 'darkMode' in changes)) {
+                chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function(result) {
+                    const followSystem = result.followSystemTheme !== false;
+                    const manualDark = result.darkMode === true;
+                    applyTheme(followSystem, manualDark);
+                    systemThemeToggle.checked = followSystem;
+                });
+            }
+        });
     });
 
     sidePanelToggle.addEventListener('change', function() {
@@ -68,7 +136,11 @@
                 shape.style.opacity = '0';
             });
         }
-        updateDarkModeVisibility(this.checked);
+        sidePanelRow.style.display = this.checked ? 'table-row' : 'none';
+        if (!this.checked) {
+            sidePanelToggle.checked = false;
+            chrome.storage.sync.set({ sidePanelEnabled: false });
+        }
     });
 
     jiraTypeSelect.addEventListener('change', function() {
@@ -124,7 +196,7 @@
           frequentWorklogDescription1: '',
           frequentWorklogDescription2: '',
           defaultPage: 'popup.html',
-          darkMode: false,
+          followSystemTheme: true,
           sidePanelEnabled: false
         }, async function (items) {
           jiraTypeSelect.value = items.jiraType;
@@ -136,20 +208,18 @@
           document.getElementById('frequentWorklogDescription1').value = items.frequentWorklogDescription1;
           document.getElementById('frequentWorklogDescription2').value = items.frequentWorklogDescription2;
           document.getElementById('defaultPage').value = items.defaultPage;
-      
-          updateDarkModeVisibility(items.experimentalFeatures);
-          if (items.experimentalFeatures) {
-            if (items.darkMode) {
-              darkModeToggle.checked = items.darkMode;
-              document.body.classList.add('dark-mode');
-            }
-            if (items.sidePanelEnabled) {
-              sidePanelToggle.checked = items.sidePanelEnabled;
-            }
+
+          systemThemeToggle.checked = items.followSystemTheme;
+
+          sidePanelRow.style.display = items.experimentalFeatures ? 'table-row' : 'none';
+          if (items.experimentalFeatures && items.sidePanelEnabled) {
+            sidePanelToggle.checked = items.sidePanelEnabled;
+          } else {
+            sidePanelToggle.checked = false;
           }
-      
+
           jiraTypeSelect.dispatchEvent(new Event('change'));
-      
+
           const apiExtension = items.jiraType === 'cloud' ? '/rest/api/3' : '/rest/api/2';
           const jira = await JiraAPI(items.jiraType, items.baseUrl, apiExtension, items.username, items.apiToken, items.jql);
           const issues = await jira.getIssues(items.jql);

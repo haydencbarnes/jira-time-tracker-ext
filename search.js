@@ -1,3 +1,67 @@
+document.addEventListener('DOMContentLoaded', function() {
+    const themeToggle = document.getElementById('themeToggle');
+    
+    // Unified theme logic
+    function applyTheme(followSystem, manualDark) {
+        if (followSystem) {
+            const mql = window.matchMedia('(prefers-color-scheme: dark)');
+            setTheme(mql.matches);
+            mql.onchange = (e) => setTheme(e.matches);
+            window._systemThemeListener = mql;
+        } else {
+            if (window._systemThemeListener) {
+                window._systemThemeListener.onchange = null;
+                window._systemThemeListener = null;
+            }
+            setTheme(manualDark);
+        }
+    }
+    function setTheme(isDark) {
+        updateThemeButton(isDark);
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+    }
+    // Load settings and apply theme
+    chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function(result) {
+        const followSystem = result.followSystemTheme !== false; // default true
+        const manualDark = result.darkMode === true;
+        applyTheme(followSystem, manualDark);
+    });
+    // Theme button disables system-following and sets manual override
+    themeToggle.addEventListener('click', function() {
+        const isDark = !document.body.classList.contains('dark-mode');
+        updateThemeButton(isDark);
+        setTheme(isDark);
+        chrome.storage.sync.set({ darkMode: isDark, followSystemTheme: false });
+    });
+    // Listen for changes from other tabs/options
+    chrome.storage.onChanged.addListener(function(changes, namespace) {
+        if (namespace === 'sync' && ('followSystemTheme' in changes || 'darkMode' in changes)) {
+            chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function(result) {
+                const followSystem = result.followSystemTheme !== false;
+                const manualDark = result.darkMode === true;
+                applyTheme(followSystem, manualDark);
+            });
+        }
+    });
+});
+
+// Function to update the theme button icon
+function updateThemeButton(isDark) {
+  const themeToggle = document.getElementById('themeToggle');
+  const iconSpan = themeToggle.querySelector('.icon');
+  if (isDark) {
+    iconSpan.textContent = '☀️';
+    themeToggle.title = 'Switch to light mode';
+  } else {
+    iconSpan.textContent = '🌙';
+    themeToggle.title = 'Switch to dark mode';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
 async function onDOMContentLoaded() {
@@ -31,12 +95,6 @@ async function onDOMContentLoaded() {
 
 async function init(options) {
   console.log("Options received:", options);
-
-  if (options.darkMode === true) {
-    document.body.classList.add('dark-mode');
-  } else {
-    document.body.classList.remove('dark-mode');
-  };
 
   try {    
     // Initialize the JIRA API with the provided options
