@@ -433,3 +433,24 @@ function insertFrequentWorklogDescription(options) {
 function syncTimeWithBackground() {
   chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
 }
+
+function restartTimerAnimation() {
+  const timerAnimation = document.getElementById('timer-animation');
+  if (timerAnimation.style.display === 'block') {
+    timerAnimation.style.animation = 'none';
+    void timerAnimation.offsetWidth;
+    timerAnimation.style.animation = 'slide 2s linear infinite';
+  }
+}
+
+chrome.storage.onChanged.addListener(function(changes, namespace) {
+  if (namespace === 'sync' && changes.darkMode) {
+    const isDark = changes.darkMode.newValue;
+    if (isDark) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+    restartTimerAnimation();
+  }
+});
