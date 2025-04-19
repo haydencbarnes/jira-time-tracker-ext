@@ -151,7 +151,7 @@
         .issue-comment-input {
             position: relative;
             z-index: 1;
-            background: transparent !important;
+            background: transparent;
             color: #000;
             width: 100%;
             font-family: Arial, sans-serif;
@@ -167,7 +167,7 @@
         .issue-time-input {
             position: relative;
             z-index: 1;
-            background: transparent !important;
+            background: transparent;
             color: #000;
             width: 100%;
             font-family: Arial, sans-serif;
@@ -466,10 +466,12 @@
 
         body.dark-mode .issue-comment-input {
             color: #fff;
+            background-color: #1A1A1A;
         }
 
         body.dark-mode .issue-comment-input:focus {
             border-color: #4a90e2;
+            background-color: #1A1A1A;
         }
 
         body.dark-mode #error {
@@ -509,7 +511,7 @@
         }
 
         body.dark-mode .issue-time-input {
-            background-color: #141414;
+            background-color: #1A1A1A;
         }
 
         body.dark-mode .issue-time-input:focus {
