@@ -681,6 +681,66 @@
         .theme-button .icon {
             font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
         }
+
+        /* ===== Animation Styles ===== */
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        tr.success-highlight td {
+            background-color: rgba(211, 245, 211, 0.5); /* Light green tint */
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        tr.error-highlight td {
+            background-color: rgba(255, 221, 221, 0.6); /* Light red tint */
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        /* Remove highlight smoothly */
+        tr.fade-highlight td {
+            background-color: transparent !important; /* Use important to override */
+            transition: background-color 1s ease-out !important; /* Longer fade out */
+        }
+
+        /* Dark mode highlights */
+        body.dark-mode tr.success-highlight td {
+            background-color: rgba(46, 139, 87, 0.3); /* Darker green tint */
+        }
+
+        body.dark-mode tr.error-highlight td {
+            background-color: rgba(139, 0, 0, 0.4); /* Darker red tint */
+        }
+
+        /* Dark mode fade */
+        body.dark-mode tr.fade-highlight td {
+            background-color: #141414 !important; /* Fade back to dark bg */
+        }
+
+
+        .logged-time-indicator {
+            position: absolute;
+            top: 50%;
+            left: 75%; /* Position closer to the right of the total time cell */
+            transform: translateY(-50%);
+            color: green;
+            font-weight: bold;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background-color: rgba(211, 245, 211, 0.8);
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.5s ease-out 4.5s; /* Start fading after 4.5s */
+            animation: fadeOut 0.5s ease-out 4.5s forwards; /* Ensure it stays hidden */
+            z-index: 5; /* Ensure it's above other cell content */
+        }
+
+        body.dark-mode .logged-time-indicator {
+            color: #90ee90; /* Lighter green for dark mode */
+            background-color: rgba(46, 139, 87, 0.5);
+        }
     </style>
 </head>
 

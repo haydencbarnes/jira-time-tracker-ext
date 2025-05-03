@@ -1,3 +1,5 @@
+## 1.3.1 (May 03, 2025)
+- Feature: Added new error and success animations to the Time Table tab.
 
 ## 1.3.0 (Apr 16, 2025)
 - NEW! Feature: Added dark mode to the extension. Users can now toggle dark mode on and off from the bottom nav bar. You can also toggle dark mode system scheme following on and off from the options page.

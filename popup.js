@@ -278,7 +278,7 @@ async function logTimeClick(evt) {
         console.log("Worklog successfully updated:", result);
 
         // Display success message with the logged time
-        displaySuccess("You successfully logged: " + timeInput.value + " on " + issueId);
+        showSuccessAnimation(issueId, timeInput.value);
 
         // Clear the input fields upon success
         timeInput.value = '';
@@ -297,8 +297,10 @@ async function logTimeClick(evt) {
         if (error && error.status === 200) {
             // Worklog update was successful but something else caused an error
             displaySuccess("Successfully logged: " + timeInput.value + " but encountered an issue afterward.");
+            showErrorAnimation(issueId);
         } else {
             genericResponseError(error); // Handle unexpected errors
+            showErrorAnimation(issueId);
         }
     }
 }
@@ -842,4 +844,57 @@ function initializeWorklogSuggestions(input) {
             worklogSuggestions.learnFromText(input.value);
         }
     });
+}
+
+function showSuccessAnimation(issueId, loggedTime) {
+    const row = document.querySelector(`tr[data-issue-id="${issueId}"]`);
+    if (!row) return;
+
+    const totalTimeCell = row.querySelector('td.issue-total-time');
+    if (!totalTimeCell) return;
+
+    // Ensure relative positioning for the absolute indicator
+    totalTimeCell.style.position = 'relative';
+
+    // Create and add indicator
+    const indicator = document.createElement('span');
+    indicator.className = 'logged-time-indicator';
+    indicator.textContent = `+${loggedTime}`;
+    totalTimeCell.appendChild(indicator);
+
+    // Add highlight class
+    row.classList.add('success-highlight');
+
+    // Set timeouts to remove indicator and highlight
+    setTimeout(() => {
+        indicator.remove();
+        totalTimeCell.style.position = ''; // Reset position
+    }, 5000); // Remove indicator after 5 seconds (matching CSS animation)
+
+    setTimeout(() => {
+        row.classList.add('fade-highlight'); // Start fade out transition
+        row.classList.remove('success-highlight');
+    }, 4000); // Start fade slightly before indicator disappears
+
+    // Clean up fade class after transition ends
+    setTimeout(() => {
+         row.classList.remove('fade-highlight');
+    }, 5000); // Matches the fade duration
+}
+
+function showErrorAnimation(issueId) {
+    const row = document.querySelector(`tr[data-issue-id="${issueId}"]`);
+    if (!row) return;
+
+    row.classList.add('error-highlight');
+
+    setTimeout(() => {
+        row.classList.add('fade-highlight');
+        row.classList.remove('error-highlight');
+    }, 4000); // Keep highlight for 4 seconds
+
+    // Clean up fade class after transition ends
+    setTimeout(() => {
+         row.classList.remove('fade-highlight');
+    }, 5000); // Matches the fade duration
 }
