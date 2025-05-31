@@ -60,7 +60,12 @@
         }
 
         #description {
-            font-family: 'Arial';
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            position: relative;
+            z-index: 1;
+            background: transparent !important;
         }
 
         .input-wrapper {
@@ -183,7 +188,7 @@
             border: none;
             cursor: pointer;
             padding: 5px 10px;
-            z-index: 1;
+            z-index: 2;
             width: 10%;
             display: none;
         }
@@ -485,6 +490,42 @@
             border: none;
         }
 
+        /* Consistent font sizing for all inputs */
+        input[type="text"], textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px;
+            font-size: 11px;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Worklog suggestions styles */
+        .suggestion-completion {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            color: #999;
+            padding: 5px;
+            box-sizing: border-box;
+            font-size: 11px;
+            font-family: Arial, sans-serif;
+            background: transparent;
+            border: 1px solid transparent;
+            z-index: 0;
+            resize: none;
+            white-space: pre-wrap;
+            overflow: hidden;
+            line-height: inherit;
+            margin: 0;
+        }
+
+        body.dark-mode .suggestion-completion {
+            color: #666;
+        }
+
     </style>
 </head>
 
@@ -532,7 +573,9 @@
         </div>
 
         <div class="input-container">
-            <textarea id="description" placeholder="Describe your work, magic, or craft"></textarea>
+            <div class="suggestion-container" style="position: relative; flex: 1;">
+                <textarea id="description" placeholder="Describe your work, magic, or craft"></textarea>
+            </div>
             <button id="frequentWorklogDescription1">1</button>
             <button id="frequentWorklogDescription2">2</button>
         </div>
@@ -558,6 +601,7 @@
     </div>
 
     <script src="../jira-api.js"></script>
+    <script src="../worklog-suggestions.js"></script>
     <script src="timer.js"></script>
 </body>
 

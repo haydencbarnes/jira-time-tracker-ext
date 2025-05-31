@@ -1,3 +1,7 @@
+## 1.3.3 (May 31, 2025)
+- Feature: Added new worklog autosuggestions feature to the Timer tab. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Timer tab worklog descriptions/comments if they have experimental features enabled.
+- Chore: Refactored the worklog autosuggestions feature to be more consistent across all tabs.
+
 ## 1.3.2 (May 31, 2025)
 - Feature: Added new worklog autosuggestions feature to the Search tab. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Search tab worklog descriptions/comments if they have experimental features enabled.
 

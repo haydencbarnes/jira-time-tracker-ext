@@ -98,12 +98,7 @@ async function onDOMContentLoaded() {
         await init(options);
         insertFrequentWorklogDescription(options);
         
-        // Initialize worklog suggestions for all comment inputs only if experimental features are enabled
-        if (options.experimentalFeatures) {
-            document.querySelectorAll('.issue-comment-input').forEach(input => {
-                initializeWorklogSuggestions(input);
-            });
-        }
+        // Worklog suggestions will be initialized after table is drawn where input elements exist
     });
 }
 
@@ -365,6 +360,16 @@ function drawIssuesTable(issuesResponse, options) {
     });
 
     logTable.appendChild(newTbody);
+    
+    // Initialize worklog suggestions for all comment inputs if experimental features are enabled
+    // This is done here because input elements are now created and theme is already applied
+    chrome.storage.sync.get(['experimentalFeatures'], function(result) {
+        if (result.experimentalFeatures) {
+            document.querySelectorAll('.issue-comment-input').forEach(input => {
+                initializeWorklogSuggestions(input);
+            });
+        }
+    });
 }
 
 // ⭐️ utility function that sorts starred issues to top
@@ -741,109 +746,16 @@ async function toggleStar(issueId, options) {
         // ⭐️ Re-run your frequent-worklog setup after the new table is in the DOM
         insertFrequentWorklogDescription(options);
 
+        // Re-initialize worklog suggestions for all comment inputs if experimental features are enabled
+        if (options.experimentalFeatures) {
+            document.querySelectorAll('.issue-comment-input').forEach(input => {
+                initializeWorklogSuggestions(input);
+            });
+        }
+
     } catch (err) {
         console.error('Error fetching issues after star update:', err);
     }
-}
-
-function initializeWorklogSuggestions(input) {
-    const completionElement = document.createElement('div');
-    completionElement.className = 'suggestion-completion';
-    input.parentNode.insertBefore(completionElement, input);
-
-    let originalValue = '';
-    let suggestionActive = false;
-
-    function updateSuggestions() {
-        const cursorPos = input.selectionStart;
-        const text = input.value;
-        
-        // Don't show suggestions if cursor is not at the end
-        if (cursorPos !== text.length) {
-            suggestionActive = false;
-            completionElement.textContent = '';
-            return;
-        }
-
-        const words = text.split(/\s+/);
-        const currentWord = words[words.length - 1] || '';
-        
-        if (!currentWord || currentWord.length < 2) {
-            suggestionActive = false;
-            completionElement.textContent = '';
-            return;
-        }
-
-        // Get suggestions
-        const suggestions = worklogSuggestions.getSuggestions(currentWord);
-        
-        if (suggestions.length > 0) {
-            const suggestion = suggestions[0];
-            if (suggestion.toLowerCase().startsWith(currentWord.toLowerCase())) {
-                const completion = suggestion.slice(currentWord.length);
-                if (completion) {
-                    originalValue = text;
-                    const prefix = text.slice(0, text.length - currentWord.length);
-                    completionElement.textContent = prefix + currentWord + completion;
-                    suggestionActive = true;
-                    return;
-                }
-            }
-        }
-        
-        completionElement.textContent = '';
-        suggestionActive = false;
-    }
-
-    // Handle special keys
-    input.addEventListener('keydown', (e) => {
-        if (suggestionActive) {
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                input.value = completionElement.textContent;
-                suggestionActive = false;
-                completionElement.textContent = '';
-                // Move cursor to end
-                const length = input.value.length;
-                input.setSelectionRange(length, length);
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                input.value = originalValue;
-                suggestionActive = false;
-                completionElement.textContent = '';
-            } else if (e.key === 'Backspace') {
-                // Clear the suggestion and let backspace work on the original text
-                input.value = originalValue;
-                suggestionActive = false;
-                completionElement.textContent = '';
-                // Let the backspace event continue to remove one character
-            } else {
-                // For any other key press while suggestion is active, accept the suggestion
-                suggestionActive = false;
-                completionElement.textContent = '';
-            }
-        }
-    });
-
-    // Handle input changes
-    input.addEventListener('input', () => {
-        if (!suggestionActive) {
-            updateSuggestions();
-        }
-    });
-
-    // Handle focus loss
-    input.addEventListener('blur', () => {
-        if (suggestionActive) {
-            input.value = originalValue;
-            suggestionActive = false;
-            completionElement.textContent = '';
-        }
-        // Learn from the input when it loses focus
-        if (input.value) {
-            worklogSuggestions.learnFromText(input.value);
-        }
-    });
 }
 
 function showSuccessAnimation(issueId, loggedTime) {

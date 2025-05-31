@@ -151,7 +151,7 @@
         .issue-comment-input {
             position: relative;
             z-index: 1;
-            background: transparent;
+            background: transparent !important;
             color: #000;
             width: 100%;
             font-family: Arial, sans-serif;
@@ -393,6 +393,11 @@
             border: 1px solid transparent;
             font-family: Arial, sans-serif;
             z-index: 0;
+            resize: none;
+            white-space: pre-wrap;
+            overflow: hidden;
+            line-height: inherit;
+            margin: 0;
         }
 
         /* ===== Dark Mode Styles ===== */

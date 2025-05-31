@@ -168,7 +168,6 @@ class WorklogSuggestions {
 const worklogSuggestions = new WorklogSuggestions();
 
 function initializeWorklogSuggestions(input) {
-    console.log('Initializing worklog suggestions for input:', input);
     // Accept either an element or an ID
     const inputElement = typeof input === 'string' ? document.getElementById(input) : input;
     
@@ -176,17 +175,53 @@ function initializeWorklogSuggestions(input) {
         console.error('Input element not found');
         return;
     }
-    console.log('Found input element:', inputElement);
 
     const completionElement = document.createElement('div');
     completionElement.className = 'suggestion-completion';
+    
+    // Apply inline styles to ensure visibility in dark mode
+    completionElement.style.position = 'absolute';
+    completionElement.style.left = '0';
+    completionElement.style.top = '0';
+    completionElement.style.width = '100%';
+    completionElement.style.height = '100%';
+    completionElement.style.pointerEvents = 'none';
+    
+    // Match the exact styling of the input element
+    const computedStyle = window.getComputedStyle(inputElement);
+    completionElement.style.padding = computedStyle.padding;
+    completionElement.style.boxSizing = computedStyle.boxSizing;
+    completionElement.style.fontSize = computedStyle.fontSize;
+    completionElement.style.fontFamily = computedStyle.fontFamily;
+    completionElement.style.lineHeight = computedStyle.lineHeight;
+    completionElement.style.letterSpacing = computedStyle.letterSpacing;
+    completionElement.style.wordSpacing = computedStyle.wordSpacing;
+    
+    completionElement.style.background = 'transparent';
+    completionElement.style.border = '1px solid transparent';
+    completionElement.style.zIndex = '0';
+    completionElement.style.resize = 'none';
+    completionElement.style.whiteSpace = 'pre-wrap';
+    completionElement.style.overflow = 'hidden';
+    completionElement.style.margin = '0';
+    
+    // Set color based on dark mode
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    completionElement.style.color = isDarkMode ? '#666' : '#999';
+    
     inputElement.parentNode.insertBefore(completionElement, inputElement);
-
+    
     let originalValue = '';
     let suggestionActive = false;
 
+    function updateSuggestionColor() {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        completionElement.style.color = isDarkMode ? '#666' : '#999';
+    }
+
     function updateSuggestions() {
-        console.log('Updating suggestions...');
+        updateSuggestionColor(); // Ensure color is correct
+        
         const cursorPos = inputElement.selectionStart;
         const text = inputElement.value;
         
@@ -199,7 +234,6 @@ function initializeWorklogSuggestions(input) {
 
         const words = text.split(/\s+/);
         const currentWord = words[words.length - 1] || '';
-        console.log('Current word:', currentWord);
         
         if (!currentWord || currentWord.length < 2) {
             suggestionActive = false;
@@ -217,7 +251,8 @@ function initializeWorklogSuggestions(input) {
                 if (completion) {
                     originalValue = text;
                     const prefix = text.slice(0, text.length - currentWord.length);
-                    completionElement.textContent = prefix + currentWord + completion;
+                    const fullSuggestion = prefix + currentWord + completion;
+                    completionElement.textContent = fullSuggestion;
                     suggestionActive = true;
                     return;
                 }

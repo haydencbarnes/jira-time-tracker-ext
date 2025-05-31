@@ -36,7 +36,8 @@ async function onDOMContentLoaded() {
     jiraType: 'server',
     frequentWorklogDescription1: '',
     frequentWorklogDescription2: '',
-    darkMode: false
+    darkMode: false,
+    experimentalFeatures: false
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
@@ -88,6 +89,14 @@ async function onDOMContentLoaded() {
         const followSystem = result.followSystemTheme !== false; // default true
         const manualDark = result.darkMode === true;
         applyTheme(followSystem, manualDark);
+        
+        // Initialize worklog suggestions AFTER theme is applied
+        if (options.experimentalFeatures) {
+          const descriptionField = document.getElementById('description');
+          if (descriptionField && typeof initializeWorklogSuggestions === 'function') {
+            initializeWorklogSuggestions(descriptionField);
+          }
+        }
     });
     // Theme button disables system-following and sets manual override
     themeToggle.addEventListener('click', function() {
@@ -103,6 +112,17 @@ async function onDOMContentLoaded() {
                 const followSystem = result.followSystemTheme !== false;
                 const manualDark = result.darkMode === true;
                 applyTheme(followSystem, manualDark);
+            });
+        }
+        if (namespace === 'sync' && 'experimentalFeatures' in changes) {
+            // Initialize worklog suggestions when experimental features are enabled
+            chrome.storage.sync.get(['experimentalFeatures'], function(result) {
+                if (result.experimentalFeatures) {
+                    const descriptionField = document.getElementById('description');
+                    if (descriptionField && typeof initializeWorklogSuggestions === 'function') {
+                        initializeWorklogSuggestions(descriptionField);
+                    }
+                }
             });
         }
     });
