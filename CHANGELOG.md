@@ -1,3 +1,6 @@
+## 1.3.2 (May 31, 2025)
+- Feature: Added new worklog autosuggestions feature to the Search tab. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Search tab worklog descriptions/comments if they have experimental features enabled.
+
 ## 1.3.1 (May 03, 2025)
 - Feature: Added new error and success animations to the Time Table tab.
 

@@ -72,7 +72,8 @@ async function onDOMContentLoaded() {
     username: '',
     frequentWorklogDescription1: '',
     frequentWorklogDescription2: '',
-    darkMode: false
+    darkMode: false,
+    experimentalFeatures: false
   }, async (options) => {
     console.log('Storage options:', options);
     await init(options);
@@ -80,8 +81,14 @@ async function onDOMContentLoaded() {
     document.getElementById('search').addEventListener('click', logTimeClick);
     
     insertFrequentWorklogDescription(options);
-    jiraTypeSelect.dispatchEvent(new Event('change'));
 
+    // Initialize worklog suggestions for description field if experimental features are enabled
+    if (options.experimentalFeatures) {
+      const descriptionField = document.getElementById('description');
+      if (descriptionField) {
+        initializeWorklogSuggestions(descriptionField);
+      }
+    }
   });
 
   const datePicker = document.getElementById('datePicker');
@@ -89,6 +96,15 @@ async function onDOMContentLoaded() {
 
   chrome.storage.onChanged.addListener(function(changes, namespace) {
     if (namespace === 'sync' && 'experimentalFeatures' in changes) {
+      // Reload the page when experimental features setting changes
+      chrome.storage.sync.get(['experimentalFeatures'], function(result) {
+        if (result.experimentalFeatures) {
+          const descriptionField = document.getElementById('description');
+          if (descriptionField && typeof initializeWorklogSuggestions === 'function') {
+            initializeWorklogSuggestions(descriptionField);
+          }
+        }
+      });
     }
   });
 }
