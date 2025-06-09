@@ -1,3 +1,6 @@
+## 1.3.4 (Jun 09, 2025)
+- Bug fix: Fixed an issue where the worklog tooltip was not being displayed correctly when the user had a large number of Jira work items.
+
 ## 1.3.3 (May 31, 2025)
 - Feature: Added new worklog autosuggestions feature to the Timer tab. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Timer tab worklog descriptions/comments if they have experimental features enabled.
 - Chore: Refactored the worklog autosuggestions feature to be more consistent across all tabs.

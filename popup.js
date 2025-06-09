@@ -417,7 +417,15 @@ function generateLogTableRow(id, summary, worklog, options) {
         'data-issue-id': id
     });
         
+        let tooltipTimeout;
+        
         jiraLink.addEventListener('mouseover', async (e) => {
+            // Clear any existing timeout
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+            
             const existingTooltip = document.querySelector('.worklog-tooltip');
             if (existingTooltip) existingTooltip.remove();
         
@@ -425,10 +433,22 @@ function generateLogTableRow(id, summary, worklog, options) {
             tooltip.className = 'worklog-tooltip';
             tooltip.innerHTML = 'Loading worklogs...';
             
-            // Position tooltip near the link
+            // Smart tooltip positioning: above or below based on available space
             const rect = e.target.getBoundingClientRect();
-            tooltip.style.left = `${rect.left}px`;
-            tooltip.style.top = `${rect.bottom + 5}px`;
+            const viewportHeight = window.innerHeight;
+            const spaceBelow = viewportHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            
+            // Position tooltip
+            tooltip.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 370))}px`;
+            
+            if (spaceBelow >= 150 || spaceBelow >= spaceAbove) {
+                // Position below
+                tooltip.style.top = `${rect.bottom + 5}px`;
+            } else {
+                // Position above
+                tooltip.style.top = `${rect.top - 155}px`;
+            }
             
             document.body.appendChild(tooltip);
         
@@ -460,10 +480,12 @@ function generateLogTableRow(id, summary, worklog, options) {
             }
         });
         
-        // Add mouseout event listener
-        jiraLink.addEventListener('mouseout', () => {
-            const tooltip = document.querySelector('.worklog-tooltip');
-            if (tooltip) tooltip.remove();
+        // Add mouseout event listener with delay to prevent flickering
+        jiraLink.addEventListener('mouseout', (e) => {
+            tooltipTimeout = setTimeout(() => {
+                const tooltip = document.querySelector('.worklog-tooltip');
+                if (tooltip) tooltip.remove();
+            }, 150);
         });        
         
     idCell.appendChild(jiraLink);
