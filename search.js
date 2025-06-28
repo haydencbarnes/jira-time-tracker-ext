@@ -119,7 +119,7 @@ async function init(options) {
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
       console.error('JIRA API instantiation failed: Methods missing', JIRA);
-      displayError('JIRA API instantiation failed.');
+      displayError('JIRA API setup failed. Please check your settings and ensure all required fields (Base URL, Username, API Token) are correctly configured. Go to the main popup Settings to verify your configuration.');
       return;
     }
 
@@ -128,7 +128,7 @@ async function init(options) {
     document.getElementById('search').addEventListener('click', logTimeClick);
   } catch (error) {
     console.error('Error initializing JIRA API:', error);
-    displayError('Initialization failed. (Settings may need set up.)');
+    window.JiraErrorHandler.handleJiraError(error, 'Failed to connect to JIRA from search page', 'search');
   }
 }
 
@@ -274,6 +274,24 @@ async function logTimeClick(evt) {
   const timeSpent = document.getElementById('timeSpent').value;
   const description = document.getElementById('description').value;
 
+  // Validation
+  if (!issueKey) {
+    displayError('Issue Key is required. Please select or enter a valid issue key (e.g., PROJECT-123).');
+    return;
+  }
+
+  if (!timeSpent) {
+    displayError('Time Spent is required. Please enter the time you want to log (e.g., 2h, 30m, 1d).');
+    return;
+  }
+
+  // Validate time format
+  const timeMatches = timeSpent.match(/[0-9]{1,4}[dhm]/g);
+  if (!timeMatches) {
+    displayError('Invalid time format. Please use:\n• Hours: 2h, 1.5h\n• Minutes: 30m, 45m\n• Days: 1d, 0.5d\n\nExamples: "2h 30m", "1d", "45m"');
+    return;
+  }
+
   console.log("Logging time with parameters:", { projectId, issueKey, date, timeSpent, description });
 
   chrome.storage.sync.get({
@@ -282,9 +300,8 @@ async function logTimeClick(evt) {
     baseUrl: '',
     username: '',
   }, async (options) => {
-    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
-
     try {
+      const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
       const startedTime = getStartedTime(date);
       const timeSpentSeconds = convertTimeToSeconds(timeSpent);
 
@@ -302,7 +319,7 @@ async function logTimeClick(evt) {
       document.getElementById('description').value = '';
     } catch (error) {
       console.error('Error logging time:', error);
-      displayError(`Error logging time: ${error.message}`);
+      window.JiraErrorHandler.handleJiraError(error, `Failed to log time for issue ${issueKey}`, 'search');
     }
   });
 }

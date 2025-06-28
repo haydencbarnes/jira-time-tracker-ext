@@ -1,3 +1,6 @@
+## 1.3.5 (Jun 28, 2025)
+- Feature: Added new error handling feature to the extension. Users can now see a more detailed error message when an error occurs.
+
 ## 1.3.4 (Jun 09, 2025)
 - Bug fix: Fixed an issue where the worklog tooltip was not being displayed correctly when the user had a large number of Jira work items.
 

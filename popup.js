@@ -133,7 +133,7 @@ async function init(options) {
 
         if (!JIRA || typeof JIRA.getIssues !== 'function') {
             console.error('JIRA API instantiation failed: Methods missing', JIRA);
-            displayError('JIRA API instantiation failed.');
+            displayError('JIRA API setup failed. Please check your settings and ensure all required fields (Base URL, Username, API Token) are correctly configured. Go to Settings to verify your configuration.');
             return;
         }
 
@@ -145,13 +145,13 @@ async function init(options) {
             onFetchSuccess(issuesResponse, options); // Pass options to the function
         } catch (error) {
             console.error('Error fetching issues:', error);
-            displayError(`Fetching Issues Error: (Settings may need set up.)`);
+            window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch issues from JIRA', 'popup');
         } finally {
             toggleVisibility('div[id=loader-container]'); // Hide loader
         }
     } catch (error) {
         console.error('Error initializing JIRA API:', error);
-        displayError('Initialization failed. (Settings may need set up.)');
+        window.JiraErrorHandler.handleJiraError(error, 'Failed to connect to JIRA', 'popup');
     }
 }
 
@@ -162,7 +162,7 @@ function onFetchSuccess(issuesResponse, options) {
 
 function onFetchError(error) {
     toggleVisibility('div[id=loader-container]');
-    genericResponseError(error);
+    window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch data from JIRA', 'popup');
 }
 
 function getWorklog(issueId, JIRA) {
@@ -205,7 +205,7 @@ function onWorklogFetchSuccess(response, totalTime, loader) {
 function onWorklogFetchError(error, totalTime, loader) {
     totalTime.style.display = 'block';
     loader.style.display = 'none';
-    genericResponseError(error);
+    window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch worklog data', 'popup');
 }
 
 async function logTimeClick(evt) {
@@ -226,19 +226,19 @@ async function logTimeClick(evt) {
     console.log('loader:', loader);
 
     if (!timeInput || !timeInput.value) {
-        displayError('Time input element not found or is empty.');
+        displayError('Time field is required. Please enter the time you want to log (e.g., 2h, 30m, 1d).');
         return;
     }
 
     const timeMatches = timeInput.value.match(/[0-9]{1,4}[dhm]/g);
     if (!timeMatches) {
-        displayError('Time input in wrong format. You can specify a time unit after a time value "X", such as Xd, Xh, or Xm, to represent days, hours, and minutes (m), respectively.');
+        displayError('Invalid time format. Please use:\n• Hours: 2h, 1.5h\n• Minutes: 30m, 45m\n• Days: 1d, 0.5d\n\nExamples: "2h 30m", "1d", "45m"');
         return;
     }
 
     const timeSpentSeconds = convertTimeToSeconds(timeInput.value);
     if (isNaN(timeSpentSeconds) || timeSpentSeconds <= 0) {
-        displayError('Invalid time input value. Please provide a valid time format.');
+        displayError('Invalid time value. Please enter a positive time amount using valid units (d=days, h=hours, m=minutes).');
         return;
     }
 
@@ -288,13 +288,13 @@ async function logTimeClick(evt) {
         totalTimeSpans.style.display = 'block';
         loader.style.display = 'none';
 
-        // Check for specific known issues before calling genericResponseError
+        // Check for specific known issues before calling handleJiraError
         if (error && error.status === 200) {
             // Worklog update was successful but something else caused an error
             displaySuccess("Successfully logged: " + timeInput.value + " but encountered an issue afterward.");
             showErrorAnimation(issueId);
         } else {
-            genericResponseError(error); // Handle unexpected errors
+            window.JiraErrorHandler.handleJiraError(error, `Failed to log time for issue ${issueId}`, 'popup');
             showErrorAnimation(issueId);
         }
     }

@@ -138,14 +138,14 @@ async function init(options) {
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
       console.error('JIRA API instantiation failed: Methods missing', JIRA);
-      displayError('JIRA API instantiation failed.');
+      displayError('JIRA API setup failed. Please check your settings and ensure all required fields (Base URL, Username, API Token) are correctly configured. Go to the main popup Settings to verify your configuration.');
       return;
     }
 
     await setupAutocomplete(JIRA);
   } catch (error) {
     console.error('Error initializing JIRA API:', error);
-    displayError('Initialization failed. (Settings may need set up.)');
+    window.JiraErrorHandler.handleJiraError(error, 'Failed to connect to JIRA from timer page', 'timer');
   }
 }
 
@@ -347,6 +347,17 @@ async function logTimeClick() {
   const timeSpent = secondsToJiraFormat(seconds);
   const description = document.getElementById('description').value;
 
+  // Validation
+  if (!issueKey) {
+    displayError('Issue Key is required. Please select or enter a valid issue key (e.g., PROJECT-123).');
+    return;
+  }
+
+  if (seconds <= 0) {
+    displayError('No time recorded. Please start the timer, work on your task, then stop the timer before logging time.');
+    return;
+  }
+
   console.log("Logging time with parameters:", { issueKey, timeSpent, description });
 
   try {
@@ -357,12 +368,8 @@ async function logTimeClick() {
     document.getElementById('description').value = '';
     resetTimer();
   } catch (error) {
-    if (error.message.includes('API request failed: Error 400: Worklog must not be null.')) {
-      displayError('Error logging time: API request failed: Please stop the current timer before submitting time.');
-    } else {
-      console.error('Error logging time:', error);
-      displayError(`Error logging time: ${error.message}`);
-    }
+    console.error('Error logging time:', error);
+    window.JiraErrorHandler.handleJiraError(error, `Failed to log time for issue ${issueKey}`, 'timer');
   }
 }
 
