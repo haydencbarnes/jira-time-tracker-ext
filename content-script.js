@@ -1,0 +1,575 @@
+// JIRA Issue ID Detection and Time Tracking Content Script
+// This script runs on all web pages and detects JIRA issue IDs
+
+class JiraIssueDetector {
+  constructor() {
+    this.isEnabled = false;
+    this.highlightedIssues = new Set();
+    this.currentPopup = null;
+    this.JIRA_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/g;
+    this.debounceTimeout = null;
+    
+    this.init();
+  }
+
+  async init() {
+    // Check if experimental features are enabled
+    const settings = await this.getExtensionSettings();
+    this.isEnabled = settings.experimentalFeatures;
+    
+    if (this.isEnabled) {
+      this.showExperimentalBadge();
+      this.scanAndHighlightIssues();
+      this.setupObserver();
+    }
+
+    // Listen for settings changes
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === 'SETTINGS_CHANGED' && message.experimentalFeatures !== this.isEnabled) {
+        this.isEnabled = message.experimentalFeatures;
+        if (this.isEnabled) {
+          this.showExperimentalBadge();
+          this.scanAndHighlightIssues();
+          this.setupObserver();
+        } else {
+          this.cleanup();
+        }
+      }
+    });
+  }
+
+  async getExtensionSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get({
+        experimentalFeatures: false,
+        baseUrl: '',
+        username: '',
+        apiToken: '',
+        jiraType: 'cloud'
+      }, resolve);
+    });
+  }
+
+  showExperimentalBadge() {
+    // Show a brief experimental feature badge
+    const badge = document.createElement('div');
+    badge.className = 'jira-experimental-badge';
+    badge.textContent = 'JIRA Detection Active';
+    document.body.appendChild(badge);
+    
+    setTimeout(() => {
+      if (badge.parentNode) {
+        badge.parentNode.removeChild(badge);
+      }
+    }, 3000);
+  }
+
+  scanAndHighlightIssues() {
+    if (!this.isEnabled) return;
+
+    // Clear existing highlights
+    this.clearHighlights();
+
+    // Find all text nodes
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) => {
+          // Skip script, style, and already highlighted elements
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+          
+          const tagName = parent.tagName.toLowerCase();
+          if (['script', 'style', 'noscript'].includes(tagName)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          
+          if (parent.classList.contains('jira-issue-id-highlight') || 
+              parent.closest('.jira-issue-popup')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    const textNodes = [];
+    let node;
+    while (node = walker.nextNode()) {
+      if (node.textContent.trim().match(this.JIRA_PATTERN)) {
+        textNodes.push(node);
+      }
+    }
+
+    // Process text nodes
+    textNodes.forEach(textNode => this.highlightIssuesInTextNode(textNode));
+  }
+
+  highlightIssuesInTextNode(textNode) {
+    const text = textNode.textContent;
+    const matches = [...text.matchAll(this.JIRA_PATTERN)];
+    
+    if (matches.length === 0) return;
+
+    const parent = textNode.parentNode;
+    const fragment = document.createDocumentFragment();
+    let lastIndex = 0;
+
+    matches.forEach(match => {
+      const issueId = match[0];
+      const startIndex = match.index;
+      
+      // Add text before the match
+      if (startIndex > lastIndex) {
+        fragment.appendChild(
+          document.createTextNode(text.slice(lastIndex, startIndex))
+        );
+      }
+
+      // Create highlighted span for the issue ID
+      const span = document.createElement('span');
+      span.className = 'jira-issue-id-highlight';
+      span.textContent = issueId;
+      span.dataset.issueId = issueId;
+      
+      // Add click handler
+      span.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.showPopup(issueId, span);
+      });
+
+      fragment.appendChild(span);
+      this.highlightedIssues.add(issueId);
+      
+      lastIndex = startIndex + issueId.length;
+    });
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      fragment.appendChild(
+        document.createTextNode(text.slice(lastIndex))
+      );
+    }
+
+    // Replace the original text node
+    parent.replaceChild(fragment, textNode);
+  }
+
+  setupObserver() {
+    if (!this.isEnabled) return;
+
+    // Use MutationObserver to detect new content
+    this.observer = new MutationObserver((mutations) => {
+      let shouldScan = false;
+      
+      mutations.forEach(mutation => {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.TEXT_NODE || 
+                (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('jira-issue-popup'))) {
+              shouldScan = true;
+              break;
+            }
+          }
+        }
+      });
+
+      if (shouldScan) {
+        // Debounce scanning to avoid excessive calls
+        clearTimeout(this.debounceTimeout);
+        this.debounceTimeout = setTimeout(() => {
+          this.scanAndHighlightIssues();
+        }, 500);
+      }
+    });
+
+    this.observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  async showPopup(issueId, targetElement) {
+    // Close existing popup
+    this.closePopup();
+
+    const settings = await this.getExtensionSettings();
+    if (!settings.baseUrl || !settings.username || !settings.apiToken) {
+      this.showConfigurationError();
+      return;
+    }
+
+    // Create popup
+    this.currentPopup = this.createPopup(issueId);
+    document.body.appendChild(this.currentPopup);
+
+    // Position popup
+    this.positionPopup(this.currentPopup, targetElement);
+
+    // Show popup
+    setTimeout(() => {
+      this.currentPopup.classList.add('show');
+    }, 10);
+
+    // Set up form handlers
+    this.setupPopupHandlers(issueId, settings);
+  }
+
+  createPopup(issueId) {
+    const popup = document.createElement('div');
+    popup.className = 'jira-issue-popup';
+    
+    // Apply dark theme if system prefers it
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      popup.classList.add('dark');
+    }
+
+    popup.innerHTML = `
+      <div class="jira-issue-popup-header">
+        <h3 class="jira-issue-popup-title">Log Time: ${issueId}</h3>
+        <button class="jira-issue-popup-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      
+      <div class="jira-issue-popup-success">
+        Time logged successfully!
+      </div>
+      
+      <div class="jira-issue-popup-error">
+        <!-- Error message will be inserted here -->
+      </div>
+      
+      <div class="jira-issue-popup-loading">
+        Logging time...
+      </div>
+      
+      <form class="jira-issue-popup-form">
+        <div class="jira-issue-popup-field">
+          <label class="jira-issue-popup-label" for="jira-time-input">Time Spent*</label>
+          <input 
+            type="text" 
+            id="jira-time-input" 
+            class="jira-issue-popup-input" 
+            placeholder="2h 30m, 1d, 45m..." 
+            required
+          >
+          <small style="color: #666; font-size: 12px;">Examples: 2h, 30m, 1d, 2h 30m</small>
+        </div>
+        
+        <div class="jira-issue-popup-field">
+          <label class="jira-issue-popup-label" for="jira-date-input">Date</label>
+          <input 
+            type="date" 
+            id="jira-date-input" 
+            class="jira-issue-popup-input"
+            value="${new Date().toISOString().split('T')[0]}"
+          >
+        </div>
+        
+        <div class="jira-issue-popup-field">
+          <label class="jira-issue-popup-label" for="jira-comment-input">Work Description</label>
+          <textarea 
+            id="jira-comment-input" 
+            class="jira-issue-popup-input jira-issue-popup-textarea" 
+            placeholder="Describe the work done..."
+          ></textarea>
+        </div>
+        
+        <div class="jira-issue-popup-buttons">
+          <button type="button" class="jira-issue-popup-button secondary jira-popup-cancel">Cancel</button>
+          <button type="submit" class="jira-issue-popup-button primary jira-popup-submit">Log Time</button>
+        </div>
+      </form>
+    `;
+
+    return popup;
+  }
+
+  positionPopup(popup, targetElement) {
+    const rect = targetElement.getBoundingClientRect();
+    const popupRect = popup.getBoundingClientRect();
+    const viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight
+    };
+
+    let top = rect.bottom + window.scrollY + 5;
+    let left = rect.left + window.scrollX;
+
+    // Adjust if popup would go off-screen
+    if (left + popupRect.width > viewport.width) {
+      left = viewport.width - popupRect.width - 10;
+    }
+    
+    if (left < 10) {
+      left = 10;
+    }
+
+    // If popup would go off bottom, show above target
+    if (top + popupRect.height > viewport.height + window.scrollY) {
+      top = rect.top + window.scrollY - popupRect.height - 5;
+    }
+
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
+  }
+
+  setupPopupHandlers(issueId, settings) {
+    const popup = this.currentPopup;
+    const form = popup.querySelector('.jira-issue-popup-form');
+    const closeBtn = popup.querySelector('.jira-issue-popup-close');
+    const cancelBtn = popup.querySelector('.jira-popup-cancel');
+    const submitBtn = popup.querySelector('.jira-popup-submit');
+    const timeInput = popup.querySelector('#jira-time-input');
+    const dateInput = popup.querySelector('#jira-date-input');
+    const commentInput = popup.querySelector('#jira-comment-input');
+
+    // Close handlers
+    const closePopup = () => this.closePopup();
+    closeBtn.addEventListener('click', closePopup);
+    cancelBtn.addEventListener('click', closePopup);
+
+    // Click outside to close
+    document.addEventListener('click', (e) => {
+      if (this.currentPopup && !this.currentPopup.contains(e.target)) {
+        closePopup();
+      }
+    }, { once: true });
+
+    // Escape key to close
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.currentPopup) {
+        closePopup();
+      }
+    }, { once: true });
+
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const timeValue = timeInput.value.trim();
+      if (!timeValue) {
+        this.showPopupError('Time field is required');
+        return;
+      }
+
+      if (!this.validateTimeFormat(timeValue)) {
+        this.showPopupError('Invalid time format. Use: 2h, 30m, 1d, or combinations like "2h 30m"');
+        return;
+      }
+
+      await this.logTime(issueId, timeValue, dateInput.value, commentInput.value, settings);
+    });
+
+    // Focus time input
+    timeInput.focus();
+  }
+
+  validateTimeFormat(timeStr) {
+    // Check if time format is valid (e.g., 2h, 30m, 1d, 2h 30m)
+    const timePattern = /^(\d+[dhm]\s*)+$/i;
+    return timePattern.test(timeStr.trim());
+  }
+
+  convertTimeToSeconds(timeStr) {
+    const timeUnits = {
+      d: 60 * 60 * 24,
+      h: 60 * 60,
+      m: 60,
+    };
+
+    const regex = /(\d+)([dhm])/gi;
+    let match;
+    let totalSeconds = 0;
+
+    while ((match = regex.exec(timeStr)) !== null) {
+      const value = parseInt(match[1], 10);
+      const unit = match[2].toLowerCase();
+      totalSeconds += value * timeUnits[unit];
+    }
+
+    return totalSeconds;
+  }
+
+  async logTime(issueId, timeStr, dateStr, comment, settings) {
+    const popup = this.currentPopup;
+    const form = popup.querySelector('.jira-issue-popup-form');
+    const loading = popup.querySelector('.jira-issue-popup-loading');
+    const submitBtn = popup.querySelector('.jira-popup-submit');
+
+    // Show loading state
+    form.style.display = 'none';
+    loading.classList.add('show');
+    submitBtn.disabled = true;
+
+    try {
+      const timeInSeconds = this.convertTimeToSeconds(timeStr);
+      const startedTime = this.getStartedTime(dateStr);
+
+      // Load JiraAPI script if not already loaded
+      if (typeof window.JiraAPI === 'undefined') {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('jira-api.js');
+        document.head.appendChild(script);
+        
+        // Wait for script to load
+        await new Promise((resolve) => {
+          script.onload = resolve;
+        });
+      }
+      
+      const jira = await JiraAPI(settings.jiraType, settings.baseUrl, settings.username, settings.apiToken);
+      
+      await jira.updateWorklog(issueId, timeInSeconds, startedTime, comment);
+
+      this.showPopupSuccess('Time logged successfully!');
+      
+      setTimeout(() => {
+        this.closePopup();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error logging time:', error);
+      
+      let errorMessage = 'Failed to log time. ';
+      
+      if (error.status === 401) {
+        errorMessage += 'Please check your JIRA credentials in the extension settings.';
+      } else if (error.status === 403) {
+        errorMessage += 'You don\'t have permission to log time on this issue.';
+      } else if (error.status === 404) {
+        errorMessage += 'Issue not found. Please check the issue ID.';
+      } else {
+        errorMessage += error.message || 'Please try again.';
+      }
+      
+      this.showPopupError(errorMessage);
+      
+      // Restore form
+      form.style.display = 'flex';
+      loading.classList.remove('show');
+      submitBtn.disabled = false;
+    }
+  }
+
+  getStartedTime(dateString) {
+    if (!dateString) {
+      return new Date().toISOString();
+    }
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return new Date().toISOString();
+    }
+    
+    // Set to 12:00 PM of the selected date
+    date.setHours(12, 0, 0, 0);
+    return date.toISOString();
+  }
+
+  showPopupSuccess(message) {
+    if (!this.currentPopup) return;
+    
+    const success = this.currentPopup.querySelector('.jira-issue-popup-success');
+    const form = this.currentPopup.querySelector('.jira-issue-popup-form');
+    const loading = this.currentPopup.querySelector('.jira-issue-popup-loading');
+    
+    success.textContent = message;
+    success.classList.add('show');
+    form.style.display = 'none';
+    loading.classList.remove('show');
+  }
+
+  showPopupError(message) {
+    if (!this.currentPopup) return;
+    
+    const error = this.currentPopup.querySelector('.jira-issue-popup-error');
+    error.textContent = message;
+    error.classList.add('show');
+    
+    setTimeout(() => {
+      error.classList.remove('show');
+    }, 5000);
+  }
+
+  showConfigurationError() {
+    const message = 'JIRA configuration required. Please set up your JIRA connection in the extension settings.';
+    
+    // Create a simple notification
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #de350b;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 4px;
+      z-index: 10001;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      max-width: 300px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 5000);
+  }
+
+  closePopup() {
+    if (this.currentPopup) {
+      this.currentPopup.classList.remove('show');
+      setTimeout(() => {
+        if (this.currentPopup && this.currentPopup.parentNode) {
+          this.currentPopup.parentNode.removeChild(this.currentPopup);
+        }
+        this.currentPopup = null;
+      }, 200);
+    }
+  }
+
+  clearHighlights() {
+    const highlights = document.querySelectorAll('.jira-issue-id-highlight');
+    highlights.forEach(highlight => {
+      const parent = highlight.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+        parent.normalize(); // Merge adjacent text nodes
+      }
+    });
+    this.highlightedIssues.clear();
+  }
+
+  cleanup() {
+    this.clearHighlights();
+    this.closePopup();
+    
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+    
+    // Remove experimental badge if present
+    const badge = document.querySelector('.jira-experimental-badge');
+    if (badge) {
+      badge.remove();
+    }
+  }
+}
+
+// Initialize the detector when the DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    new JiraIssueDetector();
+  });
+} else {
+  new JiraIssueDetector();
+}

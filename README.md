@@ -64,4 +64,18 @@ This toggle allows you to enable/disable the experimental features of the extens
 - Dark Mode
 - Worklog Autosuggestions
 - Google Calendar Add-on
-- Jira Issue Popups
+- JIRA Issue ID Detection & Time Tracking Popups
+
+#### JIRA Issue ID Detection (Experimental)
+When experimental features are enabled, the extension automatically detects JIRA issue IDs (like ABC-123, PROJECT-456) on any web page you visit. These issue IDs are highlighted and clickable. When you click on a highlighted issue ID, a popup appears allowing you to quickly log time against that issue without opening the extension popup.
+
+Features:
+- **Automatic Detection**: Recognizes standard JIRA issue ID patterns (PROJECT-123) across all websites
+- **Visual Highlighting**: Issue IDs are highlighted with a blue underline and become clickable
+- **Quick Time Logging**: Click any detected issue ID to open a time logging popup
+- **Smart Positioning**: Popup appears near the clicked issue ID and adjusts to stay within the viewport
+- **Dark Mode Support**: Popup styling adapts to system dark mode preferences
+- **Form Validation**: Validates time format (2h, 30m, 1d, etc.) before submission
+- **Error Handling**: Shows helpful error messages for authentication or permission issues
+
+This feature is perfect for logging time when viewing issue details in web-based tools, email notifications, or any other context where JIRA issue IDs appear.

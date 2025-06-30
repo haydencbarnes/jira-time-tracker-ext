@@ -177,6 +177,21 @@
             defaultPage: defaultPage,
             sidePanelEnabled
         }, function () {
+            // Notify all content scripts about experimental features change
+            chrome.tabs.query({}, function(tabs) {
+                tabs.forEach(tab => {
+                    chrome.tabs.sendMessage(tab.id, {
+                        type: 'SETTINGS_CHANGED',
+                        experimentalFeatures: experimentalFeatures
+                    }, function(response) {
+                        // Ignore errors for tabs that don't have content scripts
+                        if (chrome.runtime.lastError) {
+                            // Expected for pages without content scripts
+                        }
+                    });
+                });
+            });
+            
             const status = document.getElementById('status');
             status.textContent = 'Options saved.';
             setTimeout(function () {

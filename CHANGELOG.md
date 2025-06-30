@@ -1,3 +1,8 @@
+## 1.3.6 (TBD)
+- Feature: Added JIRA Issue ID Detection as an experimental feature. The extension now automatically detects JIRA issue IDs (like ABC-123, PROJECT-456) on any web page when experimental features are enabled. Detected issue IDs are highlighted and clickable, allowing users to quickly log time by clicking on them to open a time tracking popup.
+- Enhancement: The issue detection popup includes smart positioning, dark mode support, form validation, and comprehensive error handling.
+- Technical: Added content script functionality with proper permissions and web accessible resources configuration.
+
 ## 1.3.5 (Jun 28, 2025)
 - Feature: Added new error handling feature to the extension. Users can now see a more detailed error message when an error occurs.
 

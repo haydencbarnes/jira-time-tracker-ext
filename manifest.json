@@ -13,6 +13,14 @@
   "background": {
     "service_worker": "/timerFeatureModule/background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "css": ["content-script.css"],
+      "run_at": "document_end"
+    }
+  ],
   "action": {
     "default_icon": "src/icons/jira_logo.png",
     "default_popup": "popup.html"
@@ -21,6 +29,12 @@
     "default_path": "popup.html"
   },
   "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["jira-api.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "16": "src/icons/jira_logo16.png",
     "48": "src/icons/jira_logo48.png",
