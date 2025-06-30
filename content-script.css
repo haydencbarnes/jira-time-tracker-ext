@@ -34,68 +34,68 @@
 /* Dark theme support */
 @media (prefers-color-scheme: dark) {
   .jira-issue-popup {
-    background: #1e1e1e;
-    border-color: #3a3a3a;
-    color: #ffffff;
+    background: #141414;
+    border-color: #1A1A1A;
+    color: #e0e0e0;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   }
   
   .jira-issue-popup .jira-issue-popup-header {
-    border-bottom-color: #3a3a3a;
+    border-bottom-color: #1A1A1A;
   }
   
   .jira-issue-popup .jira-issue-popup-title {
-    color: #4c9aff;
+    color: #4690DD;
   }
   
   .jira-issue-popup .jira-issue-popup-label {
-    color: #ffffff;
+    color: #e0e0e0;
   }
   
   .jira-issue-popup .jira-issue-popup-input {
-    background: #2a2a2a;
-    border-color: #4a4a4a;
-    color: #ffffff;
+    background: #1A1A1A;
+    border-color: #333;
+    color: #e0e0e0;
   }
   
   .jira-issue-popup .jira-issue-popup-input::placeholder {
-    color: #999;
+    color: #666;
   }
   
   .jira-issue-popup .jira-issue-popup-input:focus {
-    border-color: #4c9aff;
-    box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.3);
-    background: #333333;
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+    background: #1A1A1A;
   }
   
   .jira-issue-popup .jira-issue-popup-close {
-    color: #ccc;
+    color: #e0e0e0;
   }
   
   .jira-issue-popup .jira-issue-popup-close:hover {
-    background: #3a3a3a;
-    color: #ffffff;
+    background: #1A1A1A;
+    color: #e0e0e0;
   }
   
   .jira-issue-popup .jira-issue-popup-button.secondary {
-    background: #3a3a3a;
-    color: #ffffff;
-    border: 1px solid #4a4a4a;
+    background: #4690DD;
+    color: #1A1A1A;
+    border: 1px solid #4690DD;
   }
   
   .jira-issue-popup .jira-issue-popup-button.secondary:hover {
-    background: #4a4a4a;
+    background: #5E9FE3;
   }
   
   .jira-issue-popup small {
-    color: #aaa !important;
+    color: #999 !important;
   }
 }
 
 .jira-issue-popup.dark {
-  background: #1e1e1e;
-  border-color: #3a3a3a;
-  color: #ffffff;
+  background: #141414;
+  border-color: #1A1A1A;
+  color: #e0e0e0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -108,7 +108,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-header {
-  border-bottom-color: #3a3a3a;
+  border-bottom-color: #1A1A1A;
 }
 
 .jira-issue-popup-title {
@@ -119,7 +119,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-title {
-  color: #4c9aff;
+  color: #4690DD;
 }
 
 .jira-issue-popup-close {
@@ -139,12 +139,12 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-close {
-  color: #ccc;
+  color: #e0e0e0;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-close:hover {
-  background: #3a3a3a;
-  color: #ffffff;
+  background: #1A1A1A;
+  color: #e0e0e0;
 }
 
 .jira-issue-popup-form {
@@ -165,7 +165,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-label {
-  color: #ffffff;
+  color: #e0e0e0;
 }
 
 .jira-issue-popup-input {
@@ -183,23 +183,23 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-input {
-  background: #2a2a2a;
-  border-color: #4a4a4a;
-  color: #ffffff;
+  background: #1A1A1A;
+  border-color: #333;
+  color: #e0e0e0;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-input::placeholder {
-  color: #999;
+  color: #666;
 }
 
 .jira-issue-popup.dark small {
-  color: #aaa !important;
+  color: #999 !important;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-input:focus {
-  border-color: #4c9aff;
-  box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.3);
-  background: #333333;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+  background: #1A1A1A;
 }
 
 .jira-issue-popup-textarea {
@@ -248,13 +248,13 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-button.secondary {
-  background: #3a3a3a;
-  color: #ffffff;
-  border: 1px solid #4a4a4a;
+  background: #4690DD;
+  color: #1A1A1A;
+  border: 1px solid #4690DD;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-button.secondary:hover {
-  background: #4a4a4a;
+  background: #5E9FE3;
 }
 
 .jira-issue-popup-loading {
@@ -269,7 +269,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-loading {
-  color: #999;
+  color: #e0e0e0;
 }
 
 .jira-issue-popup-success {
@@ -287,9 +287,9 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-success {
-  background: #1b3329;
-  border-color: #00875a;
-  color: #57d9a3;
+  background: #1a2a1a;
+  border-color: #4F8A10;
+  color: #4F8A10;
 }
 
 .jira-issue-popup-error {
@@ -307,9 +307,9 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-error {
-  background: #3d2f2a;
-  border-color: #de350b;
-  color: #ffab00;
+  background: #2a1a1a;
+  border-color: #ff6b6b;
+  color: #ff6b6b;
 }
 
 /* JIRA Issue ID highlighting */
@@ -327,12 +327,12 @@
 
 @media (prefers-color-scheme: dark) {
   .jira-issue-id-highlight {
-    background: rgba(76, 154, 255, 0.15);
-    border-bottom-color: #4c9aff;
+    background: rgba(70, 144, 221, 0.15);
+    border-bottom-color: #4690DD;
   }
   
   .jira-issue-id-highlight:hover {
-    background: rgba(76, 154, 255, 0.25);
+    background: rgba(70, 144, 221, 0.25);
   }
 }
 
