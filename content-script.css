@@ -34,16 +34,69 @@
 /* Dark theme support */
 @media (prefers-color-scheme: dark) {
   .jira-issue-popup {
+    background: #1e1e1e;
+    border-color: #3a3a3a;
+    color: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+  
+  .jira-issue-popup .jira-issue-popup-header {
+    border-bottom-color: #3a3a3a;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-title {
+    color: #4c9aff;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-label {
+    color: #ffffff;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-input {
     background: #2a2a2a;
-    border-color: #444;
-    color: #e0e0e0;
+    border-color: #4a4a4a;
+    color: #ffffff;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-input::placeholder {
+    color: #999;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-input:focus {
+    border-color: #4c9aff;
+    box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.3);
+    background: #333333;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-close {
+    color: #ccc;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-close:hover {
+    background: #3a3a3a;
+    color: #ffffff;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-button.secondary {
+    background: #3a3a3a;
+    color: #ffffff;
+    border: 1px solid #4a4a4a;
+  }
+  
+  .jira-issue-popup .jira-issue-popup-button.secondary:hover {
+    background: #4a4a4a;
+  }
+  
+  .jira-issue-popup small {
+    color: #aaa !important;
   }
 }
 
 .jira-issue-popup.dark {
-  background: #2a2a2a;
-  border-color: #444;
-  color: #e0e0e0;
+  background: #1e1e1e;
+  border-color: #3a3a3a;
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .jira-issue-popup-header {
@@ -55,7 +108,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-header {
-  border-bottom-color: #444;
+  border-bottom-color: #3a3a3a;
 }
 
 .jira-issue-popup-title {
@@ -86,12 +139,12 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-close {
-  color: #999;
+  color: #ccc;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-close:hover {
-  background: #444;
-  color: #e0e0e0;
+  background: #3a3a3a;
+  color: #ffffff;
 }
 
 .jira-issue-popup-form {
@@ -112,7 +165,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-label {
-  color: #e0e0e0;
+  color: #ffffff;
 }
 
 .jira-issue-popup-input {
@@ -130,14 +183,23 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-input {
-  background: #333;
-  border-color: #555;
-  color: #e0e0e0;
+  background: #2a2a2a;
+  border-color: #4a4a4a;
+  color: #ffffff;
+}
+
+.jira-issue-popup.dark .jira-issue-popup-input::placeholder {
+  color: #999;
+}
+
+.jira-issue-popup.dark small {
+  color: #aaa !important;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-input:focus {
   border-color: #4c9aff;
-  box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(76, 154, 255, 0.3);
+  background: #333333;
 }
 
 .jira-issue-popup-textarea {
@@ -186,12 +248,13 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-button.secondary {
-  background: #444;
-  color: #e0e0e0;
+  background: #3a3a3a;
+  color: #ffffff;
+  border: 1px solid #4a4a4a;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-button.secondary:hover {
-  background: #555;
+  background: #4a4a4a;
 }
 
 .jira-issue-popup-loading {
@@ -264,12 +327,12 @@
 
 @media (prefers-color-scheme: dark) {
   .jira-issue-id-highlight {
-    background: rgba(76, 154, 255, 0.1);
+    background: rgba(76, 154, 255, 0.15);
     border-bottom-color: #4c9aff;
   }
   
   .jira-issue-id-highlight:hover {
-    background: rgba(76, 154, 255, 0.2);
+    background: rgba(76, 154, 255, 0.25);
   }
 }
 
