@@ -408,27 +408,33 @@ class JiraIssueDetector {
       const timeInSeconds = this.convertTimeToSeconds(timeStr);
       const startedTime = this.getStartedTime(dateStr);
 
-      // Load JiraAPI script if not already loaded
-      if (typeof window.JiraAPI === 'undefined') {
-        const script = document.createElement('script');
-        script.src = chrome.runtime.getURL('jira-api.js');
-        document.head.appendChild(script);
-        
-        // Wait for script to load
-        await new Promise((resolve) => {
-          script.onload = resolve;
+      // Send message to background script to handle the API call
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          action: 'logWorklog',
+          issueId: issueId,
+          timeInSeconds: timeInSeconds,
+          startedTime: startedTime,
+          comment: comment,
+          settings: settings
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
         });
-      }
-      
-      const jira = await JiraAPI(settings.jiraType, settings.baseUrl, settings.username, settings.apiToken);
-      
-      await jira.updateWorklog(issueId, timeInSeconds, startedTime, comment);
+      });
 
-      this.showPopupSuccess('Time logged successfully!');
-      
-      setTimeout(() => {
-        this.closePopup();
-      }, 2000);
+      if (response.success) {
+        this.showPopupSuccess('Time logged successfully!');
+        
+        setTimeout(() => {
+          this.closePopup();
+        }, 2000);
+      } else {
+        throw response.error;
+      }
 
     } catch (error) {
       console.error('Error logging time:', error);
@@ -547,6 +553,8 @@ class JiraIssueDetector {
     });
     this.highlightedIssues.clear();
   }
+
+
 
   cleanup() {
     this.clearHighlights();

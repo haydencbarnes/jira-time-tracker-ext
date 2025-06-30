@@ -1,3 +1,6 @@
+// Import JiraAPI function
+importScripts('../jira-api.js');
+
 let badgeUpdateInterval;
 let currentSeconds = 0;
 let isRunning = false;
@@ -31,8 +34,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     syncTime(request.seconds, request.isRunning);
   } else if (request.action === 'openSidePanel') {
     chrome.sidePanel.open({ windowId: sender.tab.windowId });
+  } else if (request.action === 'logWorklog') {
+    handleWorklogRequest(request, sendResponse);
+    return true; // Keep the message channel open for async response
   }
 });
+
+async function handleWorklogRequest(request, sendResponse) {
+  try {
+    // Use the imported JiraAPI function
+    const jira = await JiraAPI(
+      request.settings.jiraType,
+      request.settings.baseUrl,
+      request.settings.username,
+      request.settings.apiToken
+    );
+    
+    const result = await jira.updateWorklog(
+      request.issueId,
+      request.timeInSeconds,
+      request.startedTime,
+      request.comment
+    );
+    
+    sendResponse({ success: true, result });
+  } catch (error) {
+    console.error('Background worklog error:', error);
+    sendResponse({ 
+      success: false, 
+      error: {
+        message: error.message,
+        status: error.status || 0
+      }
+    });
+  }
+}
 
 function startBadgeUpdate(seconds) {
   currentSeconds = seconds;
