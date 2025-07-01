@@ -17,13 +17,7 @@ class JiraIssueDetector {
     const settings = await this.getExtensionSettings();
     this.isEnabled = settings.experimentalFeatures;
     
-    console.log('JIRA Detection: Initializing...', {
-      experimentalFeatures: settings.experimentalFeatures,
-      isEnabled: this.isEnabled
-    });
-    
     if (this.isEnabled) {
-      console.log('JIRA Detection: Feature enabled, starting scan...');
       this.showExperimentalBadge();
       this.scanAndHighlightIssues();
       this.setupObserver();
@@ -75,8 +69,6 @@ class JiraIssueDetector {
   scanAndHighlightIssues() {
     if (!this.isEnabled) return;
 
-    console.log('JIRA Detection: Scanning for issues...');
-
     // Clear existing highlights
     this.clearHighlights();
 
@@ -90,7 +82,7 @@ class JiraIssueDetector {
           if (!parent) return NodeFilter.FILTER_REJECT;
           const tagName = parent.tagName.toLowerCase();
           if (['script','style','noscript'].includes(tagName)) return NodeFilter.FILTER_REJECT;
-          if (parent.classList.contains('jira-log-time-icon')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
+          if (parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
           return NodeFilter.FILTER_ACCEPT;
         }
       }
@@ -104,8 +96,6 @@ class JiraIssueDetector {
       }
     }
 
-    console.log(`JIRA Detection: Found ${textNodes.length} text nodes to process`);
-    
     // Process text nodes
     textNodes.forEach(textNode => this.highlightIssuesInTextNode(textNode));
   }
@@ -116,9 +106,6 @@ class JiraIssueDetector {
     
     if (matches.length === 0) return;
     
-    console.log(`JIRA Detection: Found ${matches.length} issues in text: "${text}"`);
-    console.log('Matches:', matches.map(m => m[0]));
-
     const parent = textNode.parentNode;
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
