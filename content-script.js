@@ -375,7 +375,6 @@ class JiraIssueDetector {
     const form = popup.querySelector('.jira-issue-popup-form');
     const closeBtn = popup.querySelector('.jira-issue-popup-close');
     const cancelBtn = popup.querySelector('.jira-popup-cancel');
-    const submitBtn = popup.querySelector('.jira-popup-submit');
     const timeInput = popup.querySelector('#jira-time-input');
     const dateInput = popup.querySelector('#jira-date-input');
     const commentInput = popup.querySelector('#jira-comment-input');
