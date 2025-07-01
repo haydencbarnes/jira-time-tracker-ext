@@ -83,6 +83,9 @@ class JiraIssueDetector {
           const tagName = parent.tagName.toLowerCase();
           if (['script','style','noscript'].includes(tagName)) return NodeFilter.FILTER_REJECT;
           if (parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
+          if (parent.closest('input, textarea') || parent.closest('[contenteditable="true"]')) {
+            return NodeFilter.FILTER_REJECT;
+          }
           return NodeFilter.FILTER_ACCEPT;
         }
       }
