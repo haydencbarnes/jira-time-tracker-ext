@@ -327,13 +327,13 @@ class JiraIssueDetector {
           <textarea 
             id="jira-comment-input" 
             class="jira-issue-popup-input jira-issue-popup-textarea" 
-            placeholder="Describe the work done..."
+            placeholder="Describe your work, magic, or craft"
           ></textarea>
         </div>
         
         <div class="jira-issue-popup-buttons">
           <button type="button" class="jira-issue-popup-button secondary jira-popup-cancel">Cancel</button>
-          <button type="submit" class="jira-issue-popup-button primary jira-popup-submit">Log Time</button>
+          <button type="submit" class="jira-issue-popup-button primary jira-popup-submit">Log Time ↩ </button>
         </div>
       </form>
     `;
