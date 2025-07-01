@@ -83,9 +83,6 @@ class JiraIssueDetector {
           const tagName = parent.tagName.toLowerCase();
           if (['script','style','noscript'].includes(tagName)) return NodeFilter.FILTER_REJECT;
           if (parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
-          if (parent.closest('input, textarea') || parent.closest('[contenteditable="true"]')) {
-            return NodeFilter.FILTER_REJECT;
-          }
           return NodeFilter.FILTER_ACCEPT;
         }
       }
@@ -133,6 +130,25 @@ class JiraIssueDetector {
           parent.after(logIcon);
         }
         return; // do not alter text node when inside anchor
+      }
+
+      // If inside a contenteditable element
+      if (parent.closest('[contenteditable="true"]')) {
+        const refEl = parent; // element containing text
+        if (!refEl.nextSibling || !refEl.nextSibling.classList || !refEl.nextSibling.classList.contains('jira-log-time-icon')) {
+          const logIcon = document.createElement('span');
+          logIcon.className = 'jira-log-time-icon';
+          logIcon.dataset.issueId = issueId;
+          logIcon.title = `Log time for ${issueId}`;
+          logIcon.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this.showPopup(issueId, logIcon);
+          });
+          refEl.after(logIcon);
+        }
+        return;
       }
 
       // Add text before the match
