@@ -67,15 +67,17 @@ This toggle allows you to enable/disable the experimental features of the extens
 - JIRA Issue ID Detection & Time Tracking Popups
 
 #### JIRA Issue ID Detection (Experimental)
-When experimental features are enabled, the extension automatically detects JIRA issue IDs (like ABC-123, PROJECT-456) on any web page you visit. These issue IDs are highlighted and clickable. When you click on a highlighted issue ID, a popup appears allowing you to quickly log time against that issue without opening the extension popup.
+- The extension scans any webpage for JIRA issue IDs (e.g. `ABC-123`).
+- Each detected ID is left completely **intact** – normal links still work and plain-text stays selectable.
+- A small **blue ⏱ log-time icon** is injected immediately **to the right of the ID**.
+- Click the blue icon to open the quick Log-Time popup (the icon has a tooltip: *Log time for ABC-123*).
+- The ID itself remains clickable/navigable so you can still open the issue in JIRA as usual.
 
-Features:
-- **Automatic Detection**: Recognizes standard JIRA issue ID patterns (PROJECT-123) across all websites
-- **Visual Highlighting**: Issue IDs are highlighted with a blue underline and become clickable
-- **Quick Time Logging**: Click any detected issue ID to open a time logging popup
-- **Smart Positioning**: Popup appears near the clicked issue ID and adjusts to stay within the viewport
-- **Dark Mode Support**: Popup styling adapts to system dark mode preferences
-- **Form Validation**: Validates time format (2h, 30m, 1d, etc.) before submission
-- **Error Handling**: Shows helpful error messages for authentication or permission issues
+Key details:
+1. **Automatic Detection** – works in e-mails, docs, Slack, etc.
+2. **Non-intrusive** – no underline; subtle background highlight only on plain-text IDs.
+3. **Icon UX** – blue in light-mode, lighter blue hover, matching dark-mode palette.
+4. **Bottom-right Badge** – "JIRA detection active" badge now appears bottom-right in blue for 3 s when the feature activates.
+5. **All other popup features** (dark-mode, validation, error handling) remain unchanged.
 
 This feature is perfect for logging time when viewing issue details in web-based tools, email notifications, or any other context where JIRA issue IDs appear.
