@@ -314,34 +314,38 @@
 
 /* JIRA Issue ID highlighting */
 .jira-issue-id-highlight {
-  background: rgba(0, 82, 204, 0.1);
+  background: rgba(0, 82, 204, 0.08);
   border-radius: 3px;
   padding: 1px 2px;
   position: relative;
-  transition: background-color 0.2s;
-}
-
-.jira-issue-id-highlight:hover {
-  background: rgba(0, 82, 204, 0.15);
 }
 
 /* Log time icon */
 .jira-log-time-icon {
   display: inline-block;
-  width: 16px;
-  height: 16px;
-  margin-left: 4px;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
   background: #0052CC;
   border-radius: 50%;
   cursor: pointer;
   position: relative;
   vertical-align: middle;
   transition: all 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .jira-log-time-icon:hover {
   background: #0065FF;
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.jira-log-time-icon:active {
+  transform: scale(1.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .jira-log-time-icon:before {
@@ -351,25 +355,24 @@
   left: 50%;
   transform: translate(-50%, -50%);
   color: white;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
+  pointer-events: none;
 }
 
 @media (prefers-color-scheme: dark) {
   .jira-issue-id-highlight {
-    background: rgba(70, 144, 221, 0.15);
-  }
-  
-  .jira-issue-id-highlight:hover {
-    background: rgba(70, 144, 221, 0.25);
+    background: rgba(70, 144, 221, 0.12);
   }
   
   .jira-log-time-icon {
     background: #4690DD;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
   
   .jira-log-time-icon:hover {
     background: #5E9FE3;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   }
 }
 

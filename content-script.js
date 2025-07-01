@@ -85,9 +85,12 @@ class JiraIssueDetector {
             return NodeFilter.FILTER_REJECT;
           }
           
-          if (parent.classList.contains('jira-issue-id-highlight') || 
+          // Skip if parent is a link or already processed
+          if (tagName === 'a' || 
+              parent.classList.contains('jira-issue-id-highlight') || 
               parent.classList.contains('jira-log-time-icon') ||
-              parent.closest('.jira-issue-popup')) {
+              parent.closest('.jira-issue-popup') ||
+              parent.closest('a')) {
             return NodeFilter.FILTER_REJECT;
           }
           
@@ -145,7 +148,14 @@ class JiraIssueDetector {
       logIcon.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         this.showPopup(issueId, logIcon);
+      });
+      
+      // Also add mousedown to ensure we capture the event
+      logIcon.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
       });
 
       // Create container for issue ID + icon
