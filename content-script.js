@@ -146,7 +146,12 @@ class JiraIssueDetector {
             e.stopImmediatePropagation();
             this.showPopup(issueId, logIcon);
           });
-          refEl.after(logIcon);
+
+          // Wrap icon in non-editable span to keep caret away
+          const wrapper = document.createElement('span');
+          wrapper.contentEditable = 'false';
+          wrapper.appendChild(logIcon);
+          refEl.after(wrapper);
         }
         return;
       }
@@ -240,7 +245,7 @@ class JiraIssueDetector {
       clearTimeout(this.debounceTimeout);
       this.debounceTimeout = setTimeout(() => {
         this.scanAndHighlightIssues();
-      }, 500);
+      }, 100);
     }, true);
   }
 
@@ -570,75 +575,4 @@ class JiraIssueDetector {
       font-size: 14px;
       max-width: 300px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    `;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
-    }, 5000);
-  }
-
-  closePopup() {
-    if (this.currentPopup) {
-      this.currentPopup.classList.remove('show');
-      setTimeout(() => {
-        if (this.currentPopup && this.currentPopup.parentNode) {
-          this.currentPopup.parentNode.removeChild(this.currentPopup);
-        }
-        this.currentPopup = null;
-      }, 200);
-    }
-  }
-
-  clearHighlights() {
-    const highlights = document.querySelectorAll('.jira-issue-id-highlight');
-    highlights.forEach(highlight => {
-      const container = highlight.parentNode;
-      const grandParent = container?.parentNode;
-      if (grandParent && container) {
-        // Replace the container (which contains both highlight and icon) with just the text
-        grandParent.replaceChild(document.createTextNode(highlight.textContent), container);
-        grandParent.normalize(); // Merge adjacent text nodes
-      }
-    });
-    
-    // Also remove any orphaned log icons
-    const logIcons = document.querySelectorAll('.jira-log-time-icon');
-    logIcons.forEach(icon => {
-      if (icon.parentNode) {
-        icon.parentNode.removeChild(icon);
-      }
-    });
-    
-    this.highlightedIssues.clear();
-  }
-
-  cleanup() {
-    this.clearHighlights();
-    this.closePopup();
-    
-    if (this.observer) {
-      this.observer.disconnect();
-      this.observer = null;
-    }
-    
-    // Remove experimental badge if present
-    const badge = document.querySelector('.jira-experimental-badge');
-    if (badge) {
-      badge.remove();
-    }
-  }
-}
-
-// Initialize the detector when the DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    new JiraIssueDetector();
-  });
-} else {
-  new JiraIssueDetector();
-}
+    `
