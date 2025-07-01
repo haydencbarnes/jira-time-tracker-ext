@@ -234,6 +234,14 @@ class JiraIssueDetector {
       characterData: true,
       subtree: true
     });
+
+    // Listen to user input events (captures typing in <input>, <textarea>, contenteditable)
+    window.addEventListener('input', () => {
+      clearTimeout(this.debounceTimeout);
+      this.debounceTimeout = setTimeout(() => {
+        this.scanAndHighlightIssues();
+      }, 500);
+    }, true);
   }
 
   async showPopup(issueId, targetElement) {
