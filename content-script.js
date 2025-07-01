@@ -72,32 +72,29 @@ class JiraIssueDetector {
     // Clear existing highlights
     this.clearHighlights();
 
-    // Find all text nodes
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT,
-      {
-        acceptNode: (node) => {
-          const parent = node.parentElement;
-          if (!parent) return NodeFilter.FILTER_REJECT;
-          const tagName = parent.tagName.toLowerCase();
-          if (['script','style','noscript'].includes(tagName)) return NodeFilter.FILTER_REJECT;
-          if (parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
-          return NodeFilter.FILTER_ACCEPT;
-        }
-      }
-    );
+    const roots = [document.body];
+    // Collect all shadow roots currently in the DOM
+    document.querySelectorAll('*').forEach(el=>{
+      if(el.shadowRoot) roots.push(el.shadowRoot);
+    });
 
-    const textNodes = [];
-    let node;
-    while (node = walker.nextNode()) {
-      if (node.textContent.trim().match(this.JIRA_PATTERN)) {
-        textNodes.push(node);
+    const filterFn = {
+      acceptNode: (node)=>{
+        const parent=node.parentElement;
+        if(!parent) return NodeFilter.FILTER_REJECT;
+        const tag=parent.tagName?parent.tagName.toLowerCase():'';
+        if(['script','style','noscript'].includes(tag)) return NodeFilter.FILTER_REJECT;
+        if(parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
       }
-    }
+    };
 
-    // Process text nodes
-    textNodes.forEach(textNode => this.highlightIssuesInTextNode(textNode));
+    const processRoot = root=>{
+      const walker = document.createTreeWalker(root,NodeFilter.SHOW_TEXT,filterFn,false);
+      const list=[];let n;while(n=walker.nextNode()){if(n.textContent.trim().match(this.JIRA_PATTERN)) list.push(n);}list.forEach(t=>this.highlightIssuesInTextNode(t));
+    };
+
+    roots.forEach(processRoot);
   }
 
   highlightIssuesInTextNode(textNode) {
@@ -575,4 +572,48 @@ class JiraIssueDetector {
       font-size: 14px;
       max-width: 300px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    `
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+      notification.remove();
+    }, 5000);
+  }
+
+  closePopup() {
+    if (this.currentPopup) {
+      this.currentPopup.classList.remove('show');
+      setTimeout(() => {
+        this.currentPopup?.remove();
+        this.currentPopup = null;
+      }, 200);
+    }
+  }
+
+  clearHighlights() {
+    document.querySelectorAll('.jira-issue-id-highlight').forEach(highlight => {
+      const container = highlight.parentNode;
+      const parent = container?.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(highlight.textContent), container);
+        parent.normalize();
+      }
+    });
+    document.querySelectorAll('.jira-log-time-icon').forEach(icon=>icon.remove());
+    this.highlightedIssues.clear();
+  }
+
+  cleanup() {
+    this.clearHighlights();
+    this.closePopup();
+    this.observer?.disconnect();
+    this.observer = null;
+  }
+}
+
+// Boot
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded',()=> new JiraIssueDetector());
+} else {
+  new JiraIssueDetector();
+}
