@@ -195,14 +195,9 @@ class JiraIssueDetector {
       let shouldScan = false;
       
       mutations.forEach(mutation => {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          for (const node of mutation.addedNodes) {
-            if (node.nodeType === Node.TEXT_NODE || 
-                (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('jira-issue-popup'))) {
-              shouldScan = true;
-              break;
-            }
-          }
+        if ((mutation.type === 'childList' && mutation.addedNodes.length > 0) ||
+            mutation.type === 'characterData') {
+          shouldScan = true;
         }
       });
 
@@ -217,6 +212,7 @@ class JiraIssueDetector {
 
     this.observer.observe(document.body, {
       childList: true,
+      characterData: true,
       subtree: true
     });
   }
