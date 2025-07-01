@@ -1,8 +1,9 @@
 ## 1.3.6 (TBD)
-- Feature: Added JIRA Issue ID Detection as an experimental feature. The extension now automatically detects JIRA issue IDs (like ABC-123, PROJECT-456) on any web page when experimental features are enabled. Detected issue IDs are highlighted and clickable, allowing users to quickly log time by clicking on them to open a time tracking popup.
-- Enhancement: The issue detection popup includes smart positioning, dark mode support, form validation, and comprehensive error handling.
-- Technical: Added content script functionality with proper permissions and web accessible resources configuration. API calls are handled by the background script for proper security and functionality.
-- Fix: Resolved JiraAPI loading issues by implementing proper script imports in the background service worker.
+- Feature: Added JIRA Issue ID Detection as an experimental feature. The extension scans any web-page for JIRA issue IDs (e.g. ABC-123, PROJECT-456). A subtle highlight is applied and a small blue ⏱ "log-time" icon is injected to the right of the ID. Clicking the icon opens the instant Log-Time popup while the ID itself remains a normal link.
+- Enhancement: The issue detection popup includes smart positioning, dark-mode support, form validation, and comprehensive error handling.
+- UX: Blue "JIRA detection active" badge now appears bottom-right instead of top-right for 3 seconds when the detector first runs.
+- Technical: Added content-script detection pipeline, dedicated log-time icon component, and background-worker API integration via `chrome.runtime.sendMessage`. Web-accessible resources updated accordingly.
+- Fix: Resolved JiraAPI loading issues by importing the API once in the background service-worker for consistent reuse.
 
 ## 1.3.5 (Jun 28, 2025)
 - Feature: Added new error handling feature to the extension. Users can now see a more detailed error message when an error occurs.
