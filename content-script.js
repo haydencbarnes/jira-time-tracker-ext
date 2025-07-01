@@ -86,27 +86,11 @@ class JiraIssueDetector {
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: (node) => {
-          // Skip script, style, and already highlighted elements
           const parent = node.parentElement;
           if (!parent) return NodeFilter.FILTER_REJECT;
-          
           const tagName = parent.tagName.toLowerCase();
-          if (['script', 'style', 'noscript'].includes(tagName)) {
-            return NodeFilter.FILTER_REJECT;
-          }
-          
-          // Skip if already processed or inside popup
-          if (parent.classList.contains('jira-issue-id-highlight') || 
-              parent.classList.contains('jira-log-time-icon') ||
-              parent.closest('.jira-issue-popup')) {
-            return NodeFilter.FILTER_REJECT;
-          }
-          
-          // Skip if this text node is inside a link element
-          if (parent.closest('a')) {
-            return NodeFilter.FILTER_REJECT;
-          }
-          
+          if (['script','style','noscript'].includes(tagName)) return NodeFilter.FILTER_REJECT;
+          if (parent.classList.contains('jira-log-time-icon')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
           return NodeFilter.FILTER_ACCEPT;
         }
       }
@@ -143,6 +127,24 @@ class JiraIssueDetector {
       const issueId = match[0];
       const startIndex = match.index;
       
+      // If inside a link, simply append icon after the link once and continue
+      if (parent.tagName === 'A') {
+        if (!parent.nextSibling || !parent.nextSibling.classList || !parent.nextSibling.classList.contains('jira-log-time-icon')) {
+          const logIcon = document.createElement('span');
+          logIcon.className = 'jira-log-time-icon';
+          logIcon.dataset.issueId = issueId;
+          logIcon.title = `Log time for ${issueId}`;
+          logIcon.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this.showPopup(issueId, logIcon);
+          });
+          parent.after(logIcon);
+        }
+        return; // do not alter text node when inside anchor
+      }
+
       // Add text before the match
       if (startIndex > lastIndex) {
         fragment.appendChild(
@@ -604,8 +606,6 @@ class JiraIssueDetector {
     
     this.highlightedIssues.clear();
   }
-
-
 
   cleanup() {
     this.clearHighlights();
