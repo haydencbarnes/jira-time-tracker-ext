@@ -86,6 +86,7 @@ class JiraIssueDetector {
           }
           
           if (parent.classList.contains('jira-issue-id-highlight') || 
+              parent.classList.contains('jira-log-time-icon') ||
               parent.closest('.jira-issue-popup')) {
             return NodeFilter.FILTER_REJECT;
           }
@@ -128,20 +129,31 @@ class JiraIssueDetector {
         );
       }
 
-      // Create highlighted span for the issue ID
+      // Create highlighted span for the issue ID (without click handler)
       const span = document.createElement('span');
       span.className = 'jira-issue-id-highlight';
       span.textContent = issueId;
       span.dataset.issueId = issueId;
+
+      // Create log time icon
+      const logIcon = document.createElement('span');
+      logIcon.className = 'jira-log-time-icon';
+      logIcon.dataset.issueId = issueId;
+      logIcon.title = `Log time for ${issueId}`;
       
-      // Add click handler
-      span.addEventListener('click', (e) => {
+      // Add click handler to the icon
+      logIcon.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.showPopup(issueId, span);
+        this.showPopup(issueId, logIcon);
       });
 
-      fragment.appendChild(span);
+      // Create container for issue ID + icon
+      const container = document.createElement('span');
+      container.appendChild(span);
+      container.appendChild(logIcon);
+
+      fragment.appendChild(container);
       this.highlightedIssues.add(issueId);
       
       lastIndex = startIndex + issueId.length;
@@ -545,12 +557,23 @@ class JiraIssueDetector {
   clearHighlights() {
     const highlights = document.querySelectorAll('.jira-issue-id-highlight');
     highlights.forEach(highlight => {
-      const parent = highlight.parentNode;
-      if (parent) {
-        parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
-        parent.normalize(); // Merge adjacent text nodes
+      const container = highlight.parentNode;
+      const grandParent = container?.parentNode;
+      if (grandParent && container) {
+        // Replace the container (which contains both highlight and icon) with just the text
+        grandParent.replaceChild(document.createTextNode(highlight.textContent), container);
+        grandParent.normalize(); // Merge adjacent text nodes
       }
     });
+    
+    // Also remove any orphaned log icons
+    const logIcons = document.querySelectorAll('.jira-log-time-icon');
+    logIcons.forEach(icon => {
+      if (icon.parentNode) {
+        icon.parentNode.removeChild(icon);
+      }
+    });
+    
     this.highlightedIssues.clear();
   }
 

@@ -315,24 +315,61 @@
 /* JIRA Issue ID highlighting */
 .jira-issue-id-highlight {
   background: rgba(0, 82, 204, 0.1);
-  border-bottom: 2px solid #0052cc;
-  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 2px;
   position: relative;
   transition: background-color 0.2s;
 }
 
 .jira-issue-id-highlight:hover {
-  background: rgba(0, 82, 204, 0.2);
+  background: rgba(0, 82, 204, 0.15);
+}
+
+/* Log time icon */
+.jira-log-time-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  background: #0052CC;
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  transition: all 0.2s ease;
+}
+
+.jira-log-time-icon:hover {
+  background: #0065FF;
+  transform: scale(1.1);
+}
+
+.jira-log-time-icon:before {
+  content: "⏱";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 10px;
+  line-height: 1;
 }
 
 @media (prefers-color-scheme: dark) {
   .jira-issue-id-highlight {
     background: rgba(70, 144, 221, 0.15);
-    border-bottom-color: #4690DD;
   }
   
   .jira-issue-id-highlight:hover {
     background: rgba(70, 144, 221, 0.25);
+  }
+  
+  .jira-log-time-icon {
+    background: #4690DD;
+  }
+  
+  .jira-log-time-icon:hover {
+    background: #5E9FE3;
   }
 }
 
