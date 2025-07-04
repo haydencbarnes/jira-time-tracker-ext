@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Weekly View - Jira Log Time</title>
+    <title>Weekly Timesheet - Jira Log Time</title>
     <script src="jira-api.js"></script>
     <script src="jira-error-handler.js"></script>
     <script src="weekly-view.js"></script>
@@ -10,15 +10,16 @@
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            width: 800px;
-            min-height: 600px;
+            width: 744px;
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
+            padding-bottom: 60px;
         }
 
         .header {
             background: #f3f3f3;
-            padding: 10px;
+            padding: 10px 15px;
             border-bottom: 1px solid #e5e5e5;
             display: flex;
             justify-content: space-between;
@@ -27,8 +28,9 @@
 
         .header h1 {
             margin: 0;
-            font-size: 18px;
+            font-size: 16px;
             color: #333;
+            font-weight: bold;
         }
 
         .week-navigation {
@@ -41,10 +43,10 @@
             background: #0052CC;
             color: white;
             border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .nav-button:hover {
@@ -52,130 +54,23 @@
         }
 
         .week-range {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             color: #333;
-            min-width: 200px;
+            min-width: 180px;
             text-align: center;
         }
 
         .main-content {
             flex: 1;
-            padding: 20px;
+            padding: 10px 15px;
             overflow-y: auto;
-        }
-
-        .weekly-calendar {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 1px;
-            background: #ddd;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .calendar-header {
-            background: #0052CC;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 12px;
-        }
-
-        .calendar-day {
-            background: white;
-            min-height: 120px;
-            padding: 8px;
-            position: relative;
-            overflow-y: auto;
-        }
-
-        .calendar-day.today {
-            background: #e3f2fd;
-        }
-
-        .calendar-day.other-month {
-            background: #f9f9f9;
-            color: #999;
-        }
-
-        .day-number {
-            font-weight: bold;
-            font-size: 14px;
-            color: #333;
-            margin-bottom: 8px;
-        }
-
-        .task-entry {
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            padding: 4px 6px;
-            margin-bottom: 4px;
-            font-size: 10px;
-            cursor: pointer;
-        }
-
-        .task-entry:hover {
-            background: #e8e8e8;
-        }
-
-        .task-key {
-            font-weight: bold;
-            color: #0052CC;
-            display: block;
-        }
-
-        .task-time {
-            color: #666;
-            font-size: 9px;
-        }
-
-        .task-comment {
-            color: #333;
-            font-size: 9px;
-            margin-top: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .summary-panel {
-            background: #f8f9fa;
-            border: 1px solid #e5e5e5;
-            border-radius: 4px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .summary-title {
-            font-weight: bold;
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .summary-stats {
-            display: flex;
-            gap: 20px;
-            font-size: 14px;
-        }
-
-        .stat-item {
-            color: #666;
-        }
-
-        .stat-value {
-            font-weight: bold;
-            color: #0052CC;
         }
 
         .toolbar {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             align-items: center;
         }
 
@@ -183,10 +78,10 @@
             background: #0052CC;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
+            padding: 6px 12px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .toolbar button:hover {
@@ -199,6 +94,144 @@
 
         .back-button:hover {
             background: #5a6268 !important;
+        }
+
+        .timesheet-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-bottom: 10px;
+        }
+
+        .timesheet-table th {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 6px 4px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11px;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .timesheet-table td {
+            border: 1px solid #dee2e6;
+            padding: 4px;
+            text-align: center;
+            font-size: 11px;
+            vertical-align: middle;
+        }
+
+        .project-header {
+            background: #e9ecef;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .project-total {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #0052CC;
+        }
+
+        .issue-row {
+            background: white;
+        }
+
+        .issue-row:hover {
+            background: #f8f9fa;
+        }
+
+        .issue-key {
+            color: #0052CC;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .issue-key:hover {
+            text-decoration: underline;
+        }
+
+        .issue-summary {
+            text-align: left;
+            padding-left: 8px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .time-cell {
+            width: 50px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+
+        .time-cell.has-time {
+            background: #e3f2fd;
+            font-weight: bold;
+            color: #0052CC;
+        }
+
+        .bulk-cell {
+            width: 30px;
+        }
+
+        .bulk-checkbox {
+            margin: 0;
+        }
+
+        .total-cell {
+            font-weight: bold;
+            color: #0052CC;
+            background: #f8f9fa;
+        }
+
+        .summary-row {
+            background: #0052CC;
+            color: white;
+            font-weight: bold;
+        }
+
+        .summary-row td {
+            border-color: #0052CC;
+        }
+
+        .day-header {
+            width: 50px;
+            writing-mode: vertical-lr;
+            text-orientation: mixed;
+            font-size: 10px;
+            height: 60px;
+            vertical-align: middle;
+        }
+
+        .project-name {
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .project-name:hover {
+            color: #0052CC;
+        }
+
+        .collapsed .issue-row {
+            display: none;
+        }
+
+        .expand-icon {
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 5px;
+            color: #666;
+        }
+
+        .expand-icon:hover {
+            color: #0052CC;
         }
 
         #loading {
@@ -242,24 +275,25 @@
             background-color: #ffdddd;
             border: 1px solid #cc0000;
             border-radius: 4px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: none;
+            font-size: 11px;
         }
 
         .theme-button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 26px;
-            height: 24px;
-            border-radius: 4px;
+            width: 24px;
+            height: 22px;
+            border-radius: 3px;
             cursor: pointer;
             border: none;
             vertical-align: middle;
             transition: background-color 0.3s;
             margin: 0 2px;
             padding: 0;
-            font-size: 16px;
+            font-size: 14px;
             background: rgba(0, 0, 0, 0.05);
         }
 
@@ -299,72 +333,6 @@
             background: #5E9FE3;
         }
 
-        body.dark-mode .weekly-calendar {
-            background: #333;
-            border: 1px solid #333;
-        }
-
-        body.dark-mode .calendar-header {
-            background: #4690DD;
-            color: #1A1A1A;
-        }
-
-        body.dark-mode .calendar-day {
-            background: #1A1A1A;
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .calendar-day.today {
-            background: #2d4a6b;
-        }
-
-        body.dark-mode .calendar-day.other-month {
-            background: #0f0f0f;
-            color: #666;
-        }
-
-        body.dark-mode .day-number {
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .task-entry {
-            background: #2a2a2a;
-            border: 1px solid #444;
-        }
-
-        body.dark-mode .task-entry:hover {
-            background: #333;
-        }
-
-        body.dark-mode .task-key {
-            color: #4690DD;
-        }
-
-        body.dark-mode .task-time {
-            color: #aaa;
-        }
-
-        body.dark-mode .task-comment {
-            color: #ccc;
-        }
-
-        body.dark-mode .summary-panel {
-            background: #1A1A1A;
-            border: 1px solid #333;
-        }
-
-        body.dark-mode .summary-title {
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .stat-item {
-            color: #aaa;
-        }
-
-        body.dark-mode .stat-value {
-            color: #4690DD;
-        }
-
         body.dark-mode .toolbar button {
             background: #4690DD;
             color: #1A1A1A;
@@ -381,6 +349,74 @@
 
         body.dark-mode .back-button:hover {
             background: #5a6268 !important;
+        }
+
+        body.dark-mode .timesheet-table th {
+            background: #2a2a2a;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .timesheet-table td {
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .project-header {
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .project-total {
+            background: #2a2a2a;
+            color: #4690DD;
+        }
+
+        body.dark-mode .issue-row {
+            background: #1A1A1A;
+        }
+
+        body.dark-mode .issue-row:hover {
+            background: #2a2a2a;
+        }
+
+        body.dark-mode .issue-key {
+            color: #4690DD;
+        }
+
+        body.dark-mode .time-cell.has-time {
+            background: #2d4a6b;
+            color: #4690DD;
+        }
+
+        body.dark-mode .total-cell {
+            background: #2a2a2a;
+            color: #4690DD;
+        }
+
+        body.dark-mode .summary-row {
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode .summary-row td {
+            border-color: #4690DD;
+        }
+
+        body.dark-mode .project-name {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .project-name:hover {
+            color: #4690DD;
+        }
+
+        body.dark-mode .expand-icon {
+            color: #aaa;
+        }
+
+        body.dark-mode .expand-icon:hover {
+            color: #4690DD;
         }
 
         body.dark-mode #loading {
@@ -407,11 +443,61 @@
         body.dark-mode .theme-button:hover {
             background-color: rgba(255, 255, 255, 0.2);
         }
+
+        /* Footer brand - matching main popup */
+        #brand {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 9999;
+            height: 50px;
+            background: #f3f3f3;
+            margin: 0;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        #info {
+            padding: 15px 0 0 10px;
+            width: 50%;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #nav {
+            font-size: 12px;
+            color: #cccccc;
+            width: 44%;
+            display: inline-block;
+            text-align: right;
+            vertical-align: top;
+            padding: 15px 5px 0 0;
+        }
+
+        #nav > * {
+            display: inline-block;
+            vertical-align: middle;
+            margin: 0 3px;
+        }
+
+        #nav a img {
+            display: block;
+        }
+
+        body.dark-mode #brand {
+            background: #141414;
+            border-top: 1px solid #333;
+        }
+
+        body.dark-mode a {
+            color: #4690DD !important;
+            font-weight: lighter;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Weekly Task View</h1>
+        <h1>Weekly Timesheet</h1>
         <div class="week-navigation">
             <button class="nav-button" id="prevWeek">← Previous</button>
             <div class="week-range" id="weekRange"></div>
@@ -426,36 +512,56 @@
         <div class="toolbar">
             <button class="back-button" id="backToMain">← Back to Main</button>
             <button id="refreshData">Refresh Data</button>
-            <button id="exportWeek">Export Week</button>
+            <button id="exportWeek">Export CSV</button>
+            <button id="bulkAction">Bulk Action</button>
         </div>
 
         <div id="error"></div>
 
         <div id="loading">
             <div class="loader"></div>
-            <p>Loading weekly data...</p>
+            <p>Loading weekly timesheet data...</p>
         </div>
 
-        <div id="weeklyContent" style="display: none;">
-            <div class="summary-panel">
-                <div class="summary-title">Week Summary</div>
-                <div class="summary-stats">
-                    <div class="stat-item">Total Time: <span class="stat-value" id="totalTime">0h</span></div>
-                    <div class="stat-item">Issues Worked: <span class="stat-value" id="issuesWorked">0</span></div>
-                    <div class="stat-item">Working Days: <span class="stat-value" id="workingDays">0</span></div>
-                    <div class="stat-item">Avg per Day: <span class="stat-value" id="avgPerDay">0h</span></div>
-                </div>
-            </div>
+        <div id="timesheetContent" style="display: none;">
+            <table class="timesheet-table" id="timesheetTable">
+                <thead>
+                    <tr>
+                        <th style="width: 30px;">Bulk</th>
+                        <th style="width: 80px;">Issue Key</th>
+                        <th style="width: 200px;">Summary</th>
+                        <th class="day-header" id="day0">Mon</th>
+                        <th class="day-header" id="day1">Tue</th>
+                        <th class="day-header" id="day2">Wed</th>
+                        <th class="day-header" id="day3">Thu</th>
+                        <th class="day-header" id="day4">Fri</th>
+                        <th class="day-header" id="day5">Sat</th>
+                        <th class="day-header" id="day6">Sun</th>
+                        <th style="width: 50px;">Σ</th>
+                    </tr>
+                </thead>
+                <tbody id="timesheetBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-            <div class="weekly-calendar" id="weeklyCalendar">
-                <div class="calendar-header">Sunday</div>
-                <div class="calendar-header">Monday</div>
-                <div class="calendar-header">Tuesday</div>
-                <div class="calendar-header">Wednesday</div>
-                <div class="calendar-header">Thursday</div>
-                <div class="calendar-header">Friday</div>
-                <div class="calendar-header">Saturday</div>
+    <div id="brand">
+        <div id="info">
+            <div style="text-align: center;">
+                <img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align: middle; margin-right: 10px; width:20px;height:20px;">
+                <span>Designed by <a href="https://github.com/haydencbarnes" target="_blank" style="color: #0052CC;"> Hayden Barnes </a>in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></span>
             </div>
+        </div>
+        <div id="nav">
+            <a href="popup.html?source=navigation" tabindex="1" style="color: #0052CC;"><img src="src/icons/cells.png" alt="Time Table" style="vertical-align: middle; width:20px; height:20px;"></a> |
+            <a href="timerFeatureModule/timer.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/timer.png" alt="Timer" style="vertical-align: middle; width:20px; height:20px;"></a> |
+            <a href="search.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/magnifying-glass.png" alt="Search" style="vertical-align: middle; width:19px; height:19px;"></a> |
+            <a href="options.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/settings.png" alt="Settings" style="vertical-align: middle; width:20px; height:20px;"></a> |
+            <button id="themeToggle2" class="theme-button" title="Toggle dark mode">
+                <span class="icon">🌙</span>
+            </button> |
+            <a href="https://github.com/haydencbarnes/jira-time-tracker-ext" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
         </div>
     </div>
 </body>
