@@ -350,6 +350,40 @@
             font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
         }
 
+        /* BETA badge for options - matching content-script style */
+        .jira-popup-beta-badge {
+            display: inline-block;
+            background: #FF6B35;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 8px;
+            margin-left: 8px;
+            vertical-align: middle;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1;
+            box-shadow: 0 1px 3px rgba(255, 107, 53, 0.3);
+            animation: jiraBetaPulse 2s ease-in-out infinite;
+        }
+
+        body.dark-mode .jira-popup-beta-badge {
+            background: #FF8C42;
+            box-shadow: 0 1px 3px rgba(255, 140, 66, 0.4);
+        }
+
+        @keyframes jiraBetaPulse {
+            0%, 100% { 
+                opacity: 1; 
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.8; 
+                transform: scale(1.05);
+            }
+        }
+
     </style>
 </head>
 
@@ -436,12 +470,13 @@
             </tr>
             <tr id="sidePanelRow" style="display: none;">
                 <td>Side Panel</td>
-                <td><div style="display: flex; align-items: center;">
+                <td>
                     <label class="toggle-switch">
-                      <input type="checkbox" id="sidePanelToggle">
-                      <span class="slider"></span>
+                        <input type="checkbox" id="sidePanelToggle">
+                        <span class="slider"></span>
                     </label>
-                  </div></td>
+                    <span class="jira-popup-beta-badge">Beta</span>
+                </td>
             </tr>
             <tr>
                 <td>Version</td>

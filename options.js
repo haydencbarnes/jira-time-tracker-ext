@@ -100,10 +100,7 @@
         });
     });
 
-    sidePanelToggle.addEventListener('change', function() {
-        const isEnabled = this.checked;
-        chrome.storage.sync.set({ sidePanelEnabled: isEnabled });
-    });
+
 
     // Create shapes for the experimental features slider
     const shapeCount = 15;
