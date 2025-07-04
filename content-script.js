@@ -257,7 +257,7 @@ class JiraIssueDetector {
     }
 
     // Create popup
-    this.currentPopup = this.createPopup(issueId);
+    this.currentPopup = this.createPopup(issueId, settings);
     document.body.appendChild(this.currentPopup);
 
     // Position popup
@@ -272,7 +272,7 @@ class JiraIssueDetector {
     this.setupPopupHandlers(issueId, settings);
   }
 
-  createPopup(issueId) {
+  createPopup(issueId, settings) {
     const popup = document.createElement('div');
     popup.className = 'jira-issue-popup';
     
@@ -281,9 +281,18 @@ class JiraIssueDetector {
       popup.classList.add('dark');
     }
 
+    // Construct JIRA issue URL
+    const baseUrl = settings.baseUrl.startsWith('http')
+      ? settings.baseUrl
+      : `https://${settings.baseUrl}`;
+    const normalizedBaseUrl = baseUrl.endsWith('/')
+      ? baseUrl
+      : `${baseUrl}/`;
+    const issueUrl = `${normalizedBaseUrl}browse/${issueId}`;
+
     popup.innerHTML = `
       <div class="jira-issue-popup-header">
-        <h3 class="jira-issue-popup-title">Log Time: ${issueId}</h3>
+        <h3 class="jira-issue-popup-title">Log Time: <a href="${issueUrl}" target="_blank" style="color: inherit; text-decoration: none;">${issueId}</a></h3>
         <button class="jira-issue-popup-close" type="button" aria-label="Close">&times;</button>
       </div>
       

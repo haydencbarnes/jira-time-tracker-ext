@@ -48,6 +48,11 @@
     color: #4690DD;
   }
   
+  .jira-issue-popup .jira-issue-popup-title a:hover {
+    background: rgba(70, 144, 221, 0.15);
+    color: #5E9FE3;
+  }
+  
   .jira-issue-popup .jira-issue-popup-label {
     color: #e0e0e0;
   }
@@ -118,8 +123,29 @@
   font-size: 16px;
 }
 
+.jira-issue-popup-title a {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.jira-issue-popup-title a:hover {
+  background: rgba(0, 82, 204, 0.1);
+  color: #0065ff;
+  text-decoration: underline;
+}
+
 .jira-issue-popup.dark .jira-issue-popup-title {
   color: #4690DD;
+}
+
+.jira-issue-popup.dark .jira-issue-popup-title a:hover {
+  background: rgba(70, 144, 221, 0.15);
+  color: #5E9FE3;
 }
 
 .jira-issue-popup-close {
