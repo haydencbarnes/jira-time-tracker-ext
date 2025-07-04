@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Weekly View - Jira Log Time</title>
+    <script src="jira-api.js"></script>
+    <script src="jira-error-handler.js"></script>
+    <script src="weekly-view.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            width: 800px;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #f3f3f3;
+            padding: 10px;
+            border-bottom: 1px solid #e5e5e5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .week-navigation {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-button {
+            background: #0052CC;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .nav-button:hover {
+            background: #0041a8;
+        }
+
+        .week-range {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .weekly-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #ddd;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .calendar-header {
+            background: #0052CC;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .calendar-day {
+            background: white;
+            min-height: 120px;
+            padding: 8px;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .calendar-day.today {
+            background: #e3f2fd;
+        }
+
+        .calendar-day.other-month {
+            background: #f9f9f9;
+            color: #999;
+        }
+
+        .day-number {
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .task-entry {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 4px 6px;
+            margin-bottom: 4px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .task-entry:hover {
+            background: #e8e8e8;
+        }
+
+        .task-key {
+            font-weight: bold;
+            color: #0052CC;
+            display: block;
+        }
+
+        .task-time {
+            color: #666;
+            font-size: 9px;
+        }
+
+        .task-comment {
+            color: #333;
+            font-size: 9px;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .summary-panel {
+            background: #f8f9fa;
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #0052CC;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .toolbar button {
+            background: #0052CC;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .toolbar button:hover {
+            background: #0041a8;
+        }
+
+        .back-button {
+            background: #6c757d !important;
+        }
+
+        .back-button:hover {
+            background: #5a6268 !important;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loader {
+            margin: 20px auto;
+            font-size: 5px;
+            position: relative;
+            text-indent: -9999em;
+            border-top: 2px solid rgba(0, 82, 204, 0.2);
+            border-right: 2px solid rgba(0, 82, 204, 0.2);
+            border-bottom: 2px solid rgba(0, 82, 204, 0.2);
+            border-left: 2px solid #0052CC;
+            transform: translateZ(0);
+            animation: load 0.4s infinite linear;
+        }
+
+        .loader,
+        .loader:after {
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+        }
+
+        @keyframes load {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #error {
+            padding: 10px;
+            color: #cc0000;
+            background-color: #ffdddd;
+            border: 1px solid #cc0000;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .theme-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            vertical-align: middle;
+            transition: background-color 0.3s;
+            margin: 0 2px;
+            padding: 0;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .theme-button:hover {
+            background-color: rgba(0, 0, 0, 0.15);
+        }
+
+        .theme-button .icon {
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            background-color: #141414;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .header {
+            background: #141414;
+            border-bottom: 1px solid #333;
+        }
+
+        body.dark-mode .header h1 {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .week-range {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .nav-button {
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode .nav-button:hover {
+            background: #5E9FE3;
+        }
+
+        body.dark-mode .weekly-calendar {
+            background: #333;
+            border: 1px solid #333;
+        }
+
+        body.dark-mode .calendar-header {
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode .calendar-day {
+            background: #1A1A1A;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .calendar-day.today {
+            background: #2d4a6b;
+        }
+
+        body.dark-mode .calendar-day.other-month {
+            background: #0f0f0f;
+            color: #666;
+        }
+
+        body.dark-mode .day-number {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .task-entry {
+            background: #2a2a2a;
+            border: 1px solid #444;
+        }
+
+        body.dark-mode .task-entry:hover {
+            background: #333;
+        }
+
+        body.dark-mode .task-key {
+            color: #4690DD;
+        }
+
+        body.dark-mode .task-time {
+            color: #aaa;
+        }
+
+        body.dark-mode .task-comment {
+            color: #ccc;
+        }
+
+        body.dark-mode .summary-panel {
+            background: #1A1A1A;
+            border: 1px solid #333;
+        }
+
+        body.dark-mode .summary-title {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .stat-item {
+            color: #aaa;
+        }
+
+        body.dark-mode .stat-value {
+            color: #4690DD;
+        }
+
+        body.dark-mode .toolbar button {
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode .toolbar button:hover {
+            background: #5E9FE3;
+        }
+
+        body.dark-mode .back-button {
+            background: #6c757d !important;
+            color: #e0e0e0 !important;
+        }
+
+        body.dark-mode .back-button:hover {
+            background: #5a6268 !important;
+        }
+
+        body.dark-mode #loading {
+            color: #aaa;
+        }
+
+        body.dark-mode .loader {
+            border-top: 2px solid rgba(70, 144, 221, 0.2);
+            border-right: 2px solid rgba(70, 144, 221, 0.2);
+            border-bottom: 2px solid rgba(70, 144, 221, 0.2);
+            border-left: 2px solid #4690DD;
+        }
+
+        body.dark-mode #error {
+            color: #ff6b6b;
+            background-color: #2a1a1a;
+            border: 1px solid #4a1a1a;
+        }
+
+        body.dark-mode .theme-button {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        body.dark-mode .theme-button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Weekly Task View</h1>
+        <div class="week-navigation">
+            <button class="nav-button" id="prevWeek">← Previous</button>
+            <div class="week-range" id="weekRange"></div>
+            <button class="nav-button" id="nextWeek">Next →</button>
+            <button class="theme-button" id="themeToggle" title="Toggle theme">
+                <span class="icon">🌙</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="toolbar">
+            <button class="back-button" id="backToMain">← Back to Main</button>
+            <button id="refreshData">Refresh Data</button>
+            <button id="exportWeek">Export Week</button>
+        </div>
+
+        <div id="error"></div>
+
+        <div id="loading">
+            <div class="loader"></div>
+            <p>Loading weekly data...</p>
+        </div>
+
+        <div id="weeklyContent" style="display: none;">
+            <div class="summary-panel">
+                <div class="summary-title">Week Summary</div>
+                <div class="summary-stats">
+                    <div class="stat-item">Total Time: <span class="stat-value" id="totalTime">0h</span></div>
+                    <div class="stat-item">Issues Worked: <span class="stat-value" id="issuesWorked">0</span></div>
+                    <div class="stat-item">Working Days: <span class="stat-value" id="workingDays">0</span></div>
+                    <div class="stat-item">Avg per Day: <span class="stat-value" id="avgPerDay">0h</span></div>
+                </div>
+            </div>
+
+            <div class="weekly-calendar" id="weeklyCalendar">
+                <div class="calendar-header">Sunday</div>
+                <div class="calendar-header">Monday</div>
+                <div class="calendar-header">Tuesday</div>
+                <div class="calendar-header">Wednesday</div>
+                <div class="calendar-header">Thursday</div>
+                <div class="calendar-header">Friday</div>
+                <div class="calendar-header">Saturday</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
