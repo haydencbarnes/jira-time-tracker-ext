@@ -1,3 +1,6 @@
+## 1.3.7 (Jul 04, 2025)
+- Bug fix: Fixed an issue where the experimental side panel feature was not working as expected. https://github.com/haydencbarnes/jira-time-tracker-ext/issues/6
+
 ## 1.3.6 (Jul 04, 2025)
 - Feature: Added Jira Issue ID Detection as an experimental feature. The extension scans any web-page for Jira issue IDs (e.g. ABC-123, PROJECT-456). A subtle highlight is applied and a small blue ⏱ "log-time" icon is injected to the right of the ID. Clicking the icon opens the instant Log-Time popup while the ID itself remains a normal link.
 - UX: Blue "Jira detection" badge now appears bottom-right when the detector first runs. Also sped up some other animations in the extension.
