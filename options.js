@@ -108,8 +108,9 @@
     for (let i = 0; i < shapeCount; i++) {
         const shape = document.createElement('div');
         shape.className = `shape ${shapes[Math.floor(Math.random() * shapes.length)]}`;
-        shape.style.left = `${Math.random() * 100}%`;
-        shape.style.top = `${Math.random() * 100}%`;
+        // Allow shapes to extend moderately beyond toggle boundaries
+        shape.style.left = `${Math.random() * 130 - 15}%`;
+        shape.style.top = `${Math.random() * 130 - 15}%`;
         shape.style.width = `${Math.random() * 5 + 2}px`;
         shape.style.height = shape.style.width;
         shape.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 75%)`;
