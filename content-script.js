@@ -56,7 +56,7 @@ class JiraIssueDetector {
     // Show a brief experimental feature badge
     const badge = document.createElement('div');
     badge.className = 'jira-experimental-badge';
-    badge.textContent = 'JIRA Detection Active';
+    badge.textContent = 'Jira Issue Detection On - BETA';
     document.body.appendChild(badge);
     
     setTimeout(() => {
@@ -290,7 +290,7 @@ class JiraIssueDetector {
 
     popup.innerHTML = `
       <div class="jira-issue-popup-header">
-        <h3 class="jira-issue-popup-title">Log Time: <a href="${issueUrl}" target="_blank" style="color: inherit; text-decoration: none;">${issueId}</a></h3>
+        <h3 class="jira-issue-popup-title">Log Time: <a href="${issueUrl}" target="_blank" style="color: inherit; text-decoration: none;">${issueId}</a> <span class="jira-popup-beta-badge">BETA</span></h3>
         <button class="jira-issue-popup-close" type="button" aria-label="Close">&times;</button>
       </div>
       

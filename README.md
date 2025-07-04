@@ -59,12 +59,14 @@ You can edit/customize the custom JQL query in the Settings tab under preference
 #### Worklog Snippets
 Log work faster by using worklog snippets to store and insert a frequently used worklog description/comment. You can save two snippets in the settings tab and they will appear as buttons accross the extension in the description of work completed field.
 
+#### Dark Mode
+This toggle allows you to enable/disable the dark mode of the extension. You can also toggle dark mode system scheme following on and off from the settings tab.
+
 #### Experimental Features Toggle
 This toggle allows you to enable/disable the experimental features of the extension. Currently, the experimental features include:
-- Dark Mode
 - Worklog Autosuggestions
 - Google Calendar Add-on
-- JIRA Issue ID Detection & Time Tracking Popups
+- JIRA Issue ID Detection & Time Tracking Popups (more info below)
 
 #### JIRA Issue ID Detection (Experimental)
 - The extension scans any webpage for JIRA issue IDs (e.g. `ABC-123`).
