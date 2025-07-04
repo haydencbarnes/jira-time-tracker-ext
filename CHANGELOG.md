@@ -1,3 +1,7 @@
+## 1.3.6 (Jul 04, 2025)
+- Feature: Added Jira Issue ID Detection as an experimental feature. The extension scans any web-page for Jira issue IDs (e.g. ABC-123, PROJECT-456). A subtle highlight is applied and a small blue ⏱ "log-time" icon is injected to the right of the ID. Clicking the icon opens the instant Log-Time popup while the ID itself remains a normal link.
+- UX: Blue "Jira detection" badge now appears bottom-right when the detector first runs. Also sped up some other animations in the extension.
+
 ## 1.3.5 (Jun 28, 2025)
 - Feature: Added new error handling feature to the extension. Users can now see a more detailed error message when an error occurs.
 

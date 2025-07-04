@@ -59,9 +59,27 @@ You can edit/customize the custom JQL query in the Settings tab under preference
 #### Worklog Snippets
 Log work faster by using worklog snippets to store and insert a frequently used worklog description/comment. You can save two snippets in the settings tab and they will appear as buttons accross the extension in the description of work completed field.
 
+#### Dark Mode
+This toggle allows you to enable/disable the dark mode of the extension. You can also toggle dark mode system scheme following on and off from the settings tab.
+
 #### Experimental Features Toggle
 This toggle allows you to enable/disable the experimental features of the extension. Currently, the experimental features include:
-- Dark Mode
 - Worklog Autosuggestions
 - Google Calendar Add-on
-- Jira Issue Popups
+- JIRA Issue ID Detection & Time Tracking Popups (more info below)
+
+#### JIRA Issue ID Detection (Experimental)
+- The extension scans any webpage for JIRA issue IDs (e.g. `ABC-123`).
+- Each detected ID is left completely **intact** – normal links still work and plain-text stays selectable.
+- A small **blue ⏱ log-time icon** is injected immediately **to the right of the ID**.
+- Click the blue icon to open the quick Log-Time popup (the icon has a tooltip: *Log time for ABC-123*).
+- The ID itself remains clickable/navigable so you can still open the issue in JIRA as usual.
+
+Key details:
+1. **Automatic Detection** – works in e-mails, docs, Slack, etc.
+2. **Non-intrusive** – no underline; subtle background highlight only on plain-text IDs.
+3. **Icon UX** – blue in light-mode, lighter blue hover, matching dark-mode palette.
+4. **Bottom-right Badge** – "JIRA detection active" badge now appears bottom-right in blue for 3 s when the feature activates.
+5. **All other popup features** (dark-mode, validation, error handling) remain unchanged.
+
+This feature is perfect for logging time when viewing issue details in web-based tools, email notifications, or any other context where JIRA issue IDs appear.
