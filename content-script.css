@@ -31,71 +31,6 @@
   }
 }
 
-/* Dark theme support */
-@media (prefers-color-scheme: dark) {
-  .jira-issue-popup {
-    background: #141414;
-    border-color: #1A1A1A;
-    color: #e0e0e0;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  }
-  
-  .jira-issue-popup .jira-issue-popup-header {
-    border-bottom-color: #1A1A1A;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-title {
-    color: #4690DD;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-title a:hover {
-    background: rgba(70, 144, 221, 0.15);
-    color: #5E9FE3;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-label {
-    color: #e0e0e0;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-input {
-    background: #1A1A1A;
-    border-color: #333;
-    color: #e0e0e0;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-input::placeholder {
-    color: #666;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-input:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
-    background: #1A1A1A;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-close {
-    color: #e0e0e0;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-close:hover {
-    background: #1A1A1A;
-    color: #e0e0e0;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-button.secondary {
-    background: #4690DD;
-    color: #1A1A1A;
-    border: 1px solid #4690DD;
-  }
-  
-  .jira-issue-popup .jira-issue-popup-button.secondary:hover {
-    background: #5E9FE3;
-  }
-  
-  .jira-issue-popup small {
-    color: #999 !important;
-  }
-}
 
 .jira-issue-popup.dark {
   background: #141414;
@@ -278,13 +213,13 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-button.secondary {
-  background: #4690DD;
-  color: #1A1A1A;
-  border: 1px solid #4690DD;
+  background: #333;
+  color: #e0e0e0;
+  border: 1px solid #333;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-button.secondary:hover {
-  background: #5E9FE3;
+  background: #444;
 }
 
 .jira-issue-popup-loading {
@@ -390,6 +325,7 @@
   pointer-events: none;
 }
 
+/* Dark theme styles for highlighting and icons - applied when system or extension dark mode is detected */
 @media (prefers-color-scheme: dark) {
   .jira-issue-id-highlight {
     background: rgba(70, 144, 221, 0.12);

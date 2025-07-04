@@ -257,7 +257,7 @@ class JiraIssueDetector {
     }
 
     // Create popup
-    this.currentPopup = this.createPopup(issueId, settings);
+    this.currentPopup = await this.createPopup(issueId, settings);
     document.body.appendChild(this.currentPopup);
 
     // Position popup
@@ -272,14 +272,12 @@ class JiraIssueDetector {
     this.setupPopupHandlers(issueId, settings);
   }
 
-  createPopup(issueId, settings) {
+  async createPopup(issueId, settings) {
     const popup = document.createElement('div');
     popup.className = 'jira-issue-popup';
     
-    // Apply dark theme if system prefers it
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      popup.classList.add('dark');
-    }
+    // Apply dark theme based on extension settings
+    await this.applyThemeToPopup(popup);
 
     // Construct JIRA issue URL
     const baseUrl = settings.baseUrl.startsWith('http')
@@ -348,6 +346,35 @@ class JiraIssueDetector {
     `;
 
     return popup;
+  }
+
+  async applyThemeToPopup(popup) {
+    try {
+      const result = await new Promise((resolve) => {
+        chrome.storage.sync.get(['followSystemTheme', 'darkMode'], resolve);
+      });
+      
+      const followSystem = result.followSystemTheme !== false; // default true
+      const manualDark = result.darkMode === true;
+      
+      let shouldUseDarkTheme = false;
+      
+      if (followSystem) {
+        shouldUseDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      } else {
+        shouldUseDarkTheme = manualDark;
+      }
+      
+      if (shouldUseDarkTheme) {
+        popup.classList.add('dark');
+      }
+    } catch (error) {
+      console.warn('Failed to read theme settings, falling back to system preference:', error);
+      // Fallback to system preference if storage read fails
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        popup.classList.add('dark');
+      }
+    }
   }
 
   positionPopup(popup, targetElement) {
