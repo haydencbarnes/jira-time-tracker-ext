@@ -16,12 +16,6 @@
     const sidePanelToggle = document.getElementById('sidePanelToggle');
     const sidePanelRow = document.getElementById('sidePanelRow');
 
-    sidePanelRow.style.display = experimentalFeaturesToggle.checked ? 'table-row' : 'none';
-    if (!experimentalFeaturesToggle.checked) {
-        sidePanelToggle.checked = false;
-        chrome.storage.sync.set({ sidePanelEnabled: false });
-    }
-
     // Add proper theme toggle functionality
     document.addEventListener('DOMContentLoaded', function() {
         const themeToggle = document.getElementById('themeToggle');
@@ -227,11 +221,7 @@
           systemThemeToggle.checked = items.followSystemTheme;
 
           sidePanelRow.style.display = items.experimentalFeatures ? 'table-row' : 'none';
-          if (items.experimentalFeatures && items.sidePanelEnabled) {
-            sidePanelToggle.checked = items.sidePanelEnabled;
-          } else {
-            sidePanelToggle.checked = false;
-          }
+          sidePanelToggle.checked = items.experimentalFeatures && items.sidePanelEnabled;
 
           jiraTypeSelect.dispatchEvent(new Event('change'));
 
