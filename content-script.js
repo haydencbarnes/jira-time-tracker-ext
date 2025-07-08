@@ -10,6 +10,9 @@ class JiraIssueDetector {
     this.debounceTimeout = null;
     this.lastActiveElement = null; // Track currently focused element
     this.isProcessing = false; // Prevent recursive processing
+    // Enable debug mode via URL parameter or localStorage
+    this.debug = window.location.search.includes('jira-debug') || 
+                localStorage.getItem('jira-debug') === 'true';
     
     this.init();
   }
@@ -522,6 +525,14 @@ class JiraIssueDetector {
     // Check for menu-like attributes (high priority)
     const role = element.getAttribute('role');
     if (role === 'menu' || role === 'menubar' || role === 'listbox' || role === 'dialog') {
+      if (this.debug) console.debug('Menu detected by role:', role, element);
+      return true;
+    }
+
+    // Check for Microsoft/Outlook context menu ID pattern
+    const id = element.getAttribute('id') || '';
+    if (id.startsWith('ContextMenu-') || id.includes('contextualCtxMenu')) {
+      if (this.debug) console.debug('Menu detected by ID pattern:', id, element);
       return true;
     }
 
@@ -531,6 +542,7 @@ class JiraIssueDetector {
         className.toLowerCase().includes('context') ||
         className.toLowerCase().includes('dropdown') ||
         className.toLowerCase().includes('popup')) {
+      if (this.debug) console.debug('Menu detected by class pattern:', className, element);
       return true;
     }
 
@@ -559,15 +571,16 @@ class JiraIssueDetector {
 
     // Check if it contains clickable items (reduced threshold)
     const clickableItems = this.findClickableMenuItems(element);
-    const hasClickableContent = clickableItems.length >= 1; // Reduced from 2 to 1
+    const hasClickableContent = clickableItems.length >= 1;
 
-    // Accept if it has either menu styling OR clickable content
-    if (hasMenuStyling || hasClickableContent) {
-      // Additional size validation - must be reasonable menu size
-      if (rect.width >= 80 && rect.height >= 30) {
-        return true;
+          // Accept if it has either menu styling OR clickable content
+      if (hasMenuStyling || hasClickableContent) {
+        // Additional size validation - must be reasonable menu size
+        if (rect.width >= 80 && rect.height >= 30) {
+          if (this.debug) console.debug('Menu detected by styling+content:', element);
+          return true;
+        }
       }
-    }
 
     return false;
   }
@@ -575,37 +588,40 @@ class JiraIssueDetector {
   findClickableMenuItems(menuElement) {
     const potentialItems = [];
     
-    // Look for elements that could be menu items
-    const candidates = menuElement.querySelectorAll('*');
+    // Priority 1: Look for actual menu items (buttons, links with menuitem role)
+    const menuItems = menuElement.querySelectorAll('[role="menuitem"], button, a[href]');
+    for (const item of menuItems) {
+      const rect = item.getBoundingClientRect();
+      if (rect.width >= 30 && rect.height >= 15) {
+        potentialItems.push(item);
+      }
+    }
     
-    for (const candidate of candidates) {
-      const styles = window.getComputedStyle(candidate);
-      const rect = candidate.getBoundingClientRect();
+    // Priority 2: Look for other clickable elements if no menu items found
+    if (potentialItems.length === 0) {
+      const candidates = menuElement.querySelectorAll('*');
       
-      // Skip invisible or tiny elements (more permissive)
-      if (rect.width < 30 || rect.height < 15) continue;
-      
-      // Check for clickable indicators (expanded list)
-      const isClickable = 
-        styles.cursor === 'pointer' ||
-        styles.cursor === 'default' && candidate.textContent.trim().length > 0 ||
-        candidate.onclick ||
-        candidate.addEventListener ||
-        candidate.hasAttribute('role') && ['menuitem', 'option', 'button', 'link'].includes(candidate.getAttribute('role')) ||
-        candidate.tagName === 'BUTTON' ||
-        candidate.tagName === 'A' ||
-        candidate.tagName === 'LI' ||
-        candidate.tagName === 'DIV' && candidate.textContent.trim().length > 0 ||
-        candidate.tagName === 'SPAN' && candidate.textContent.trim().length > 0 ||
-        candidate.hasAttribute('tabindex') ||
-        candidate.hasAttribute('data-command') ||
-        candidate.hasAttribute('data-action') ||
-        candidate.className.toLowerCase().includes('item') ||
-        candidate.className.toLowerCase().includes('option') ||
-        candidate.className.toLowerCase().includes('command');
+      for (const candidate of candidates) {
+        const styles = window.getComputedStyle(candidate);
+        const rect = candidate.getBoundingClientRect();
         
-      if (isClickable) {
-        potentialItems.push(candidate);
+        // Skip invisible or tiny elements
+        if (rect.width < 30 || rect.height < 15) continue;
+        
+        // Check for clickable indicators
+        const isClickable = 
+          styles.cursor === 'pointer' ||
+          candidate.hasAttribute('role') && ['option', 'button', 'link'].includes(candidate.getAttribute('role')) ||
+          candidate.tagName === 'LI' && candidate.textContent.trim().length > 0 ||
+          candidate.hasAttribute('tabindex') ||
+          candidate.hasAttribute('data-command') ||
+          candidate.hasAttribute('data-action') ||
+          candidate.className.toLowerCase().includes('item') ||
+          candidate.className.toLowerCase().includes('option');
+          
+        if (isClickable) {
+          potentialItems.push(candidate);
+        }
       }
     }
     
@@ -825,13 +841,81 @@ class JiraIssueDetector {
       return; // Already injected somewhere, don't duplicate
     }
 
+    if (this.debug) console.debug('Attempting to inject Jira option into menu:', menuElement, 'for issue:', jiraIssue);
+    
     const jiraOption = this.createJiraMenuOption(jiraIssue, menuElement);
+    
+    if (this.debug) console.debug('Created Jira option element:', jiraOption);
     
     // Try different injection strategies based on menu structure
     this.injectUsingStrategy(menuElement, jiraOption);
+    
+    // Verify injection succeeded
+    if (menuElement.querySelector('.jira-injected-option')) {
+      if (this.debug) console.debug('✅ Jira option successfully injected');
+    } else {
+      if (this.debug) console.debug('❌ Jira option injection failed');
+    }
   }
 
   createJiraMenuOption(jiraIssue, menuElement) {
+    // Detect menu structure and create appropriate element
+    const menuItems = menuElement.querySelectorAll('[role="menuitem"]');
+    
+    if (menuItems.length > 0) {
+      // Microsoft/Outlook style: create button with matching structure
+      return this.createMicrosoftStyleMenuItem(jiraIssue, menuItems[0]);
+    } else {
+      // Generic menu: create simple div
+      return this.createGenericMenuItem(jiraIssue, menuElement);
+    }
+  }
+
+  createMicrosoftStyleMenuItem(jiraIssue, sampleButton) {
+    // Create li container to match Outlook structure
+    const li = document.createElement('li');
+    li.role = 'presentation';
+    const parentLi = sampleButton.closest('li');
+    li.className = parentLi ? parentLi.className : '';
+
+    // Create button to match existing buttons
+    const button = document.createElement('button');
+    button.className = 'jira-injected-option ' + sampleButton.className;
+    button.setAttribute('role', 'menuitem');
+    button.setAttribute('tabindex', '-1');
+    button.setAttribute('aria-label', `Log Time for ${jiraIssue}`);
+    
+    // Sample the structure from existing buttons
+    const sampleContent = sampleButton.querySelector('.linkContent-609') || sampleButton.querySelector('[class*="content"]') || sampleButton;
+    const iconElement = sampleButton.querySelector('i[data-icon-name]');
+    const iconClass = iconElement ? iconElement.className : 'icon-618';
+    const labelElement = sampleButton.querySelector('.label-611');
+    const labelClass = labelElement ? labelElement.className : 'label-611';
+    
+    button.innerHTML = `
+      <div class="linkContent-609">
+        <i data-icon-name="ClockRegular" aria-hidden="true" class="${iconClass}">
+          <span role="presentation" aria-hidden="true">⏱</span>
+        </i>
+        <span class="${labelClass}">Log Time for ${jiraIssue}</span>
+      </div>
+    `;
+    
+    // Copy styles from sample button
+    this.copyComputedStyles(sampleButton, button);
+    
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.hideAllMenus();
+      this.showPopup(jiraIssue, button, { centered: true });
+    });
+
+    li.appendChild(button);
+    return li;
+  }
+
+  createGenericMenuItem(jiraIssue, menuElement) {
     const option = document.createElement('div');
     option.className = 'jira-injected-option';
     option.innerHTML = `
@@ -850,6 +934,64 @@ class JiraIssueDetector {
     });
 
     return option;
+  }
+
+  copyComputedStyles(sourceElement, targetElement) {
+    const sourceStyles = window.getComputedStyle(sourceElement);
+    
+    // Copy key visual properties
+    const stylesToCopy = [
+      'padding', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+      'margin', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft',
+      'fontSize', 'fontFamily', 'fontWeight', 'lineHeight',
+      'color', 'backgroundColor', 'border', 'borderRadius',
+      'minHeight', 'height', 'display', 'alignItems', 'justifyContent',
+      'textAlign', 'cursor', 'transition'
+    ];
+    
+    stylesToCopy.forEach(style => {
+      if (sourceStyles[style] && sourceStyles[style] !== 'initial') {
+        targetElement.style[style] = sourceStyles[style];
+      }
+    });
+
+    // Add hover effect
+    const hoverBackgroundColor = this.getHoverColor(sourceElement);
+    targetElement.addEventListener('mouseenter', () => {
+      targetElement.style.backgroundColor = hoverBackgroundColor;
+    });
+    
+    targetElement.addEventListener('mouseleave', () => {
+      targetElement.style.backgroundColor = sourceStyles.backgroundColor;
+    });
+  }
+
+  getHoverColor(element) {
+    // Try to detect hover color or create appropriate one
+    const styles = window.getComputedStyle(element);
+    const bgColor = styles.backgroundColor;
+    
+    // Create hover effect based on current background
+    if (bgColor.includes('rgb')) {
+      const values = bgColor.match(/\d+/g);
+      if (values && values.length >= 3) {
+        const r = parseInt(values[0]);
+        const g = parseInt(values[1]);
+        const b = parseInt(values[2]);
+        
+        // Darken or lighten based on current brightness
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        if (brightness > 128) {
+          // Light background, darken on hover
+          return `rgba(${Math.max(0, r-20)}, ${Math.max(0, g-20)}, ${Math.max(0, b-20)}, 0.8)`;
+        } else {
+          // Dark background, lighten on hover
+          return `rgba(${Math.min(255, r+20)}, ${Math.min(255, g+20)}, ${Math.min(255, b+20)}, 0.8)`;
+        }
+      }
+    }
+    
+    return 'rgba(0, 82, 204, 0.1)'; // Default hover
   }
 
   adaptToMenuStyling(option, menuElement) {
@@ -990,14 +1132,54 @@ class JiraIssueDetector {
   }
 
   injectUsingStrategy(menuElement, jiraOption) {
-    // Add separator before our option for visual distinction
-    const separator = this.createMenuSeparator(menuElement);
+    // For Microsoft/Outlook menus, find the correct ul container
+    if (this.tryMicrosoftStyleInjection(menuElement, jiraOption)) return;
     
-    // Try strategies in order, stop at first success
+    // Fallback to generic strategies
+    const separator = this.createMenuSeparator(menuElement);
     if (this.tryAppendWithSeparator(menuElement, separator, jiraOption)) return;
     if (this.tryInsertAfterSeparatorWithOption(menuElement, separator, jiraOption)) return;
     if (this.tryPrependWithSeparator(menuElement, jiraOption, separator)) return;
     if (this.tryListContainerWithSeparator(menuElement, separator, jiraOption)) return;
+  }
+
+  tryMicrosoftStyleInjection(menuElement, jiraOption) {
+    // Look for the pattern: ul > li > button[role="menuitem"]
+    const menuItems = menuElement.querySelectorAll('[role="menuitem"]');
+    
+    if (this.debug) console.debug('Microsoft style injection - found menu items:', menuItems.length);
+    
+    if (menuItems.length === 0) return false;
+    
+    // Find the ul that contains the menu items
+    const firstMenuItem = menuItems[0];
+    const menuItemsContainer = firstMenuItem.closest('ul');
+    
+    if (this.debug) console.debug('Microsoft style injection - menu container:', menuItemsContainer);
+    
+    if (!menuItemsContainer) return false;
+    
+    try {
+      // If we created a li element (Microsoft style), inject it directly
+      if (jiraOption.tagName === 'LI') {
+        if (this.debug) console.debug('Microsoft style injection - injecting LI element directly');
+        menuItemsContainer.appendChild(jiraOption);
+        return true;
+      } else {
+        if (this.debug) console.debug('Microsoft style injection - wrapping in LI element');
+        // Wrap in li if needed
+        const li = document.createElement('li');
+        li.role = 'presentation';
+        const parentLi = firstMenuItem.closest('li');
+        li.className = parentLi ? parentLi.className : '';
+        li.appendChild(jiraOption);
+        menuItemsContainer.appendChild(li);
+        return true;
+      }
+    } catch (e) {
+      if (this.debug) console.debug('Microsoft style injection failed:', e);
+      return false;
+    }
   }
 
   tryAppendWithSeparator(menuElement, separator, jiraOption) {
