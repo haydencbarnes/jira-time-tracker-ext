@@ -622,10 +622,9 @@ class JiraIssueDetector {
   }
 
   injectJiraOption(menuElement, jiraIssue) {
-    // Avoid duplicate injections - check for our option in this menu and any parent menus
-    if (menuElement.querySelector('.jira-injected-option') || 
-        menuElement.closest('*').querySelector('.jira-injected-option')) {
-      return;
+    // Comprehensive duplicate prevention - check document-wide
+    if (document.querySelector('.jira-injected-option')) {
+      return; // Already injected somewhere, don't duplicate
     }
 
     const jiraOption = this.createJiraMenuOption(jiraIssue);
@@ -695,17 +694,68 @@ class JiraIssueDetector {
     // Add separator before our option for visual distinction
     const separator = this.createMenuSeparator();
     
-    // Strategy 1: Append to the end with separator
-    if (this.tryAppendStrategy(menuElement, separator) && this.tryAppendStrategy(menuElement, jiraOption)) return;
-    
-    // Strategy 2: Insert after first separator/divider
-    if (this.tryInsertAfterSeparator(menuElement, separator) && this.tryInsertAfterSeparator(menuElement, jiraOption)) return;
-    
-    // Strategy 3: Insert at the beginning with separator after
-    if (this.tryPrependStrategy(menuElement, jiraOption) && this.tryInsertAfter(jiraOption, separator)) return;
-    
-    // Strategy 4: Find a list container and append
-    if (this.tryListContainerStrategy(menuElement, separator) && this.tryListContainerStrategy(menuElement, jiraOption)) return;
+    // Try strategies in order, stop at first success
+    if (this.tryAppendWithSeparator(menuElement, separator, jiraOption)) return;
+    if (this.tryInsertAfterSeparatorWithOption(menuElement, separator, jiraOption)) return;
+    if (this.tryPrependWithSeparator(menuElement, jiraOption, separator)) return;
+    if (this.tryListContainerWithSeparator(menuElement, separator, jiraOption)) return;
+  }
+
+  tryAppendWithSeparator(menuElement, separator, jiraOption) {
+    try {
+      menuElement.appendChild(separator);
+      menuElement.appendChild(jiraOption);
+      return true;
+    } catch (e) {
+      // Clean up if partial success
+      try { separator.remove(); } catch {}
+      try { jiraOption.remove(); } catch {}
+      return false;
+    }
+  }
+
+  tryInsertAfterSeparatorWithOption(menuElement, separator, jiraOption) {
+    const separators = menuElement.querySelectorAll('hr, .separator, .divider, [role="separator"]');
+    if (separators.length > 0) {
+      try {
+        separators[0].after(separator);
+        separator.after(jiraOption);
+        return true;
+      } catch (e) {
+        try { separator.remove(); } catch {}
+        try { jiraOption.remove(); } catch {}
+        return false;
+      }
+    }
+    return false;
+  }
+
+  tryPrependWithSeparator(menuElement, jiraOption, separator) {
+    try {
+      menuElement.insertBefore(jiraOption, menuElement.firstChild);
+      jiraOption.after(separator);
+      return true;
+    } catch (e) {
+      try { separator.remove(); } catch {}
+      try { jiraOption.remove(); } catch {}
+      return false;
+    }
+  }
+
+  tryListContainerWithSeparator(menuElement, separator, jiraOption) {
+    const listContainer = menuElement.querySelector('ul, ol, [role="menu"], .menu-items');
+    if (listContainer) {
+      try {
+        listContainer.appendChild(separator);
+        listContainer.appendChild(jiraOption);
+        return true;
+      } catch (e) {
+        try { separator.remove(); } catch {}
+        try { jiraOption.remove(); } catch {}
+        return false;
+      }
+    }
+    return false;
   }
 
   createMenuSeparator() {
@@ -720,65 +770,28 @@ class JiraIssueDetector {
     return separator;
   }
 
-  tryInsertAfter(targetElement, newElement) {
-    try {
-      targetElement.after(newElement);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
 
-  tryAppendStrategy(menuElement, jiraOption) {
-    try {
-      menuElement.appendChild(jiraOption);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  tryInsertAfterSeparator(menuElement, jiraOption) {
-    const separators = menuElement.querySelectorAll('hr, .separator, .divider, [role="separator"]');
-    if (separators.length > 0) {
-      try {
-        separators[0].after(jiraOption);
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-    return false;
-  }
-
-  tryPrependStrategy(menuElement, jiraOption) {
-    try {
-      menuElement.insertBefore(jiraOption, menuElement.firstChild);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  tryListContainerStrategy(menuElement, jiraOption) {
-    const listContainer = menuElement.querySelector('ul, ol, [role="menu"], .menu-items');
-    if (listContainer) {
-      try {
-        listContainer.appendChild(jiraOption);
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-    return false;
-  }
 
   hideAllMenus() {
     // Hide our custom menu
     this.hideContextMenu();
     
+    // Clean up any injected menu items
+    this.cleanupInjectedOptions();
+    
     // Try to hide common custom menus by clicking elsewhere
     document.body.click();
+  }
+
+  cleanupInjectedOptions() {
+    // Remove all injected Jira options and separators
+    document.querySelectorAll('.jira-injected-option, .jira-menu-separator').forEach(element => {
+      try {
+        element.remove();
+      } catch (e) {
+        // Ignore removal errors
+      }
+    });
   }
 
   getSelectedText() {
@@ -1320,6 +1333,7 @@ class JiraIssueDetector {
     this.clearHighlights();
     this.closePopup();
     this.hideContextMenu();
+    this.cleanupInjectedOptions();
     this.observer?.disconnect();
     this.observer = null;
     this.menuObserver?.disconnect();
