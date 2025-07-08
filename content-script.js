@@ -353,9 +353,20 @@ class JiraIssueDetector {
 
   setupContextMenu() {
     let contextMenuVisible = false;
+    let lastRightClickInfo = null;
 
-    // Listen for right-click events
+    // Listen for right-click events to capture position and selection
     document.addEventListener('contextmenu', (e) => {
+      // Always capture right-click info for potential custom menu injection
+      lastRightClickInfo = {
+        x: e.pageX,
+        y: e.pageY,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        target: e.target,
+        timestamp: Date.now()
+      };
+
       // Only handle context menu in editable elements
       if (!this.isContentEditable(e.target)) {
         this.hideContextMenu();
@@ -366,13 +377,22 @@ class JiraIssueDetector {
       const jiraIssue = this.extractJiraIssueFromText(selectedText);
       
       if (jiraIssue) {
-        e.preventDefault();
-        this.showContextMenu(e.pageX, e.pageY, jiraIssue);
-        contextMenuVisible = true;
+        // Try to inject into custom menus first, fallback to our own menu
+        setTimeout(() => {
+          if (!this.tryInjectIntoCustomMenu(jiraIssue, lastRightClickInfo)) {
+            // If injection failed, prevent default and show our menu
+            e.preventDefault();
+            this.showContextMenu(e.pageX, e.pageY, jiraIssue);
+            contextMenuVisible = true;
+          }
+        }, 50); // Small delay to let custom menus render
       } else {
         this.hideContextMenu();
       }
     });
+
+    // Watch for custom context menus being added to DOM
+    this.setupCustomMenuInjection();
 
     // Hide context menu on click elsewhere
     document.addEventListener('click', () => {
@@ -382,13 +402,347 @@ class JiraIssueDetector {
       }
     });
 
-    // Hide context menu on escape
+    // Handle keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && contextMenuVisible) {
         this.hideContextMenu();
         contextMenuVisible = false;
       }
+      
+      // Handle keyboard context menu (Shift+F10, Menu key)
+      if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') {
+        const activeElement = document.activeElement;
+        if (this.isContentEditable(activeElement)) {
+          const selectedText = this.getSelectedText();
+          const jiraIssue = this.extractJiraIssueFromText(selectedText);
+          
+          if (jiraIssue) {
+            lastRightClickInfo = {
+              x: 0,
+              y: 0,
+              clientX: 0, 
+              clientY: 0,
+              target: activeElement,
+              timestamp: Date.now(),
+              keyboardTriggered: true
+            };
+            
+            // Try to inject into any custom menu that appears
+            setTimeout(() => {
+              if (!this.tryInjectIntoCustomMenu(jiraIssue, lastRightClickInfo)) {
+                // Get cursor position for fallback menu
+                const selection = window.getSelection();
+                let rect = { left: 0, top: 0 };
+                
+                if (selection.rangeCount > 0) {
+                  const range = selection.getRangeAt(0);
+                  const rangeRect = range.getBoundingClientRect();
+                  rect = rangeRect;
+                }
+                
+                e.preventDefault();
+                this.showContextMenu(rect.left + window.pageXOffset, rect.top + window.pageYOffset, jiraIssue);
+                contextMenuVisible = true;
+              }
+            }, 50);
+          }
+        }
+      }
     });
+  }
+
+  setupCustomMenuInjection() {
+    // Common selectors for custom context menus across different sites
+    const customMenuSelectors = [
+      // Generic patterns
+      '[role="menu"]',
+      '[role="menuitem"]',
+      '.context-menu',
+      '.contextmenu',
+      '.right-click-menu',
+      '.dropdown-menu',
+      '.popup-menu',
+      
+      // Microsoft Office/Loop specific
+      '.ms-ContextualMenu',
+      '.od-ContextMenu',
+      '[data-automation-id="contextMenu"]',
+      
+      // Google Docs/Workspace specific  
+      '.docs-material',
+      '.goog-menu',
+      '.apps-menuitem',
+      
+      // Notion specific
+      '.notion-selectable',
+      '.notion-context-menu',
+      
+      // Slack specific
+      '.p-context_menu',
+      '.c-menu',
+      
+      // Confluence specific
+      '.aui-dropdown2',
+      '.confluence-context-menu',
+      
+      // Generic modern app patterns
+      '[data-testid*="menu"]',
+      '[data-testid*="context"]',
+      '[class*="Menu"]',
+      '[class*="Context"]',
+      '[class*="Dropdown"]'
+    ];
+
+    // Use MutationObserver to detect when custom menus are added
+    const menuObserver = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Check if the added node or its children match menu selectors
+            const menuElement = this.findCustomMenuElement(node, customMenuSelectors);
+            if (menuElement) {
+              this.attemptMenuInjection(menuElement);
+            }
+          }
+        });
+      });
+    });
+
+    menuObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    this.menuObserver = menuObserver;
+  }
+
+  findCustomMenuElement(node, selectors) {
+    // Check if the node itself matches
+    for (const selector of selectors) {
+      try {
+        if (node.matches && node.matches(selector)) {
+          return node;
+        }
+      } catch (e) {
+        // Invalid selector, skip
+        continue;
+      }
+    }
+
+    // Check children
+    for (const selector of selectors) {
+      try {
+        const found = node.querySelector && node.querySelector(selector);
+        if (found) return found;
+      } catch (e) {
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  tryInjectIntoCustomMenu(jiraIssue, rightClickInfo) {
+    if (!rightClickInfo || Date.now() - rightClickInfo.timestamp > 1000) {
+      return false; // Too old or no info
+    }
+
+    // Wait a bit more for menu to fully render
+    setTimeout(() => {
+      const menuElement = this.findVisibleCustomMenu(rightClickInfo);
+      if (menuElement) {
+        this.injectJiraOption(menuElement, jiraIssue);
+      }
+    }, 100);
+
+    return true; // Attempted injection
+  }
+
+  findVisibleCustomMenu(rightClickInfo) {
+    // Find all potentially visible menu elements
+    const possibleMenus = document.querySelectorAll(`
+      [role="menu"]:not([style*="display: none"]),
+      .context-menu:not([style*="display: none"]),
+      .ms-ContextualMenu:not([style*="display: none"]),
+      .goog-menu:not([style*="display: none"]),
+      .notion-context-menu:not([style*="display: none"]),
+      .p-context_menu:not([style*="display: none"]),
+      [class*="Menu"]:not([style*="display: none"]),
+      [data-testid*="menu"]:not([style*="display: none"])
+    `);
+
+    const clickX = rightClickInfo.clientX;
+    const clickY = rightClickInfo.clientY;
+    const isKeyboardTriggered = rightClickInfo.keyboardTriggered;
+
+    for (const menu of possibleMenus) {
+      const rect = menu.getBoundingClientRect();
+      const isVisible = rect.width > 0 && rect.height > 0 && 
+                       window.getComputedStyle(menu).display !== 'none' &&
+                       window.getComputedStyle(menu).visibility !== 'hidden';
+      
+      if (isVisible) {
+        // For keyboard-triggered menus, accept any visible menu
+        if (isKeyboardTriggered) {
+          return menu;
+        }
+        
+        // For mouse-triggered menus, check if menu is near the click position
+        const distance = Math.sqrt(
+          Math.pow(rect.left - clickX, 2) + Math.pow(rect.top - clickY, 2)
+        );
+        
+        if (distance < 200) { // Within 200px of click
+          return menu;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  attemptMenuInjection(menuElement) {
+    const selectedText = this.getSelectedText();
+    const jiraIssue = this.extractJiraIssueFromText(selectedText);
+    
+    if (jiraIssue && this.isContentEditable(document.activeElement)) {
+      this.injectJiraOption(menuElement, jiraIssue);
+    }
+  }
+
+  injectJiraOption(menuElement, jiraIssue) {
+    // Avoid duplicate injections
+    if (menuElement.querySelector('.jira-injected-option')) {
+      return;
+    }
+
+    const jiraOption = this.createJiraMenuOption(jiraIssue);
+    
+    // Try different injection strategies based on menu structure
+    this.injectUsingStrategy(menuElement, jiraOption);
+  }
+
+  createJiraMenuOption(jiraIssue) {
+    const option = document.createElement('div');
+    option.className = 'jira-injected-option';
+    option.innerHTML = `
+      <span class="jira-menu-icon">⏱</span>
+      <span class="jira-menu-text">Log Time for ${jiraIssue}</span>
+    `;
+    
+    // Apply styles to blend with the existing menu
+    this.styleJiraOption(option);
+    
+    option.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.hideAllMenus();
+      this.showPopup(jiraIssue, option);
+    });
+
+    return option;
+  }
+
+  styleJiraOption(option) {
+    // Base styles that work across most custom menus
+    Object.assign(option.style, {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '8px 12px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      color: 'inherit',
+      background: 'transparent',
+      borderRadius: '4px',
+      transition: 'background-color 0.15s ease',
+      gap: '8px',
+      userSelect: 'none'
+    });
+
+    // Icon styles
+    const icon = option.querySelector('.jira-menu-icon');
+    if (icon) {
+      Object.assign(icon.style, {
+        width: '16px',
+        textAlign: 'center',
+        color: '#0052cc'
+      });
+    }
+
+    // Hover effect
+    option.addEventListener('mouseenter', () => {
+      option.style.backgroundColor = 'rgba(0, 82, 204, 0.1)';
+    });
+    
+    option.addEventListener('mouseleave', () => {
+      option.style.backgroundColor = 'transparent';
+    });
+  }
+
+  injectUsingStrategy(menuElement, jiraOption) {
+    // Strategy 1: Append to the end
+    if (this.tryAppendStrategy(menuElement, jiraOption)) return;
+    
+    // Strategy 2: Insert after first separator/divider
+    if (this.tryInsertAfterSeparator(menuElement, jiraOption)) return;
+    
+    // Strategy 3: Insert at the beginning
+    if (this.tryPrependStrategy(menuElement, jiraOption)) return;
+    
+    // Strategy 4: Find a list container and append
+    if (this.tryListContainerStrategy(menuElement, jiraOption)) return;
+  }
+
+  tryAppendStrategy(menuElement, jiraOption) {
+    try {
+      menuElement.appendChild(jiraOption);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  tryInsertAfterSeparator(menuElement, jiraOption) {
+    const separators = menuElement.querySelectorAll('hr, .separator, .divider, [role="separator"]');
+    if (separators.length > 0) {
+      try {
+        separators[0].after(jiraOption);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  tryPrependStrategy(menuElement, jiraOption) {
+    try {
+      menuElement.insertBefore(jiraOption, menuElement.firstChild);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  tryListContainerStrategy(menuElement, jiraOption) {
+    const listContainer = menuElement.querySelector('ul, ol, [role="menu"], .menu-items');
+    if (listContainer) {
+      try {
+        listContainer.appendChild(jiraOption);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  hideAllMenus() {
+    // Hide our custom menu
+    this.hideContextMenu();
+    
+    // Try to hide common custom menus by clicking elsewhere
+    document.body.click();
   }
 
   getSelectedText() {
@@ -900,6 +1254,8 @@ class JiraIssueDetector {
     this.hideContextMenu();
     this.observer?.disconnect();
     this.observer = null;
+    this.menuObserver?.disconnect();
+    this.menuObserver = null;
   }
 }
 

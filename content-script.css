@@ -476,3 +476,108 @@
     color: #4690DD;
   }
 }
+
+/* Injected Menu Option Styles - for custom site menus */
+.jira-injected-option {
+  font-family: inherit !important;
+  border: none !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+  line-height: 1.4 !important;
+}
+
+.jira-injected-option .jira-menu-icon {
+  flex-shrink: 0 !important;
+  font-weight: normal !important;
+}
+
+.jira-injected-option .jira-menu-text {
+  font-weight: inherit !important;
+  color: inherit !important;
+}
+
+/* Site-specific adaptations */
+
+/* Microsoft Office/Loop */
+.ms-ContextualMenu .jira-injected-option,
+.od-ContextMenu .jira-injected-option {
+  min-height: 32px !important;
+  font-size: 13px !important;
+  padding: 6px 12px !important;
+}
+
+/* Google Workspace */
+.goog-menu .jira-injected-option,
+.docs-material .jira-injected-option {
+  padding: 6px 16px !important;
+  font-size: 13px !important;
+  min-height: 28px !important;
+}
+
+/* Notion */
+.notion-context-menu .jira-injected-option {
+  padding: 4px 8px !important;
+  font-size: 14px !important;
+  border-radius: 3px !important;
+}
+
+/* Slack */
+.p-context_menu .jira-injected-option,
+.c-menu .jira-injected-option {
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+/* Confluence */
+.aui-dropdown2 .jira-injected-option {
+  padding: 6px 12px !important;
+  font-size: 14px !important;
+  line-height: 1.42857 !important;
+}
+
+/* Generic modern apps with common patterns */
+[class*="Menu"] .jira-injected-option,
+[class*="Context"] .jira-injected-option,
+[data-testid*="menu"] .jira-injected-option {
+  min-height: 30px !important;
+}
+
+/* Hover states for better integration */
+.ms-ContextualMenu .jira-injected-option:hover {
+  background-color: #f3f2f1 !important;
+}
+
+.goog-menu .jira-injected-option:hover {
+  background-color: #e8f0fe !important;
+}
+
+.notion-context-menu .jira-injected-option:hover {
+  background-color: rgba(55, 53, 47, 0.08) !important;
+}
+
+.p-context_menu .jira-injected-option:hover,
+.c-menu .jira-injected-option:hover {
+  background-color: #1264a3 !important;
+  color: white !important;
+}
+
+.aui-dropdown2 .jira-injected-option:hover {
+  background-color: #f5f5f5 !important;
+}
+
+/* Dark theme adaptations for injected options */
+@media (prefers-color-scheme: dark) {
+  .jira-injected-option .jira-menu-icon {
+    color: #4690DD !important;
+  }
+  
+  .ms-ContextualMenu .jira-injected-option:hover {
+    background-color: #404040 !important;
+  }
+  
+  .notion-context-menu .jira-injected-option:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+}
