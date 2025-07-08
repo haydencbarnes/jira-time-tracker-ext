@@ -367,16 +367,21 @@ class JiraIssueDetector {
         timestamp: Date.now()
       };
 
-      // Only handle context menu in editable elements
+            // Only handle context menu in editable elements
       if (!this.isContentEditable(e.target)) {
         this.hideContextMenu();
         return;
       }
 
       const selectedText = this.getSelectedText();
-      const jiraIssue = this.extractJiraIssueFromText(selectedText);
+      let jiraIssue = this.extractJiraIssueFromText(selectedText);
       
-        if (jiraIssue) {
+      // If no Jira issue in selection, try to find one in the current editable element
+      if (!jiraIssue && this.isContentEditable(e.target)) {
+        jiraIssue = this.findJiraIssueNearCursor(e.target);
+      }
+      
+      if (jiraIssue) {
           // Try to inject into custom menus first, fallback to our own menu
           setTimeout(() => {
             const injected = this.tryInjectIntoCustomMenu(jiraIssue, lastRightClickInfo);
@@ -413,14 +418,19 @@ class JiraIssueDetector {
         contextMenuVisible = false;
       }
       
-      // Handle keyboard context menu (Shift+F10, Menu key)
-      if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') {
-        const activeElement = document.activeElement;
-        if (this.isContentEditable(activeElement)) {
-          const selectedText = this.getSelectedText();
-          const jiraIssue = this.extractJiraIssueFromText(selectedText);
-          
-          if (jiraIssue) {
+              // Handle keyboard context menu (Shift+F10, Menu key)
+        if ((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu') {
+          const activeElement = document.activeElement;
+          if (this.isContentEditable(activeElement)) {
+            const selectedText = this.getSelectedText();
+            let jiraIssue = this.extractJiraIssueFromText(selectedText);
+            
+            // If no Jira issue in selection, try to find one in the current editable element
+            if (!jiraIssue) {
+              jiraIssue = this.findJiraIssueNearCursor(activeElement);
+            }
+            
+            if (jiraIssue) {
             lastRightClickInfo = {
               x: 0,
               y: 0,
@@ -509,41 +519,57 @@ class JiraIssueDetector {
       return false;
     }
 
-    // Check for menu-like attributes
+    // Check for menu-like attributes (high priority)
     const role = element.getAttribute('role');
-    if (role === 'menu' || role === 'menubar' || role === 'listbox') {
+    if (role === 'menu' || role === 'menubar' || role === 'listbox' || role === 'dialog') {
       return true;
     }
 
-    // Check for menu-like positioning (absolute, fixed, floating)
+    // Check for common menu class patterns
+    const className = element.className || '';
+    if (className.toLowerCase().includes('menu') || 
+        className.toLowerCase().includes('context') ||
+        className.toLowerCase().includes('dropdown') ||
+        className.toLowerCase().includes('popup')) {
+      return true;
+    }
+
+    // More permissive positioning check
     const position = styles.position;
-    if (position !== 'absolute' && position !== 'fixed') {
+    if (position !== 'absolute' && position !== 'fixed' && position !== 'relative') {
       return false;
     }
 
-    // Check for menu-like z-index (typically high)
+    // More permissive z-index check (lowered threshold)
     const zIndex = parseInt(styles.zIndex) || 0;
-    if (zIndex < 100) {
+    if (position === 'fixed' && zIndex < 1) {
+      return false;
+    }
+    if (position === 'absolute' && zIndex < 10) {
       return false;
     }
 
-    // Check for menu-like styling (borders, shadows, background)
+    // Check for menu-like styling (more permissive)
     const hasMenuStyling = 
       styles.boxShadow !== 'none' ||
-      styles.border !== 'none' && styles.border !== '0px' ||
-      styles.backgroundColor !== 'rgba(0, 0, 0, 0)' && styles.backgroundColor !== 'transparent';
+      styles.border !== 'none' && styles.border !== '0px' && styles.border !== 'initial' ||
+      styles.backgroundColor !== 'rgba(0, 0, 0, 0)' && styles.backgroundColor !== 'transparent' && styles.backgroundColor !== 'initial' ||
+      styles.outline !== 'none' ||
+      parseFloat(styles.borderRadius) > 0;
 
-    if (!hasMenuStyling) {
-      return false;
-    }
-
-    // Check if it contains clickable items (menu items)
+    // Check if it contains clickable items (reduced threshold)
     const clickableItems = this.findClickableMenuItems(element);
-    if (clickableItems.length < 2) { // At least 2 items to be a menu
-      return false;
+    const hasClickableContent = clickableItems.length >= 1; // Reduced from 2 to 1
+
+    // Accept if it has either menu styling OR clickable content
+    if (hasMenuStyling || hasClickableContent) {
+      // Additional size validation - must be reasonable menu size
+      if (rect.width >= 80 && rect.height >= 30) {
+        return true;
+      }
     }
 
-    return true;
+    return false;
   }
 
   findClickableMenuItems(menuElement) {
@@ -556,17 +582,27 @@ class JiraIssueDetector {
       const styles = window.getComputedStyle(candidate);
       const rect = candidate.getBoundingClientRect();
       
-      // Skip invisible or tiny elements
-      if (rect.width < 50 || rect.height < 20) continue;
+      // Skip invisible or tiny elements (more permissive)
+      if (rect.width < 30 || rect.height < 15) continue;
       
-      // Check for clickable indicators
+      // Check for clickable indicators (expanded list)
       const isClickable = 
         styles.cursor === 'pointer' ||
+        styles.cursor === 'default' && candidate.textContent.trim().length > 0 ||
         candidate.onclick ||
-        candidate.hasAttribute('role') && ['menuitem', 'option', 'button'].includes(candidate.getAttribute('role')) ||
+        candidate.addEventListener ||
+        candidate.hasAttribute('role') && ['menuitem', 'option', 'button', 'link'].includes(candidate.getAttribute('role')) ||
         candidate.tagName === 'BUTTON' ||
         candidate.tagName === 'A' ||
-        candidate.hasAttribute('tabindex');
+        candidate.tagName === 'LI' ||
+        candidate.tagName === 'DIV' && candidate.textContent.trim().length > 0 ||
+        candidate.tagName === 'SPAN' && candidate.textContent.trim().length > 0 ||
+        candidate.hasAttribute('tabindex') ||
+        candidate.hasAttribute('data-command') ||
+        candidate.hasAttribute('data-action') ||
+        candidate.className.toLowerCase().includes('item') ||
+        candidate.className.toLowerCase().includes('option') ||
+        candidate.className.toLowerCase().includes('command');
         
       if (isClickable) {
         potentialItems.push(candidate);
@@ -593,10 +629,70 @@ class JiraIssueDetector {
       const delayedMenuElement = this.findVisibleCustomMenu(rightClickInfo);
       if (delayedMenuElement) {
         this.injectJiraOption(delayedMenuElement, jiraIssue);
+      } else {
+        // Last resort: look for ANY recently added element near click position
+        this.tryLastResortInjection(jiraIssue, rightClickInfo);
       }
-    }, 100);
+    }, 150); // Slightly longer delay
 
     return false; // No immediate injection, might inject later
+  }
+
+  tryLastResortInjection(jiraIssue, rightClickInfo) {
+    // Find any element that appeared recently near the click position
+    const clickX = rightClickInfo.clientX;
+    const clickY = rightClickInfo.clientY;
+    
+    const recentElements = document.querySelectorAll('*');
+    const candidates = [];
+    
+    for (const element of recentElements) {
+      const rect = element.getBoundingClientRect();
+      const styles = window.getComputedStyle(element);
+      
+      // Skip invisible elements
+      if (rect.width === 0 || rect.height === 0 || 
+          styles.display === 'none' || styles.visibility === 'hidden') {
+        continue;
+      }
+      
+      // Must be positioned
+      if (styles.position === 'static') continue;
+      
+      // Must be near click location
+      const distance = Math.sqrt(
+        Math.pow(rect.left - clickX, 2) + Math.pow(rect.top - clickY, 2)
+      );
+      if (distance > 150) continue;
+      
+      // Must have some content
+      if (element.textContent.trim().length === 0) continue;
+      
+      // Must be reasonable menu size
+      if (rect.width < 50 || rect.height < 20 || rect.width > 600 || rect.height > 800) continue;
+      
+      // Has some clickable content or menu-like structure
+      const hasContent = 
+        element.querySelectorAll('*').length > 3 || // Has some structure
+        element.textContent.includes('Copy') || // Common menu items
+        element.textContent.includes('Paste') ||
+        element.textContent.includes('Cut') ||
+        element.textContent.includes('Delete') ||
+        element.textContent.includes('Reply') ||
+        element.textContent.includes('Forward');
+      
+      if (hasContent) {
+        candidates.push({ element, distance });
+      }
+    }
+    
+    // Sort by distance (closest first)
+    candidates.sort((a, b) => a.distance - b.distance);
+    
+    // Try to inject into the closest candidate
+    if (candidates.length > 0) {
+      this.injectJiraOption(candidates[0].element, jiraIssue);
+    }
   }
 
   findVisibleCustomMenu(rightClickInfo) {
@@ -604,13 +700,16 @@ class JiraIssueDetector {
     const clickY = rightClickInfo.clientY;
     const isKeyboardTriggered = rightClickInfo.keyboardTriggered;
 
-    // Find all elements with high z-index that could be menus
+    // Primary detection: Find elements that clearly look like menus
     const allElements = document.querySelectorAll('*');
     const potentialMenus = [];
+    const fallbackCandidates = [];
 
     for (const element of allElements) {
       if (this.looksLikeMenu(element)) {
         potentialMenus.push(element);
+      } else if (this.couldBeMenu(element)) {
+        fallbackCandidates.push(element);
       }
     }
 
@@ -621,6 +720,7 @@ class JiraIssueDetector {
       return zIndexB - zIndexA;
     });
 
+    // Try primary candidates first
     for (const menu of potentialMenus) {
       const rect = menu.getBoundingClientRect();
       
@@ -634,7 +734,30 @@ class JiraIssueDetector {
         Math.pow(rect.left - clickX, 2) + Math.pow(rect.top - clickY, 2)
       );
       
-      if (distance < 300) { // Within 300px of click (increased tolerance)
+      if (distance < 300) { // Within 300px of click
+        return menu;
+      }
+    }
+
+    // Fallback: Try less obvious candidates (for cases like Outlook)
+    fallbackCandidates.sort((a, b) => {
+      const zIndexA = parseInt(window.getComputedStyle(a).zIndex) || 0;
+      const zIndexB = parseInt(window.getComputedStyle(b).zIndex) || 0;
+      return zIndexB - zIndexA;
+    });
+
+    for (const menu of fallbackCandidates) {
+      const rect = menu.getBoundingClientRect();
+      
+      if (isKeyboardTriggered) {
+        return menu;
+      }
+      
+      const distance = Math.sqrt(
+        Math.pow(rect.left - clickX, 2) + Math.pow(rect.top - clickY, 2)
+      );
+      
+      if (distance < 200) { // Stricter distance for fallback candidates
         return menu;
       }
     }
@@ -642,9 +765,54 @@ class JiraIssueDetector {
     return null;
   }
 
+  couldBeMenu(element) {
+    if (!element || !element.getBoundingClientRect) return false;
+
+    const rect = element.getBoundingClientRect();
+    const styles = window.getComputedStyle(element);
+
+    // Basic visibility check
+    if (rect.width === 0 || rect.height === 0 || 
+        styles.display === 'none' || styles.visibility === 'hidden') {
+      return false;
+    }
+
+    // Size check - could be a menu if it's a reasonable size
+    if (rect.width < 60 || rect.height < 25 || rect.width > 500 || rect.height > 600) {
+      return false;
+    }
+
+    // Must be positioned (but more permissive than strict menu detection)
+    const position = styles.position;
+    if (position === 'static') {
+      return false;
+    }
+
+    // Check if it has any menu-like characteristics
+    const hasAnyMenuCharacteristic = 
+      element.hasAttribute('role') ||
+      (element.className && (
+        element.className.includes('menu') ||
+        element.className.includes('context') ||
+        element.className.includes('dropdown') ||
+        element.className.includes('popup') ||
+        element.className.includes('flyout')
+      )) ||
+      styles.boxShadow !== 'none' ||
+      styles.border !== 'none' && styles.border !== '0px' ||
+      element.querySelectorAll('button, a, [role="menuitem"], [role="option"]').length > 0;
+
+    return hasAnyMenuCharacteristic;
+  }
+
   attemptMenuInjection(menuElement) {
     const selectedText = this.getSelectedText();
-    const jiraIssue = this.extractJiraIssueFromText(selectedText);
+    let jiraIssue = this.extractJiraIssueFromText(selectedText);
+    
+    // If no Jira issue in selection, try to find one in the current editable element
+    if (!jiraIssue && this.isContentEditable(document.activeElement)) {
+      jiraIssue = this.findJiraIssueNearCursor(document.activeElement);
+    }
     
     if (jiraIssue && this.isContentEditable(document.activeElement)) {
       this.injectJiraOption(menuElement, jiraIssue);
@@ -952,6 +1120,49 @@ class JiraIssueDetector {
   getSelectedText() {
     const selection = window.getSelection();
     return selection.toString().trim();
+  }
+
+  findJiraIssueNearCursor(editableElement) {
+    // Get text content from the editable element
+    let text = '';
+    if (editableElement.value !== undefined) {
+      text = editableElement.value; // For input/textarea
+    } else {
+      text = editableElement.textContent || editableElement.innerText || '';
+    }
+    
+    // Find all Jira issues in the text
+    const matches = [...text.matchAll(this.JIRA_PATTERN)];
+    
+    if (matches.length === 0) return null;
+    if (matches.length === 1) return matches[0][0];
+    
+    // If multiple issues, try to find one near the cursor position
+    try {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const cursorOffset = range.startOffset;
+        
+        // Find the closest issue to cursor position
+        let closest = matches[0];
+        let closestDistance = Math.abs(matches[0].index - cursorOffset);
+        
+        for (const match of matches) {
+          const distance = Math.abs(match.index - cursorOffset);
+          if (distance < closestDistance) {
+            closest = match;
+            closestDistance = distance;
+          }
+        }
+        
+        return closest[0];
+      }
+    } catch (e) {
+      // Fallback to first issue if cursor detection fails
+    }
+    
+    return matches[0][0];
   }
 
   extractJiraIssueFromText(text) {
