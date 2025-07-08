@@ -878,21 +878,24 @@ class JiraIssueDetector {
     const parentLi = sampleButton.closest('li');
     li.className = parentLi ? parentLi.className : '';
 
-    // Create button to match existing buttons
-    const button = document.createElement('button');
-    button.className = 'jira-injected-option ' + sampleButton.className;
-    button.setAttribute('role', 'menuitem');
-    button.setAttribute('tabindex', '-1');
-    button.setAttribute('aria-label', `Log Time for ${jiraIssue}`);
+    // Create a DIV that looks like a button but avoids Outlook's button handling
+    const buttonDiv = document.createElement('div');
+    buttonDiv.className = 'jira-injected-option';
+    buttonDiv.setAttribute('role', 'menuitem');
+    buttonDiv.setAttribute('tabindex', '-1');
+    buttonDiv.setAttribute('aria-label', `Log Time for ${jiraIssue}`);
+    buttonDiv.setAttribute('data-jira-issue', jiraIssue);
+    
+    // Add explicit style to prevent any inherited Outlook behaviors
+    buttonDiv.style.cssText += '; pointer-events: auto; isolation: isolate; contain: layout style;';
     
     // Sample the structure from existing buttons
-    const sampleContent = sampleButton.querySelector('.linkContent-609') || sampleButton.querySelector('[class*="content"]') || sampleButton;
     const iconElement = sampleButton.querySelector('i[data-icon-name]');
     const iconClass = iconElement ? iconElement.className : 'icon-618';
     const labelElement = sampleButton.querySelector('.label-611');
     const labelClass = labelElement ? labelElement.className : 'label-611';
     
-    button.innerHTML = `
+    buttonDiv.innerHTML = `
       <div class="linkContent-609">
         <i data-icon-name="ClockRegular" aria-hidden="true" class="${iconClass}">
           <span role="presentation" aria-hidden="true">⏱</span>
@@ -901,17 +904,53 @@ class JiraIssueDetector {
       </div>
     `;
     
-    // Copy styles from sample button
-    this.copyComputedStyles(sampleButton, button);
+    // Copy visual styles from sample button but make it look clickable
+    this.copyComputedStyles(sampleButton, buttonDiv);
+    buttonDiv.style.cursor = 'pointer';
+    buttonDiv.style.userSelect = 'none';
     
-    button.addEventListener('click', (e) => {
+    // Add comprehensive event isolation
+    const clickHandler = (e) => {
+      if (this.debug) console.debug('Jira menu item clicked!', e, jiraIssue);
+      
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
+      
+      // Force immediate menu hide
+      setTimeout(() => {
+        document.body.click(); // Click elsewhere to hide Outlook menu
+      }, 0);
+      
       this.hideAllMenus();
-      this.showPopup(jiraIssue, button, { centered: true });
+      this.showPopup(jiraIssue, buttonDiv, { centered: true });
+    };
+
+    // Capture all possible events
+    ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup'].forEach(eventType => {
+      buttonDiv.addEventListener(eventType, eventType === 'click' ? clickHandler : (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }, true);
     });
 
-    li.appendChild(button);
+    // Add keyboard support
+    buttonDiv.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        clickHandler(e);
+      }
+    }, true);
+
+    // Create an additional isolation wrapper
+    const isolationWrapper = document.createElement('div');
+    isolationWrapper.style.cssText = 'position: relative; z-index: 1000; pointer-events: auto;';
+    isolationWrapper.appendChild(buttonDiv);
+    
+    li.appendChild(isolationWrapper);
     return li;
   }
 
@@ -1160,9 +1199,13 @@ class JiraIssueDetector {
     if (!menuItemsContainer) return false;
     
     try {
+      // Add a subtle separator before our option
+      const separator = this.createMicrosoftStyleSeparator();
+      
       // If we created a li element (Microsoft style), inject it directly
       if (jiraOption.tagName === 'LI') {
         if (this.debug) console.debug('Microsoft style injection - injecting LI element directly');
+        menuItemsContainer.appendChild(separator);
         menuItemsContainer.appendChild(jiraOption);
         return true;
       } else {
@@ -1173,6 +1216,7 @@ class JiraIssueDetector {
         const parentLi = firstMenuItem.closest('li');
         li.className = parentLi ? parentLi.className : '';
         li.appendChild(jiraOption);
+        menuItemsContainer.appendChild(separator);
         menuItemsContainer.appendChild(li);
         return true;
       }
@@ -1180,6 +1224,23 @@ class JiraIssueDetector {
       if (this.debug) console.debug('Microsoft style injection failed:', e);
       return false;
     }
+  }
+
+  createMicrosoftStyleSeparator() {
+    const separatorLi = document.createElement('li');
+    separatorLi.role = 'presentation';
+    separatorLi.className = 'jira-menu-separator-li';
+    
+    const separatorDiv = document.createElement('div');
+    separatorDiv.style.cssText = `
+      height: 1px;
+      background-color: rgba(0, 0, 0, 0.1);
+      margin: 4px 12px;
+      opacity: 0.6;
+    `;
+    
+    separatorLi.appendChild(separatorDiv);
+    return separatorLi;
   }
 
   tryAppendWithSeparator(menuElement, separator, jiraOption) {
@@ -1290,9 +1351,22 @@ class JiraIssueDetector {
 
   cleanupInjectedOptions() {
     // Remove all injected Jira options and separators
-    document.querySelectorAll('.jira-injected-option, .jira-menu-separator').forEach(element => {
+    document.querySelectorAll('.jira-injected-option, .jira-menu-separator, .jira-menu-separator-li').forEach(element => {
       try {
         element.remove();
+      } catch (e) {
+        // Ignore removal errors
+      }
+    });
+    
+    // Also remove any parent containers we might have created
+    document.querySelectorAll('[data-jira-issue]').forEach(element => {
+      try {
+        // Remove the entire li container if it's one of ours
+        const li = element.closest('li');
+        if (li && li.querySelector('.jira-injected-option')) {
+          li.remove();
+        }
       } catch (e) {
         // Ignore removal errors
       }
