@@ -8,6 +8,8 @@ class JiraIssueDetector {
     this.currentPopup = null;
     this.JIRA_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/g;
     this.debounceTimeout = null;
+    this.lastActiveElement = null; // Track currently focused element
+    this.isProcessing = false; // Prevent recursive processing
     
     this.init();
   }
@@ -67,7 +69,19 @@ class JiraIssueDetector {
   }
 
   scanAndHighlightIssues() {
-    if (!this.isEnabled) return;
+    if (!this.isEnabled || this.isProcessing) return;
+
+    // Don't scan if user is actively typing in a contenteditable element
+    const activeElement = document.activeElement;
+    if (activeElement && this.isContentEditable(activeElement)) {
+      this.lastActiveElement = activeElement;
+      return;
+    }
+
+    this.isProcessing = true;
+
+    // Preserve cursor position before clearing highlights
+    const cursorInfo = this.saveCursorPosition();
 
     // Clear existing highlights
     this.clearHighlights();
@@ -85,6 +99,12 @@ class JiraIssueDetector {
         const tag=parent.tagName?parent.tagName.toLowerCase():'';
         if(['script','style','noscript'].includes(tag)) return NodeFilter.FILTER_REJECT;
         if(parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
+        
+        // Skip currently focused contenteditable elements to preserve cursor
+        if (this.isContentEditable(parent) && parent === document.activeElement) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        
         return NodeFilter.FILTER_ACCEPT;
       }
     };
@@ -95,6 +115,89 @@ class JiraIssueDetector {
     };
 
     roots.forEach(processRoot);
+
+    // Restore cursor position after processing
+    this.restoreCursorPosition(cursorInfo);
+    
+    this.isProcessing = false;
+  }
+
+  isContentEditable(element) {
+    if (!element) return false;
+    return element.contentEditable === 'true' || 
+           element.closest('[contenteditable="true"]') !== null ||
+           element.tagName === 'INPUT' ||
+           element.tagName === 'TEXTAREA';
+  }
+
+  mightContainJiraIssue(element) {
+    if (!element) return false;
+    
+    // Get text content from the element
+    let text = '';
+    if (element.value !== undefined) {
+      text = element.value; // For input/textarea
+    } else {
+      text = element.textContent || element.innerText || '';
+    }
+    
+    // Quick check: does it contain uppercase letters and numbers that might form a Jira ID?
+    // This is a fast pre-check to avoid expensive regex on every keystroke
+    return /[A-Z]+.*[0-9]|[0-9].*[A-Z]/.test(text) && text.length > 2;
+  }
+
+  saveCursorPosition() {
+    const activeElement = document.activeElement;
+    if (!activeElement) return null;
+
+    if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
+      return {
+        element: activeElement,
+        start: activeElement.selectionStart,
+        end: activeElement.selectionEnd,
+        type: 'input'
+      };
+    }
+
+    if (this.isContentEditable(activeElement)) {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        return {
+          element: activeElement,
+          range: range.cloneRange(),
+          type: 'contenteditable'
+        };
+      }
+    }
+
+    return null;
+  }
+
+  restoreCursorPosition(cursorInfo) {
+    if (!cursorInfo) return;
+
+    try {
+      if (cursorInfo.type === 'input' && cursorInfo.element) {
+        // Restore cursor in input/textarea
+        cursorInfo.element.focus();
+        cursorInfo.element.setSelectionRange(cursorInfo.start, cursorInfo.end);
+      } else if (cursorInfo.type === 'contenteditable' && cursorInfo.element && cursorInfo.range) {
+        // Restore cursor in contenteditable
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        
+        // Validate that the range is still valid
+        if (cursorInfo.range.startContainer && 
+            document.contains(cursorInfo.range.startContainer)) {
+          selection.addRange(cursorInfo.range);
+          cursorInfo.element.focus();
+        }
+      }
+    } catch (error) {
+      // Silently handle cases where cursor restoration fails
+      console.debug('Could not restore cursor position:', error);
+    }
   }
 
   highlightIssuesInTextNode(textNode) {
@@ -131,6 +234,13 @@ class JiraIssueDetector {
 
       // If inside a contenteditable element
       if (parent.closest('[contenteditable="true"]')) {
+        const contentEditableRoot = parent.closest('[contenteditable="true"]');
+        
+        // Skip if this is the currently focused element to avoid cursor disruption
+        if (contentEditableRoot === document.activeElement) {
+          return;
+        }
+        
         const refEl = parent; // element containing text
         if (!refEl.nextSibling || !refEl.nextSibling.classList || !refEl.nextSibling.classList.contains('jira-log-time-icon')) {
           const logIcon = document.createElement('span');
@@ -147,6 +257,7 @@ class JiraIssueDetector {
           // Wrap icon in non-editable span to keep caret away
           const wrapper = document.createElement('span');
           wrapper.contentEditable = 'false';
+          wrapper.style.userSelect = 'none'; // Prevent text selection
           wrapper.appendChild(logIcon);
           refEl.after(wrapper);
         }
@@ -238,11 +349,27 @@ class JiraIssueDetector {
     });
 
     // Listen to user input events (captures typing in <input>, <textarea>, contenteditable)
-    window.addEventListener('input', () => {
-      clearTimeout(this.debounceTimeout);
-      this.debounceTimeout = setTimeout(() => {
-        this.scanAndHighlightIssues();
-      }, 100);
+    window.addEventListener('input', (e) => {
+      const target = e.target;
+      
+      // Only re-scan if we might have added/removed Jira issue IDs
+      if (this.mightContainJiraIssue(target)) {
+        clearTimeout(this.debounceTimeout);
+        this.debounceTimeout = setTimeout(() => {
+          this.scanAndHighlightIssues();
+        }, 300); // Increased debounce to reduce frequency
+      }
+    }, true);
+    
+    // Also listen for focus changes to handle delayed scanning
+    window.addEventListener('focusout', (e) => {
+      const target = e.target;
+      if (this.isContentEditable(target) && this.mightContainJiraIssue(target)) {
+        clearTimeout(this.debounceTimeout);
+        this.debounceTimeout = setTimeout(() => {
+          this.scanAndHighlightIssues();
+        }, 100);
+      }
     }, true);
   }
 
