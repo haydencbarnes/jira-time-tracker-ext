@@ -456,54 +456,13 @@ class JiraIssueDetector {
   }
 
   setupCustomMenuInjection() {
-    // Common selectors for custom context menus across different sites
-    const customMenuSelectors = [
-      // Generic patterns
-      '[role="menu"]',
-      '[role="menuitem"]',
-      '.context-menu',
-      '.contextmenu',
-      '.right-click-menu',
-      '.dropdown-menu',
-      '.popup-menu',
-      
-      // Microsoft Office/Loop specific
-      '.ms-ContextualMenu',
-      '.od-ContextMenu',
-      '[data-automation-id="contextMenu"]',
-      
-      // Google Docs/Workspace specific  
-      '.docs-material',
-      '.goog-menu',
-      '.apps-menuitem',
-      
-      // Notion specific
-      '.notion-selectable',
-      '.notion-context-menu',
-      
-      // Slack specific
-      '.p-context_menu',
-      '.c-menu',
-      
-      // Confluence specific
-      '.aui-dropdown2',
-      '.confluence-context-menu',
-      
-      // Generic modern app patterns
-      '[data-testid*="menu"]',
-      '[data-testid*="context"]',
-      '[class*="Menu"]',
-      '[class*="Context"]',
-      '[class*="Dropdown"]'
-    ];
-
-    // Use MutationObserver to detect when custom menus are added
+    // Use MutationObserver to detect when ANY potential menu is added
     const menuObserver = new MutationObserver((mutations) => {
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            // Check if the added node or its children match menu selectors
-            const menuElement = this.findCustomMenuElement(node, customMenuSelectors);
+            // Check if this looks like a menu (dynamic detection)
+            const menuElement = this.detectPotentialMenu(node);
             if (menuElement) {
               this.attemptMenuInjection(menuElement);
             }
@@ -520,30 +479,101 @@ class JiraIssueDetector {
     this.menuObserver = menuObserver;
   }
 
-  findCustomMenuElement(node, selectors) {
-    // Check if the node itself matches
-    for (const selector of selectors) {
-      try {
-        if (node.matches && node.matches(selector)) {
-          return node;
-        }
-      } catch (e) {
-        // Invalid selector, skip
-        continue;
-      }
+  detectPotentialMenu(node) {
+    // Check if the node itself looks like a menu
+    if (this.looksLikeMenu(node)) {
+      return node;
     }
 
-    // Check children
-    for (const selector of selectors) {
-      try {
-        const found = node.querySelector && node.querySelector(selector);
-        if (found) return found;
-      } catch (e) {
-        continue;
+    // Check immediate children for menu-like elements
+    if (node.children) {
+      for (const child of node.children) {
+        if (this.looksLikeMenu(child)) {
+          return child;
+        }
       }
     }
 
     return null;
+  }
+
+  looksLikeMenu(element) {
+    if (!element || !element.getBoundingClientRect) return false;
+
+    const rect = element.getBoundingClientRect();
+    const styles = window.getComputedStyle(element);
+
+    // Basic visibility check
+    if (rect.width === 0 || rect.height === 0 || 
+        styles.display === 'none' || styles.visibility === 'hidden') {
+      return false;
+    }
+
+    // Check for menu-like attributes
+    const role = element.getAttribute('role');
+    if (role === 'menu' || role === 'menubar' || role === 'listbox') {
+      return true;
+    }
+
+    // Check for menu-like positioning (absolute, fixed, floating)
+    const position = styles.position;
+    if (position !== 'absolute' && position !== 'fixed') {
+      return false;
+    }
+
+    // Check for menu-like z-index (typically high)
+    const zIndex = parseInt(styles.zIndex) || 0;
+    if (zIndex < 100) {
+      return false;
+    }
+
+    // Check for menu-like styling (borders, shadows, background)
+    const hasMenuStyling = 
+      styles.boxShadow !== 'none' ||
+      styles.border !== 'none' && styles.border !== '0px' ||
+      styles.backgroundColor !== 'rgba(0, 0, 0, 0)' && styles.backgroundColor !== 'transparent';
+
+    if (!hasMenuStyling) {
+      return false;
+    }
+
+    // Check if it contains clickable items (menu items)
+    const clickableItems = this.findClickableMenuItems(element);
+    if (clickableItems.length < 2) { // At least 2 items to be a menu
+      return false;
+    }
+
+    return true;
+  }
+
+  findClickableMenuItems(menuElement) {
+    const potentialItems = [];
+    
+    // Look for elements that could be menu items
+    const candidates = menuElement.querySelectorAll('*');
+    
+    for (const candidate of candidates) {
+      const styles = window.getComputedStyle(candidate);
+      const rect = candidate.getBoundingClientRect();
+      
+      // Skip invisible or tiny elements
+      if (rect.width < 50 || rect.height < 20) continue;
+      
+      // Check for clickable indicators
+      const isClickable = 
+        styles.cursor === 'pointer' ||
+        candidate.onclick ||
+        candidate.hasAttribute('role') && ['menuitem', 'option', 'button'].includes(candidate.getAttribute('role')) ||
+        candidate.tagName === 'BUTTON' ||
+        candidate.tagName === 'A' ||
+        candidate.hasAttribute('tabindex');
+        
+      if (isClickable) {
+        potentialItems.push(candidate);
+      }
+    }
+    
+    return potentialItems;
   }
 
   tryInjectIntoCustomMenu(jiraIssue, rightClickInfo) {
@@ -570,42 +600,42 @@ class JiraIssueDetector {
   }
 
   findVisibleCustomMenu(rightClickInfo) {
-    // Find all potentially visible menu elements
-    const possibleMenus = document.querySelectorAll(`
-      [role="menu"]:not([style*="display: none"]),
-      .context-menu:not([style*="display: none"]),
-      .ms-ContextualMenu:not([style*="display: none"]),
-      .goog-menu:not([style*="display: none"]),
-      .notion-context-menu:not([style*="display: none"]),
-      .p-context_menu:not([style*="display: none"]),
-      [class*="Menu"]:not([style*="display: none"]),
-      [data-testid*="menu"]:not([style*="display: none"])
-    `);
-
     const clickX = rightClickInfo.clientX;
     const clickY = rightClickInfo.clientY;
     const isKeyboardTriggered = rightClickInfo.keyboardTriggered;
 
-    for (const menu of possibleMenus) {
+    // Find all elements with high z-index that could be menus
+    const allElements = document.querySelectorAll('*');
+    const potentialMenus = [];
+
+    for (const element of allElements) {
+      if (this.looksLikeMenu(element)) {
+        potentialMenus.push(element);
+      }
+    }
+
+    // Sort by z-index (highest first) to get the topmost menu
+    potentialMenus.sort((a, b) => {
+      const zIndexA = parseInt(window.getComputedStyle(a).zIndex) || 0;
+      const zIndexB = parseInt(window.getComputedStyle(b).zIndex) || 0;
+      return zIndexB - zIndexA;
+    });
+
+    for (const menu of potentialMenus) {
       const rect = menu.getBoundingClientRect();
-      const isVisible = rect.width > 0 && rect.height > 0 && 
-                       window.getComputedStyle(menu).display !== 'none' &&
-                       window.getComputedStyle(menu).visibility !== 'hidden';
       
-      if (isVisible) {
-        // For keyboard-triggered menus, accept any visible menu
-        if (isKeyboardTriggered) {
-          return menu;
-        }
-        
-        // For mouse-triggered menus, check if menu is near the click position
-        const distance = Math.sqrt(
-          Math.pow(rect.left - clickX, 2) + Math.pow(rect.top - clickY, 2)
-        );
-        
-        if (distance < 200) { // Within 200px of click
-          return menu;
-        }
+      // For keyboard-triggered menus, accept the topmost visible menu
+      if (isKeyboardTriggered) {
+        return menu;
+      }
+      
+      // For mouse-triggered menus, check if menu is near the click position
+      const distance = Math.sqrt(
+        Math.pow(rect.left - clickX, 2) + Math.pow(rect.top - clickY, 2)
+      );
+      
+      if (distance < 300) { // Within 300px of click (increased tolerance)
+        return menu;
       }
     }
 
@@ -627,13 +657,13 @@ class JiraIssueDetector {
       return; // Already injected somewhere, don't duplicate
     }
 
-    const jiraOption = this.createJiraMenuOption(jiraIssue);
+    const jiraOption = this.createJiraMenuOption(jiraIssue, menuElement);
     
     // Try different injection strategies based on menu structure
     this.injectUsingStrategy(menuElement, jiraOption);
   }
 
-  createJiraMenuOption(jiraIssue) {
+  createJiraMenuOption(jiraIssue, menuElement) {
     const option = document.createElement('div');
     option.className = 'jira-injected-option';
     option.innerHTML = `
@@ -641,8 +671,8 @@ class JiraIssueDetector {
       <span class="jira-menu-text">Log Time for ${jiraIssue}</span>
     `;
     
-    // Apply styles to blend with the existing menu
-    this.styleJiraOption(option);
+    // Apply dynamic styles to blend with the existing menu
+    this.adaptToMenuStyling(option, menuElement);
     
     option.addEventListener('click', (e) => {
       e.preventDefault();
@@ -654,8 +684,98 @@ class JiraIssueDetector {
     return option;
   }
 
-  styleJiraOption(option) {
-    // Base styles that work across most custom menus
+  adaptToMenuStyling(option, menuElement) {
+    // Find existing menu items to sample styling from
+    const existingItems = this.findClickableMenuItems(menuElement);
+    
+    if (existingItems.length === 0) {
+      // Fallback to basic styling if no items found
+      this.applyBasicMenuStyling(option);
+      return;
+    }
+
+    // Sample styling from the first menu item
+    const sampleItem = existingItems[0];
+    const sampleStyles = window.getComputedStyle(sampleItem);
+    const sampleRect = sampleItem.getBoundingClientRect();
+
+    // Apply sampled styles to our option
+    Object.assign(option.style, {
+      display: 'flex',
+      alignItems: 'center',
+      cursor: 'pointer',
+      userSelect: 'none',
+      boxSizing: 'border-box',
+      gap: '8px',
+      
+      // Sample these from existing items
+      fontSize: sampleStyles.fontSize || '14px',
+      fontFamily: sampleStyles.fontFamily,
+      fontWeight: sampleStyles.fontWeight,
+      lineHeight: sampleStyles.lineHeight,
+      color: sampleStyles.color,
+      backgroundColor: 'transparent',
+      
+      // Padding (use existing or reasonable default)
+      padding: sampleStyles.padding || '8px 12px',
+      paddingLeft: sampleStyles.paddingLeft || '12px',
+      paddingRight: sampleStyles.paddingRight || '12px',
+      paddingTop: sampleStyles.paddingTop || '8px',
+      paddingBottom: sampleStyles.paddingBottom || '8px',
+      
+      // Margins and borders
+      margin: sampleStyles.margin,
+      border: sampleStyles.border,
+      borderRadius: sampleStyles.borderRadius || '0px',
+      
+      // Height
+      minHeight: `${Math.max(sampleRect.height, 24)}px`,
+      
+      // Transitions
+      transition: sampleStyles.transition || 'background-color 0.15s ease'
+    });
+
+    // Style the icon
+    const icon = option.querySelector('.jira-menu-icon');
+    if (icon) {
+      Object.assign(icon.style, {
+        width: '16px',
+        textAlign: 'center',
+        color: '#0052cc',
+        flexShrink: '0'
+      });
+    }
+
+    // Add hover effects based on sampling hover states if possible
+    this.addAdaptiveHoverEffects(option, sampleItem);
+  }
+
+  addAdaptiveHoverEffects(option, sampleItem) {
+    // Try to detect what happens on hover for similar items
+    let hoverBackgroundColor = 'rgba(0, 82, 204, 0.1)'; // Default
+    
+    // Sample common hover colors from the theme
+    const bodyStyles = window.getComputedStyle(document.body);
+    const isDarkTheme = bodyStyles.backgroundColor && 
+                       this.isColorDark(bodyStyles.backgroundColor);
+    
+    if (isDarkTheme) {
+      hoverBackgroundColor = 'rgba(255, 255, 255, 0.1)';
+    } else {
+      hoverBackgroundColor = 'rgba(0, 0, 0, 0.05)';
+    }
+
+    option.addEventListener('mouseenter', () => {
+      option.style.backgroundColor = hoverBackgroundColor;
+    });
+    
+    option.addEventListener('mouseleave', () => {
+      option.style.backgroundColor = 'transparent';
+    });
+  }
+
+  applyBasicMenuStyling(option) {
+    // Fallback styling when we can't sample from existing items
     Object.assign(option.style, {
       display: 'flex',
       alignItems: 'center',
@@ -667,10 +787,10 @@ class JiraIssueDetector {
       borderRadius: '4px',
       transition: 'background-color 0.15s ease',
       gap: '8px',
-      userSelect: 'none'
+      userSelect: 'none',
+      minHeight: '32px'
     });
 
-    // Icon styles
     const icon = option.querySelector('.jira-menu-icon');
     if (icon) {
       Object.assign(icon.style, {
@@ -680,7 +800,6 @@ class JiraIssueDetector {
       });
     }
 
-    // Hover effect
     option.addEventListener('mouseenter', () => {
       option.style.backgroundColor = 'rgba(0, 82, 204, 0.1)';
     });
@@ -690,9 +809,21 @@ class JiraIssueDetector {
     });
   }
 
+  isColorDark(color) {
+    // Simple check to determine if a color is dark
+    if (color.includes('rgb')) {
+      const values = color.match(/\d+/g);
+      if (values && values.length >= 3) {
+        const brightness = (parseInt(values[0]) * 299 + parseInt(values[1]) * 587 + parseInt(values[2]) * 114) / 1000;
+        return brightness < 128;
+      }
+    }
+    return false;
+  }
+
   injectUsingStrategy(menuElement, jiraOption) {
     // Add separator before our option for visual distinction
-    const separator = this.createMenuSeparator();
+    const separator = this.createMenuSeparator(menuElement);
     
     // Try strategies in order, stop at first success
     if (this.tryAppendWithSeparator(menuElement, separator, jiraOption)) return;
@@ -758,15 +889,39 @@ class JiraIssueDetector {
     return false;
   }
 
-  createMenuSeparator() {
+  createMenuSeparator(menuElement) {
     const separator = document.createElement('div');
     separator.className = 'jira-menu-separator';
-    Object.assign(separator.style, {
-      height: '1px',
-      backgroundColor: 'rgba(0, 0, 0, 0.1)',
-      margin: '4px 0',
-      width: '100%'
-    });
+    
+    // Try to find existing separators to match their style
+    const existingSeparators = menuElement.querySelectorAll('hr, .separator, .divider, [role="separator"]');
+    
+    if (existingSeparators.length > 0) {
+      const sampleSeparator = existingSeparators[0];
+      const sampleStyles = window.getComputedStyle(sampleSeparator);
+      
+      Object.assign(separator.style, {
+        height: sampleStyles.height || '1px',
+        backgroundColor: sampleStyles.backgroundColor || 'rgba(0, 0, 0, 0.1)',
+        margin: sampleStyles.margin || '4px 0',
+        width: '100%',
+        border: sampleStyles.border,
+        borderTop: sampleStyles.borderTop,
+        borderBottom: sampleStyles.borderBottom
+      });
+    } else {
+      // Fallback separator style
+      const bodyStyles = window.getComputedStyle(document.body);
+      const isDarkTheme = bodyStyles.backgroundColor && this.isColorDark(bodyStyles.backgroundColor);
+      
+      Object.assign(separator.style, {
+        height: '1px',
+        backgroundColor: isDarkTheme ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+        margin: '4px 0',
+        width: '100%'
+      });
+    }
+    
     return separator;
   }
 
