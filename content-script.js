@@ -376,19 +376,23 @@ class JiraIssueDetector {
       const selectedText = this.getSelectedText();
       const jiraIssue = this.extractJiraIssueFromText(selectedText);
       
-      if (jiraIssue) {
-        // Try to inject into custom menus first, fallback to our own menu
-        setTimeout(() => {
-          if (!this.tryInjectIntoCustomMenu(jiraIssue, lastRightClickInfo)) {
-            // If injection failed, prevent default and show our menu
-            e.preventDefault();
-            this.showContextMenu(e.pageX, e.pageY, jiraIssue);
-            contextMenuVisible = true;
-          }
-        }, 50); // Small delay to let custom menus render
-      } else {
-        this.hideContextMenu();
-      }
+        if (jiraIssue) {
+          // Try to inject into custom menus first, fallback to our own menu
+          setTimeout(() => {
+            const injected = this.tryInjectIntoCustomMenu(jiraIssue, lastRightClickInfo);
+            if (!injected) {
+              // If injection failed, prevent default and show our menu
+              e.preventDefault();
+              this.showContextMenu(e.pageX, e.pageY, jiraIssue);
+              contextMenuVisible = true;
+            } else {
+              // Successfully injected, hide our standalone menu if it exists
+              this.hideContextMenu();
+            }
+          }, 50); // Small delay to let custom menus render
+        } else {
+          this.hideContextMenu();
+        }
     });
 
     // Watch for custom context menus being added to DOM
@@ -441,7 +445,7 @@ class JiraIssueDetector {
                 }
                 
                 e.preventDefault();
-                this.showContextMenu(rect.left + window.pageXOffset, rect.top + window.pageYOffset, jiraIssue);
+                this.showContextMenu(rect.left + window.pageXOffset, rect.top + window.pageYOffset, jiraIssue, { centered: true });
                 contextMenuVisible = true;
               }
             }, 50);
@@ -547,15 +551,22 @@ class JiraIssueDetector {
       return false; // Too old or no info
     }
 
-    // Wait a bit more for menu to fully render
+    // Look for custom menu immediately
+    const menuElement = this.findVisibleCustomMenu(rightClickInfo);
+    if (menuElement) {
+      this.injectJiraOption(menuElement, jiraIssue);
+      return true; // Successfully injected
+    }
+
+    // Wait a bit more for menu to fully render and try again
     setTimeout(() => {
-      const menuElement = this.findVisibleCustomMenu(rightClickInfo);
-      if (menuElement) {
-        this.injectJiraOption(menuElement, jiraIssue);
+      const delayedMenuElement = this.findVisibleCustomMenu(rightClickInfo);
+      if (delayedMenuElement) {
+        this.injectJiraOption(delayedMenuElement, jiraIssue);
       }
     }, 100);
 
-    return true; // Attempted injection
+    return false; // No immediate injection, might inject later
   }
 
   findVisibleCustomMenu(rightClickInfo) {
@@ -611,8 +622,9 @@ class JiraIssueDetector {
   }
 
   injectJiraOption(menuElement, jiraIssue) {
-    // Avoid duplicate injections
-    if (menuElement.querySelector('.jira-injected-option')) {
+    // Avoid duplicate injections - check for our option in this menu and any parent menus
+    if (menuElement.querySelector('.jira-injected-option') || 
+        menuElement.closest('*').querySelector('.jira-injected-option')) {
       return;
     }
 
@@ -637,7 +649,7 @@ class JiraIssueDetector {
       e.preventDefault();
       e.stopPropagation();
       this.hideAllMenus();
-      this.showPopup(jiraIssue, option);
+      this.showPopup(jiraIssue, option, { centered: true });
     });
 
     return option;
@@ -680,17 +692,41 @@ class JiraIssueDetector {
   }
 
   injectUsingStrategy(menuElement, jiraOption) {
-    // Strategy 1: Append to the end
-    if (this.tryAppendStrategy(menuElement, jiraOption)) return;
+    // Add separator before our option for visual distinction
+    const separator = this.createMenuSeparator();
+    
+    // Strategy 1: Append to the end with separator
+    if (this.tryAppendStrategy(menuElement, separator) && this.tryAppendStrategy(menuElement, jiraOption)) return;
     
     // Strategy 2: Insert after first separator/divider
-    if (this.tryInsertAfterSeparator(menuElement, jiraOption)) return;
+    if (this.tryInsertAfterSeparator(menuElement, separator) && this.tryInsertAfterSeparator(menuElement, jiraOption)) return;
     
-    // Strategy 3: Insert at the beginning
-    if (this.tryPrependStrategy(menuElement, jiraOption)) return;
+    // Strategy 3: Insert at the beginning with separator after
+    if (this.tryPrependStrategy(menuElement, jiraOption) && this.tryInsertAfter(jiraOption, separator)) return;
     
     // Strategy 4: Find a list container and append
-    if (this.tryListContainerStrategy(menuElement, jiraOption)) return;
+    if (this.tryListContainerStrategy(menuElement, separator) && this.tryListContainerStrategy(menuElement, jiraOption)) return;
+  }
+
+  createMenuSeparator() {
+    const separator = document.createElement('div');
+    separator.className = 'jira-menu-separator';
+    Object.assign(separator.style, {
+      height: '1px',
+      backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      margin: '4px 0',
+      width: '100%'
+    });
+    return separator;
+  }
+
+  tryInsertAfter(targetElement, newElement) {
+    try {
+      targetElement.after(newElement);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   tryAppendStrategy(menuElement, jiraOption) {
@@ -790,7 +826,7 @@ class JiraIssueDetector {
     return matches[0][0];
   }
 
-  showContextMenu(x, y, issueId) {
+  showContextMenu(x, y, issueId, options = {}) {
     // Remove existing context menu if any
     this.hideContextMenu();
 
@@ -815,16 +851,25 @@ class JiraIssueDetector {
       height: window.innerHeight
     };
 
-    // Adjust position to keep menu in viewport
-    let finalX = x;
-    let finalY = y;
+    // Position menu
+    let finalX, finalY;
+    
+    if (options.centered) {
+      // Center the context menu
+      finalX = (viewport.width - menuRect.width) / 2 + window.scrollX;
+      finalY = (viewport.height - menuRect.height) / 2 + window.scrollY;
+    } else {
+      // Position near click location
+      finalX = x;
+      finalY = y;
 
-    if (x + menuRect.width > viewport.width) {
-      finalX = x - menuRect.width;
-    }
+      if (x + menuRect.width > viewport.width) {
+        finalX = x - menuRect.width;
+      }
 
-    if (y + menuRect.height > viewport.height) {
-      finalY = y - menuRect.height;
+      if (y + menuRect.height > viewport.height) {
+        finalY = y - menuRect.height;
+      }
     }
 
     // Ensure minimum margins
@@ -843,7 +888,7 @@ class JiraIssueDetector {
       e.preventDefault();
       e.stopPropagation();
       this.hideContextMenu();
-      this.showPopup(issueId, menuItem);
+      this.showPopup(issueId, menuItem, { centered: true });
     });
 
     this.currentContextMenu = contextMenu;
@@ -856,7 +901,7 @@ class JiraIssueDetector {
     }
   }
 
-  async showPopup(issueId, targetElement) {
+  async showPopup(issueId, targetElement, options = {}) {
     // Close existing popup
     this.closePopup();
 
@@ -871,7 +916,11 @@ class JiraIssueDetector {
     document.body.appendChild(this.currentPopup);
 
     // Position popup
-    this.positionPopup(this.currentPopup, targetElement);
+    if (options.centered) {
+      this.centerPopup(this.currentPopup);
+    } else {
+      this.positionPopup(this.currentPopup, targetElement);
+    }
 
     // Show popup
     setTimeout(() => {
@@ -1014,6 +1063,25 @@ class JiraIssueDetector {
 
     popup.style.left = `${left}px`;
     popup.style.top = `${top}px`;
+  }
+
+  centerPopup(popup) {
+    const popupRect = popup.getBoundingClientRect();
+    const viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight
+    };
+
+    // Center horizontally and vertically
+    const left = (viewport.width - popupRect.width) / 2 + window.scrollX;
+    const top = (viewport.height - popupRect.height) / 2 + window.scrollY;
+
+    // Ensure minimum margins
+    const finalLeft = Math.max(10, left);
+    const finalTop = Math.max(10, top);
+
+    popup.style.left = `${finalLeft}px`;
+    popup.style.top = `${finalTop}px`;
   }
 
   setupPopupHandlers(issueId, settings) {

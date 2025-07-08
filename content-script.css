@@ -580,4 +580,8 @@
   .notion-context-menu .jira-injected-option:hover {
     background-color: rgba(255, 255, 255, 0.1) !important;
   }
+  
+  .jira-menu-separator {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+  }
 }
