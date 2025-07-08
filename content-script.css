@@ -498,6 +498,36 @@
   color: inherit !important;
 }
 
-/* Dynamic styling is applied via JavaScript - no hardcoded site styles needed */
+/* Selection Bubble Styles */
+.jira-selection-bubble {
+  position: absolute;
+  z-index: 10000;
+  pointer-events: auto;
+}
+
+.jira-selection-bubble.jira-bubble-visible {
+  opacity: 1 !important;
+  transform: translateX(-50%) translateY(0) !important;
+}
+
+.jira-bubble-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jira-bubble-icon {
+  font-size: 16px;
+  color: #0052cc;
+}
+
+.jira-bubble-text {
+  font-weight: 500;
+}
+
+.jira-selection-bubble:hover {
+  transform: translateX(-50%) translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+}
 
 /* Dark theme adaptations handled dynamically by JavaScript */
