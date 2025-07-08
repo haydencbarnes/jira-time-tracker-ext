@@ -232,35 +232,10 @@ class JiraIssueDetector {
         return; // do not alter text node when inside anchor
       }
 
-      // If inside a contenteditable element
-      if (parent.closest('[contenteditable="true"]')) {
-        const contentEditableRoot = parent.closest('[contenteditable="true"]');
-        
-        // Skip if this is the currently focused element to avoid cursor disruption
-        if (contentEditableRoot === document.activeElement) {
-          return;
-        }
-        
-        const refEl = parent; // element containing text
-        if (!refEl.nextSibling || !refEl.nextSibling.classList || !refEl.nextSibling.classList.contains('jira-log-time-icon')) {
-          const logIcon = document.createElement('span');
-          logIcon.className = 'jira-log-time-icon';
-          logIcon.dataset.issueId = issueId;
-          logIcon.title = `Log time for ${issueId}`;
-          logIcon.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.showPopup(issueId, logIcon);
-          });
-
-          // Wrap icon in non-editable span to keep caret away
-          const wrapper = document.createElement('span');
-          wrapper.contentEditable = 'false';
-          wrapper.style.userSelect = 'none'; // Prevent text selection
-          wrapper.appendChild(logIcon);
-          refEl.after(wrapper);
-        }
+      // Skip adding icons in editable content - we'll use context menu instead
+      if (parent.closest('[contenteditable="true"]') || 
+          parent.closest('input') || 
+          parent.closest('textarea')) {
         return;
       }
 
@@ -371,6 +346,160 @@ class JiraIssueDetector {
         }, 100);
       }
     }, true);
+
+    // Set up context menu for editable content
+    this.setupContextMenu();
+  }
+
+  setupContextMenu() {
+    let contextMenuVisible = false;
+
+    // Listen for right-click events
+    document.addEventListener('contextmenu', (e) => {
+      // Only handle context menu in editable elements
+      if (!this.isContentEditable(e.target)) {
+        this.hideContextMenu();
+        return;
+      }
+
+      const selectedText = this.getSelectedText();
+      const jiraIssue = this.extractJiraIssueFromText(selectedText);
+      
+      if (jiraIssue) {
+        e.preventDefault();
+        this.showContextMenu(e.pageX, e.pageY, jiraIssue);
+        contextMenuVisible = true;
+      } else {
+        this.hideContextMenu();
+      }
+    });
+
+    // Hide context menu on click elsewhere
+    document.addEventListener('click', () => {
+      if (contextMenuVisible) {
+        this.hideContextMenu();
+        contextMenuVisible = false;
+      }
+    });
+
+    // Hide context menu on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && contextMenuVisible) {
+        this.hideContextMenu();
+        contextMenuVisible = false;
+      }
+    });
+  }
+
+  getSelectedText() {
+    const selection = window.getSelection();
+    return selection.toString().trim();
+  }
+
+  extractJiraIssueFromText(text) {
+    if (!text) return null;
+    
+    // Find all Jira issues in the text
+    const matches = [...text.matchAll(this.JIRA_PATTERN)];
+    
+    if (matches.length === 0) return null;
+    
+    // If there's only one issue, return it
+    if (matches.length === 1) {
+      return matches[0][0];
+    }
+    
+    // If there are multiple issues, prefer the one that's most completely selected
+    // This handles cases where someone selects "ABC-123 and DEF-456" 
+    // and we want to be smart about which one they likely want
+    const trimmedText = text.trim();
+    
+    for (const match of matches) {
+      const issue = match[0];
+      const startIndex = match.index;
+      const endIndex = startIndex + issue.length;
+      
+      // Check if this issue is at the start or end of selection
+      if (startIndex === 0 || endIndex === trimmedText.length) {
+        return issue;
+      }
+      
+      // Check if this issue is surrounded by word boundaries in the selection
+      const beforeChar = trimmedText[startIndex - 1] || ' ';
+      const afterChar = trimmedText[endIndex] || ' ';
+      if (/\s/.test(beforeChar) && /\s/.test(afterChar)) {
+        return issue;
+      }
+    }
+    
+    // Default to the first match if no clear preference
+    return matches[0][0];
+  }
+
+  showContextMenu(x, y, issueId) {
+    // Remove existing context menu if any
+    this.hideContextMenu();
+
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'jira-context-menu';
+    contextMenu.innerHTML = `
+      <div class="jira-context-menu-item" data-action="log-time">
+        <span class="jira-context-menu-icon">⏱</span>
+        Log Time for ${issueId}
+      </div>
+    `;
+
+    // Add to DOM first to measure dimensions
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.visibility = 'hidden';
+    document.body.appendChild(contextMenu);
+
+    // Measure menu dimensions
+    const menuRect = contextMenu.getBoundingClientRect();
+    const viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight
+    };
+
+    // Adjust position to keep menu in viewport
+    let finalX = x;
+    let finalY = y;
+
+    if (x + menuRect.width > viewport.width) {
+      finalX = x - menuRect.width;
+    }
+
+    if (y + menuRect.height > viewport.height) {
+      finalY = y - menuRect.height;
+    }
+
+    // Ensure minimum margins
+    finalX = Math.max(10, finalX);
+    finalY = Math.max(10, finalY);
+
+    // Apply final position and make visible
+    contextMenu.style.left = `${finalX}px`;
+    contextMenu.style.top = `${finalY}px`;
+    contextMenu.style.visibility = 'visible';
+    contextMenu.style.zIndex = '10000';
+
+    // Add click handler
+    const menuItem = contextMenu.querySelector('[data-action="log-time"]');
+    menuItem.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.hideContextMenu();
+      this.showPopup(issueId, menuItem);
+    });
+
+    this.currentContextMenu = contextMenu;
+  }
+
+  hideContextMenu() {
+    if (this.currentContextMenu) {
+      this.currentContextMenu.remove();
+      this.currentContextMenu = null;
+    }
   }
 
   async showPopup(issueId, targetElement) {
@@ -768,6 +897,7 @@ class JiraIssueDetector {
   cleanup() {
     this.clearHighlights();
     this.closePopup();
+    this.hideContextMenu();
     this.observer?.disconnect();
     this.observer = null;
   }
