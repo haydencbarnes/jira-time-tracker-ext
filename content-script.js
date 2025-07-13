@@ -73,11 +73,17 @@ class JiraIssueDetector {
     const selection = window.getSelection();
     const activeElement = document.activeElement;
     let selectionStart, selectionEnd;
+    let selectionRange = null;
     
     // Store cursor position for input elements
     if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
       selectionStart = activeElement.selectionStart;
       selectionEnd = activeElement.selectionEnd;
+    }
+    
+    // Store selection for contenteditable elements
+    if (selection && selection.rangeCount > 0) {
+      selectionRange = selection.getRangeAt(0).cloneRange();
     }
 
     // Clear existing highlights
@@ -96,8 +102,8 @@ class JiraIssueDetector {
         const tag=parent.tagName?parent.tagName.toLowerCase():'';
         if(['script','style','noscript'].includes(tag)) return NodeFilter.FILTER_REJECT;
         if(parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
-        // Skip highlighting in active input fields to avoid cursor interference
-        if (this.isActiveInputField(parent) || parent.closest('input, textarea, [contenteditable="true"]')) return NodeFilter.FILTER_REJECT;
+        // Only skip highlighting in the currently active input field to avoid cursor interference
+        if (activeElement && (parent === activeElement || parent.closest('input, textarea, [contenteditable="true"]') === activeElement)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     };
@@ -112,11 +118,21 @@ class JiraIssueDetector {
     // Restore cursor position
     if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
       try {
-        // Restore focus and cursor position
+        // Restore focus and cursor position for input elements
         activeElement.focus();
         if (selectionStart !== undefined && selectionEnd !== undefined) {
           activeElement.setSelectionRange(selectionStart, selectionEnd);
         }
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    } else if (selectionRange && activeElement && activeElement.isContentEditable) {
+      try {
+        // Restore selection for contenteditable elements
+        activeElement.focus();
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(selectionRange);
       } catch (e) {
         // Silently handle any errors during restoration
       }
@@ -295,15 +311,10 @@ class JiraIssueDetector {
 
     // Listen to user input events but avoid interfering with cursor position
     window.addEventListener('input', (e) => {
-      // Skip if the user is actively typing in an input field
-      if (this.isActiveInputField(e.target)) {
-        return;
-      }
-      
       clearTimeout(this.debounceTimeout);
       this.debounceTimeout = setTimeout(() => {
         this.scanAndHighlightIssues();
-      }, 1000); // Increased delay to be less aggressive
+      }, 200); // Reasonable delay
     }, true);
   }
 
@@ -688,21 +699,28 @@ class JiraIssueDetector {
 
   clearHighlights() {
     // Store current selection to restore later
+    const selection = window.getSelection();
     const activeElement = document.activeElement;
     let selectionStart, selectionEnd;
+    let selectionRange = null;
     
     // Store cursor position for input elements
     if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
       selectionStart = activeElement.selectionStart;
       selectionEnd = activeElement.selectionEnd;
     }
+    
+    // Store selection for contenteditable elements
+    if (selection && selection.rangeCount > 0) {
+      selectionRange = selection.getRangeAt(0).cloneRange();
+    }
 
     document.querySelectorAll('.jira-issue-id-highlight').forEach(highlight => {
       const container = highlight.parentNode;
       const parent = container?.parentNode;
       if (parent) {
-        // Skip if this is inside an active input field
-        if (this.isActiveInputField(parent) || parent.closest('input, textarea, [contenteditable="true"]')) {
+        // Only skip if this is inside the currently active input field
+        if (activeElement && (parent === activeElement || parent.closest('input, textarea, [contenteditable="true"]') === activeElement)) {
           return;
         }
         parent.replaceChild(document.createTextNode(highlight.textContent), container);
@@ -710,8 +728,8 @@ class JiraIssueDetector {
       }
     });
     document.querySelectorAll('.jira-log-time-icon').forEach(icon => {
-      // Skip if this is inside an active input field
-      if (this.isActiveInputField(icon.parentNode) || icon.closest('input, textarea, [contenteditable="true"]')) {
+      // Only skip if this is inside the currently active input field
+      if (activeElement && (icon.parentNode === activeElement || icon.closest('input, textarea, [contenteditable="true"]') === activeElement)) {
         return;
       }
       icon.remove();
@@ -721,11 +739,21 @@ class JiraIssueDetector {
     // Restore cursor position
     if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
       try {
-        // Restore focus and cursor position
+        // Restore focus and cursor position for input elements
         activeElement.focus();
         if (selectionStart !== undefined && selectionEnd !== undefined) {
           activeElement.setSelectionRange(selectionStart, selectionEnd);
         }
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    } else if (selectionRange && activeElement && activeElement.isContentEditable) {
+      try {
+        // Restore selection for contenteditable elements
+        activeElement.focus();
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(selectionRange);
       } catch (e) {
         // Silently handle any errors during restoration
       }
