@@ -69,6 +69,17 @@ class JiraIssueDetector {
   scanAndHighlightIssues() {
     if (!this.isEnabled) return;
 
+    // Store current selection to restore later
+    const selection = window.getSelection();
+    const activeElement = document.activeElement;
+    let selectionStart, selectionEnd;
+    
+    // Store cursor position for input elements
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      selectionStart = activeElement.selectionStart;
+      selectionEnd = activeElement.selectionEnd;
+    }
+
     // Clear existing highlights
     this.clearHighlights();
 
@@ -85,6 +96,8 @@ class JiraIssueDetector {
         const tag=parent.tagName?parent.tagName.toLowerCase():'';
         if(['script','style','noscript'].includes(tag)) return NodeFilter.FILTER_REJECT;
         if(parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
+        // Skip highlighting in active input fields to avoid cursor interference
+        if (this.isActiveInputField(parent) || parent.closest('input, textarea, [contenteditable="true"]')) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     };
@@ -95,6 +108,19 @@ class JiraIssueDetector {
     };
 
     roots.forEach(processRoot);
+
+    // Restore cursor position
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      try {
+        // Restore focus and cursor position
+        activeElement.focus();
+        if (selectionStart !== undefined && selectionEnd !== undefined) {
+          activeElement.setSelectionRange(selectionStart, selectionEnd);
+        }
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    }
   }
 
   highlightIssuesInTextNode(textNode) {
@@ -208,6 +234,36 @@ class JiraIssueDetector {
     parent.replaceChild(fragment, textNode);
   }
 
+  isActiveInputField(element) {
+    if (!element) return false;
+    
+    const tagName = element.tagName?.toLowerCase();
+    
+    // Check for input elements
+    if (tagName === 'input' || tagName === 'textarea') {
+      return true;
+    }
+    
+    // Check for contenteditable elements
+    if (element.isContentEditable) {
+      return true;
+    }
+    
+    // Check if element is part of a rich text editor (common selectors)
+    if (element.closest('[contenteditable="true"]') ||
+        element.closest('.ProseMirror') ||
+        element.closest('.CodeMirror') ||
+        element.closest('[role="textbox"]') ||
+        element.closest('.editor') ||
+        element.closest('.text-editor') ||
+        element.closest('.compose') ||
+        element.closest('.email-compose')) {
+      return true;
+    }
+    
+    return false;
+  }
+
   setupObserver() {
     if (!this.isEnabled) return;
 
@@ -237,12 +293,17 @@ class JiraIssueDetector {
       subtree: true
     });
 
-    // Listen to user input events (captures typing in <input>, <textarea>, contenteditable)
-    window.addEventListener('input', () => {
+    // Listen to user input events but avoid interfering with cursor position
+    window.addEventListener('input', (e) => {
+      // Skip if the user is actively typing in an input field
+      if (this.isActiveInputField(e.target)) {
+        return;
+      }
+      
       clearTimeout(this.debounceTimeout);
       this.debounceTimeout = setTimeout(() => {
         this.scanAndHighlightIssues();
-      }, 100);
+      }, 1000); // Increased delay to be less aggressive
     }, true);
   }
 
@@ -626,16 +687,49 @@ class JiraIssueDetector {
   }
 
   clearHighlights() {
+    // Store current selection to restore later
+    const activeElement = document.activeElement;
+    let selectionStart, selectionEnd;
+    
+    // Store cursor position for input elements
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      selectionStart = activeElement.selectionStart;
+      selectionEnd = activeElement.selectionEnd;
+    }
+
     document.querySelectorAll('.jira-issue-id-highlight').forEach(highlight => {
       const container = highlight.parentNode;
       const parent = container?.parentNode;
       if (parent) {
+        // Skip if this is inside an active input field
+        if (this.isActiveInputField(parent) || parent.closest('input, textarea, [contenteditable="true"]')) {
+          return;
+        }
         parent.replaceChild(document.createTextNode(highlight.textContent), container);
         parent.normalize();
       }
     });
-    document.querySelectorAll('.jira-log-time-icon').forEach(icon=>icon.remove());
+    document.querySelectorAll('.jira-log-time-icon').forEach(icon => {
+      // Skip if this is inside an active input field
+      if (this.isActiveInputField(icon.parentNode) || icon.closest('input, textarea, [contenteditable="true"]')) {
+        return;
+      }
+      icon.remove();
+    });
     this.highlightedIssues.clear();
+
+    // Restore cursor position
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      try {
+        // Restore focus and cursor position
+        activeElement.focus();
+        if (selectionStart !== undefined && selectionEnd !== undefined) {
+          activeElement.setSelectionRange(selectionStart, selectionEnd);
+        }
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    }
   }
 
   cleanup() {
