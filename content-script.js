@@ -6,6 +6,7 @@ class JiraIssueDetector {
     this.isEnabled = false;
     this.highlightedIssues = new Set();
     this.currentPopup = null;
+    this.currentSelectionBubble = null;
     this.JIRA_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/g;
     this.debounceTimeout = null;
     
@@ -129,30 +130,6 @@ class JiraIssueDetector {
         return; // do not alter text node when inside anchor
       }
 
-      // If inside a contenteditable element
-      if (parent.closest('[contenteditable="true"]')) {
-        const refEl = parent; // element containing text
-        if (!refEl.nextSibling || !refEl.nextSibling.classList || !refEl.nextSibling.classList.contains('jira-log-time-icon')) {
-          const logIcon = document.createElement('span');
-          logIcon.className = 'jira-log-time-icon';
-          logIcon.dataset.issueId = issueId;
-          logIcon.title = `Log time for ${issueId}`;
-          logIcon.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            this.showPopup(issueId, logIcon);
-          });
-
-          // Wrap icon in non-editable span to keep caret away
-          const wrapper = document.createElement('span');
-          wrapper.contentEditable = 'false';
-          wrapper.appendChild(logIcon);
-          refEl.after(wrapper);
-        }
-        return;
-      }
-
       // Add text before the match
       if (startIndex > lastIndex) {
         fragment.appendChild(
@@ -160,39 +137,51 @@ class JiraIssueDetector {
         );
       }
 
-      // Create highlighted span for the issue ID (without click handler)
-      const span = document.createElement('span');
-      span.className = 'jira-issue-id-highlight';
-      span.textContent = issueId;
-      span.dataset.issueId = issueId;
+      // If inside a contenteditable element, only highlight - NO ICONS
+      if (parent.closest('[contenteditable="true"]')) {
+        // Create highlighted span for the issue ID (without icon)
+        const span = document.createElement('span');
+        span.className = 'jira-issue-id-highlight jira-issue-selectable';
+        span.textContent = issueId;
+        span.dataset.issueId = issueId;
 
-      // Create log time icon
-      const logIcon = document.createElement('span');
-      logIcon.className = 'jira-log-time-icon';
-      logIcon.dataset.issueId = issueId;
-      logIcon.title = `Log time for ${issueId}`;
-      
-      // Add click handler to the icon
-      logIcon.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        this.showPopup(issueId, logIcon);
-      });
-      
-      // Also add mousedown to ensure we capture the event
-      logIcon.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      });
+        fragment.appendChild(span);
+        this.highlightedIssues.add(issueId);
+      } else {
+        // Create highlighted span for the issue ID (without click handler)
+        const span = document.createElement('span');
+        span.className = 'jira-issue-id-highlight';
+        span.textContent = issueId;
+        span.dataset.issueId = issueId;
 
-      // Create container for issue ID + icon
-      const container = document.createElement('span');
-      container.appendChild(span);
-      container.appendChild(logIcon);
+        // Create log time icon
+        const logIcon = document.createElement('span');
+        logIcon.className = 'jira-log-time-icon';
+        logIcon.dataset.issueId = issueId;
+        logIcon.title = `Log time for ${issueId}`;
+        
+        // Add click handler to the icon
+        logIcon.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          this.showPopup(issueId, logIcon);
+        });
+        
+        // Also add mousedown to ensure we capture the event
+        logIcon.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
 
-      fragment.appendChild(container);
-      this.highlightedIssues.add(issueId);
+        // Create container for issue ID + icon
+        const container = document.createElement('span');
+        container.appendChild(span);
+        container.appendChild(logIcon);
+
+        fragment.appendChild(container);
+        this.highlightedIssues.add(issueId);
+      }
       
       lastIndex = startIndex + issueId.length;
     });
@@ -238,12 +227,120 @@ class JiraIssueDetector {
     });
 
     // Listen to user input events (captures typing in <input>, <textarea>, contenteditable)
+    // Reduce debounce time to avoid interfering with typing
     window.addEventListener('input', () => {
       clearTimeout(this.debounceTimeout);
       this.debounceTimeout = setTimeout(() => {
         this.scanAndHighlightIssues();
-      }, 100);
+      }, 300);
     }, true);
+
+    // Add selection event listeners for highlight-based time logging
+    document.addEventListener('mouseup', (e) => this.handleSelectionChange(e));
+    document.addEventListener('keyup', (e) => this.handleSelectionChange(e));
+    document.addEventListener('selectionchange', () => this.handleSelectionChange());
+  }
+
+  handleSelectionChange(event) {
+    // Close any existing selection bubble
+    this.closeSelectionBubble();
+    
+    const selection = window.getSelection();
+    if (!selection.rangeCount || selection.isCollapsed) {
+      return;
+    }
+
+    const selectedText = selection.toString().trim();
+    if (!selectedText) return;
+
+    // Check if selection contains Jira issue IDs
+    const jiraMatches = [...selectedText.matchAll(this.JIRA_PATTERN)];
+    if (jiraMatches.length === 0) return;
+
+    // Check if we're in an editable area (where we don't show icons)
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+    const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentNode : container;
+    
+    if (!parentElement.closest('[contenteditable="true"]') && 
+        !parentElement.closest('input') && 
+        !parentElement.closest('textarea')) {
+      return; // Only show bubble in editable areas
+    }
+
+    // Get the bounding rectangle of the selection
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    // Show selection bubble with all found Jira IDs
+    this.showSelectionBubble(jiraMatches.map(match => match[0]), rect);
+  }
+
+  showSelectionBubble(issueIds, selectionRect) {
+    // Create bubble container
+    const bubble = document.createElement('div');
+    bubble.className = 'jira-selection-bubble';
+    bubble.innerHTML = `
+      <div class="jira-selection-bubble-content">
+        <div class="jira-selection-bubble-header">
+          <span class="jira-selection-bubble-title">Log time for:</span>
+          <button class="jira-selection-bubble-close">&times;</button>
+        </div>
+        <div class="jira-selection-bubble-issues">
+          ${issueIds.map(issueId => `
+            <button class="jira-selection-bubble-issue" data-issue-id="${issueId}">
+              <span class="jira-issue-icon">⏱</span>
+              <span class="jira-issue-text">${issueId}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    // Position bubble below the selection
+    const top = selectionRect.bottom + window.scrollY + 8;
+    const left = selectionRect.left + window.scrollX + (selectionRect.width / 2);
+    
+    bubble.style.position = 'absolute';
+    bubble.style.top = `${top}px`;
+    bubble.style.left = `${left}px`;
+    bubble.style.transform = 'translateX(-50%)';
+    bubble.style.zIndex = '10001';
+
+    // Add event listeners
+    bubble.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      if (e.target.classList.contains('jira-selection-bubble-close')) {
+        this.closeSelectionBubble();
+        return;
+      }
+
+      const issueButton = e.target.closest('.jira-selection-bubble-issue');
+      if (issueButton) {
+        const issueId = issueButton.dataset.issueId;
+        this.closeSelectionBubble();
+        this.showPopup(issueId, issueButton);
+      }
+    });
+
+    // Close bubble when clicking outside
+    document.addEventListener('click', this.closeSelectionBubble.bind(this), { once: true });
+
+    document.body.appendChild(bubble);
+    this.currentSelectionBubble = bubble;
+
+    // Animate in
+    requestAnimationFrame(() => {
+      bubble.classList.add('show');
+    });
+  }
+
+  closeSelectionBubble() {
+    if (this.currentSelectionBubble) {
+      this.currentSelectionBubble.remove();
+      this.currentSelectionBubble = null;
+    }
   }
 
   async showPopup(issueId, targetElement) {
@@ -641,6 +738,7 @@ class JiraIssueDetector {
   cleanup() {
     this.clearHighlights();
     this.closePopup();
+    this.closeSelectionBubble();
     this.observer?.disconnect();
     this.observer = null;
   }

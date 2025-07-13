@@ -285,6 +285,13 @@
   position: relative;
 }
 
+/* Selectable Jira issue highlighting in editable areas */
+.jira-issue-selectable {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Log time icon */
 .jira-log-time-icon {
   display: inline-block;
@@ -339,6 +346,161 @@
   .jira-log-time-icon:hover {
     background: #5E9FE3;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Selection bubble for time logging */
+.jira-selection-bubble {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10001;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  min-width: 200px;
+  max-width: 350px;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px);
+  transition: all 0.2s ease-out;
+  pointer-events: none;
+}
+
+.jira-selection-bubble.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.jira-selection-bubble-content {
+  padding: 12px;
+}
+
+.jira-selection-bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eee;
+}
+
+.jira-selection-bubble-title {
+  font-weight: 600;
+  color: #333;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.jira-selection-bubble-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.jira-selection-bubble-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.jira-selection-bubble-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jira-selection-bubble-issue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.jira-selection-bubble-issue:hover {
+  background: #e9ecef;
+  border-color: #0052CC;
+  transform: translateY(-1px);
+}
+
+.jira-issue-icon {
+  font-size: 14px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0052CC;
+  color: white;
+  border-radius: 50%;
+  font-style: normal;
+}
+
+.jira-issue-text {
+  font-weight: 500;
+  color: #333;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Dark theme styles for selection bubble */
+@media (prefers-color-scheme: dark) {
+  .jira-selection-bubble {
+    background: #141414;
+    border-color: #1A1A1A;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+  
+  .jira-selection-bubble-header {
+    border-bottom-color: #2A2A2A;
+  }
+  
+  .jira-selection-bubble-title {
+    color: #e0e0e0;
+  }
+  
+  .jira-selection-bubble-close {
+    color: #ccc;
+  }
+  
+  .jira-selection-bubble-close:hover {
+    background: #2A2A2A;
+    color: #fff;
+  }
+  
+  .jira-selection-bubble-issue {
+    background: #2A2A2A;
+    border-color: #3A3A3A;
+  }
+  
+  .jira-selection-bubble-issue:hover {
+    background: #3A3A3A;
+    border-color: #4690DD;
+  }
+  
+  .jira-issue-icon {
+    background: #4690DD;
+  }
+  
+  .jira-issue-text {
+    color: #e0e0e0;
   }
 }
 
