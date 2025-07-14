@@ -69,6 +69,23 @@ class JiraIssueDetector {
   scanAndHighlightIssues() {
     if (!this.isEnabled) return;
 
+    // Store current selection to restore later
+    const selection = window.getSelection();
+    const activeElement = document.activeElement;
+    let selectionStart, selectionEnd;
+    let selectionRange = null;
+    
+    // Store cursor position for input elements
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      selectionStart = activeElement.selectionStart;
+      selectionEnd = activeElement.selectionEnd;
+    }
+    
+    // Store selection for contenteditable elements
+    if (selection && selection.rangeCount > 0) {
+      selectionRange = selection.getRangeAt(0).cloneRange();
+    }
+
     // Clear existing highlights
     this.clearHighlights();
 
@@ -85,6 +102,8 @@ class JiraIssueDetector {
         const tag=parent.tagName?parent.tagName.toLowerCase():'';
         if(['script','style','noscript'].includes(tag)) return NodeFilter.FILTER_REJECT;
         if(parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
+        // Only skip highlighting in the currently active input field to avoid cursor interference
+        if (activeElement && (parent === activeElement || parent.closest('input, textarea, [contenteditable="true"]') === activeElement)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     };
@@ -95,6 +114,29 @@ class JiraIssueDetector {
     };
 
     roots.forEach(processRoot);
+
+    // Restore cursor position
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      try {
+        // Restore focus and cursor position for input elements
+        activeElement.focus();
+        if (selectionStart !== undefined && selectionEnd !== undefined) {
+          activeElement.setSelectionRange(selectionStart, selectionEnd);
+        }
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    } else if (selectionRange && activeElement && activeElement.isContentEditable) {
+      try {
+        // Restore selection for contenteditable elements
+        activeElement.focus();
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(selectionRange);
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    }
   }
 
   highlightIssuesInTextNode(textNode) {
@@ -208,6 +250,36 @@ class JiraIssueDetector {
     parent.replaceChild(fragment, textNode);
   }
 
+  isActiveInputField(element) {
+    if (!element) return false;
+    
+    const tagName = element.tagName?.toLowerCase();
+    
+    // Check for input elements
+    if (tagName === 'input' || tagName === 'textarea') {
+      return true;
+    }
+    
+    // Check for contenteditable elements
+    if (element.isContentEditable) {
+      return true;
+    }
+    
+    // Check if element is part of a rich text editor (common selectors)
+    if (element.closest('[contenteditable="true"]') ||
+        element.closest('.ProseMirror') ||
+        element.closest('.CodeMirror') ||
+        element.closest('[role="textbox"]') ||
+        element.closest('.editor') ||
+        element.closest('.text-editor') ||
+        element.closest('.compose') ||
+        element.closest('.email-compose')) {
+      return true;
+    }
+    
+    return false;
+  }
+
   setupObserver() {
     if (!this.isEnabled) return;
 
@@ -237,12 +309,12 @@ class JiraIssueDetector {
       subtree: true
     });
 
-    // Listen to user input events (captures typing in <input>, <textarea>, contenteditable)
-    window.addEventListener('input', () => {
+    // Listen to user input events but avoid interfering with cursor position
+    window.addEventListener('input', (e) => {
       clearTimeout(this.debounceTimeout);
       this.debounceTimeout = setTimeout(() => {
         this.scanAndHighlightIssues();
-      }, 100);
+      }, 200); // Reasonable delay
     }, true);
   }
 
@@ -626,16 +698,66 @@ class JiraIssueDetector {
   }
 
   clearHighlights() {
+    // Store current selection to restore later
+    const selection = window.getSelection();
+    const activeElement = document.activeElement;
+    let selectionStart, selectionEnd;
+    let selectionRange = null;
+    
+    // Store cursor position for input elements
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      selectionStart = activeElement.selectionStart;
+      selectionEnd = activeElement.selectionEnd;
+    }
+    
+    // Store selection for contenteditable elements
+    if (selection && selection.rangeCount > 0) {
+      selectionRange = selection.getRangeAt(0).cloneRange();
+    }
+
     document.querySelectorAll('.jira-issue-id-highlight').forEach(highlight => {
       const container = highlight.parentNode;
       const parent = container?.parentNode;
       if (parent) {
+        // Only skip if this is inside the currently active input field
+        if (activeElement && (parent === activeElement || parent.closest('input, textarea, [contenteditable="true"]') === activeElement)) {
+          return;
+        }
         parent.replaceChild(document.createTextNode(highlight.textContent), container);
         parent.normalize();
       }
     });
-    document.querySelectorAll('.jira-log-time-icon').forEach(icon=>icon.remove());
+    document.querySelectorAll('.jira-log-time-icon').forEach(icon => {
+      // Only skip if this is inside the currently active input field
+      if (activeElement && (icon.parentNode === activeElement || icon.closest('input, textarea, [contenteditable="true"]') === activeElement)) {
+        return;
+      }
+      icon.remove();
+    });
     this.highlightedIssues.clear();
+
+    // Restore cursor position
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+      try {
+        // Restore focus and cursor position for input elements
+        activeElement.focus();
+        if (selectionStart !== undefined && selectionEnd !== undefined) {
+          activeElement.setSelectionRange(selectionStart, selectionEnd);
+        }
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    } else if (selectionRange && activeElement && activeElement.isContentEditable) {
+      try {
+        // Restore selection for contenteditable elements
+        activeElement.focus();
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(selectionRange);
+      } catch (e) {
+        // Silently handle any errors during restoration
+      }
+    }
   }
 
   cleanup() {
