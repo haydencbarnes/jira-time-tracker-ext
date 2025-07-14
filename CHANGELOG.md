@@ -1,3 +1,6 @@
+## 1.3.8 (Jul 13, 2025)
+- Bug fix: Fixed an issue where editing text that included a Jira issue ID that the BETA Jira Issue ID Detection feature detected would cause the extension to make the text unusable and move the cursor to the incorrect position.
+
 ## 1.3.7 (Jul 04, 2025)
 - Bug fix: Fixed an issue where the experimental side panel feature was not working as expected. https://github.com/haydencbarnes/jira-time-tracker-ext/issues/6
 
