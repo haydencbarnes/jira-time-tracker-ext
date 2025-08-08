@@ -71,21 +71,23 @@
         }
 
         #info {
-            padding: 15px 0 0 10px;
+            padding: 12px 0 0 10px;
             width: 50%;
             display: inline-block;
             vertical-align: top;
         }
 
         #nav {
-            font-size: 14px;
+            font-size: 12px;
             color: #cccccc;
             width: 44%;
             display: inline-block;
             text-align: right;
             vertical-align: top;
-            padding: 15px 0 0 0;
+            padding: 12px 5px 0 0;
         }
+        #nav > * { display: inline-block; vertical-align: middle; margin: 0 3px; }
+        #nav a img { display: block; }
 
         a {
             color: #0052CC;
@@ -95,6 +97,37 @@
         a:hover, a:active, a:focus {
             text-decoration: underline;
         }
+
+        .designed-by {
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+            margin: 6px 0 4px;
+        }
+        body.dark-mode .designed-by { color: #e0e0e0; }
+
+        /* Ko-fi button, aligned with theme controls */
+        .kofi-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 8px;
+            height: 24px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.05);
+            color: #0052CC !important;
+            font-weight: 400;
+            text-decoration: none !important;
+            line-height: 1;
+            border: 1px solid transparent;
+            vertical-align: middle;
+        }
+        .kofi-btn:hover { background-color: rgba(0, 0, 0, 0.12); }
+        body.dark-mode .kofi-btn { background: rgba(255, 255, 255, 0.1); color: #4690DD !important; font-weight: 400; }
+        body.dark-mode .kofi-btn:hover { background-color: rgba(255, 255, 255, 0.18); }
+        .kofi-cup { display: inline-block; will-change: transform; }
+        .kofi-btn:hover .kofi-cup { animation: kofi-pop 0.4s ease-out; }
+        @keyframes kofi-pop { 0%{transform:translateY(0) scale(1)} 50%{transform:translateY(-2px) scale(1.15)} 100%{transform:translateY(0) scale(1)} }
 
         .toggle-switch {
             position: relative;
@@ -488,14 +521,15 @@
 
         <button id="save" class="btn">Save</button>
 
+        <div class="designed-by">Designed by Hayden Barnes in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></div>
+
     </div>
     <div id="brand">
         <div id="info">
-            <div style="text-align: center;">
-				<img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align: middle; margin-right: 10px; width:20px;height:20px;"">
-				<span>Designed by <a href="https://github.com/haydencbarnes" target="_blank" style="color: #0052CC;"> Hayden Barnes </a>in Kansas City, Kansas <span style="color: #0052CC;">&#10084;</span></span>
-			  </div>
-		</div>
+            <div style="text-align: left; padding-left: 4px;">
+                <a class="kofi-btn" href="https://ko-fi.com/haydenbarnesos" target="_blank" tabindex="1" title="Buy me a coffee"><span class="kofi-cup" aria-hidden="true">☕</span><span class="kofi-text"> Buy me a coffee</span></a>
+            </div>
+        </div>
         <div id="nav">
             <a href="timerFeatureModule/timer.html" id="timerLink" tabindex="1" style="color: #0052CC;"><img src="src/icons/timer.png" alt="Timer" style="vertical-align: middle; width:20px; height:20px;"></a> |
             <a href="search.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/magnifying-glass.png" alt="Search" style="vertical-align: middle; width:19px; height:19px;"></a> |

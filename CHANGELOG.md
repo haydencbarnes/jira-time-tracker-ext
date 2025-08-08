@@ -1,3 +1,8 @@
+## 1.3.9 (Aug 07, 2025)
+- UI: Added Ko‑fi support button to brand section, moved to bottom-left; removed GitHub profile link and relocated “Designed by” to Settings.
+- UI: Standardized brand/footer spacing and icon spacing across tabs; reduced popup header Jira logo to 16px.
+- UX: Added new caching mechanism to the extension to improve performance and reduce API calls.
+
 ## 1.3.8 (Jul 13, 2025)
 - Bug fix: Fixed an issue where editing text that included a Jira issue ID that the BETA Jira Issue ID Detection feature detected would cause the extension to make the text unusable and move the cursor to the incorrect position.
 
