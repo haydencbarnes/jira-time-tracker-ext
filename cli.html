@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Jira Time CLI</title>
+  <script src="jira-error-handler.js"></script>
+  <style>
+    body {
+      width: 750px;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    a { color: #0052CC; text-decoration: none; }
+    a:hover, a:active, a:focus { text-decoration: underline; }
+
+    .container { flex: 1; display: flex; flex-direction: column; padding: 10px; padding-bottom: 60px; }
+
+    /* Inline banner inside terminal output */
+    .cli-welcome {
+      color: #0052CC;
+      border: 1px solid #0052CC;
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    #error { padding: 10px; color: #cc0000; background-color: #ffdddd; font-weight: bold; display: none; word-wrap: break-word; }
+    #success { padding: 10px; color: #4F8A10; background-color: #DFF2BF; font-weight: bold; display: none; }
+
+    .terminal {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: #f3f3f3; /* light mode: use our standard light gray */
+      color: #1a1a1a;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      min-height: 280px;
+      padding: 10px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    .terminal-output { white-space: pre-wrap; line-height: 1.4; min-height: 220px; }
+    .terminal-line { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .prompt { color: #0052CC; }
+    .input {
+      flex: 1;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      padding: 6px 8px;
+      border: 1px solid #0052CC;
+      border-radius: 6px;
+      outline: none;
+    }
+    .input:focus { border-color: #0052CC; box-shadow: 0 0 0 2px rgba(0,82,204,0.18); }
+    .hint { color: #999; font-size: 12px; margin-top: 6px; }
+    .line-success { color: #111111; }
+    .line-info { color: #111111; }
+    .line-user { color: #9aa4af; }
+    .line-error { color: #ff6b6b; }
+    .line-subtle { color: #b6bcc4; }
+    .issue-id { color: #0052CC; font-weight: 600; }
+
+    /* Slash command palette */
+    .cmd-palette {
+      position: fixed;
+      min-width: 320px;
+      max-width: calc(100vw - 16px);
+      max-height: 220px;
+      overflow-y: auto;
+      background: #111;
+      color: #e6e6e6;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      padding: 6px;
+      display: none;
+      z-index: 10001; /* above footer/brand */
+      margin: 0 8px; /* viewport padding */
+    }
+    .cmd-item { padding: 8px 10px; border-radius: 4px; cursor: pointer; line-height: 1.2; }
+    .cmd-item .cmd-label { color: #cde4ff; font-weight: 600; }
+    .cmd-item .cmd-desc { color: #9aa4af; font-size: 12px; display: block; margin-top: 2px; }
+    .cmd-item.active { background: rgba(79, 209, 255, 0.12); }
+
+    /* Classic orange BETA badge */
+    .jira-popup-beta-badge {
+      display: inline-block;
+      background: #FF6B35;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 8px;
+      margin-left: 8px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1;
+      box-shadow: 0 1px 3px rgba(255, 107, 53, 0.3);
+    }
+
+    #brand { position: fixed; bottom: 0; left: 0; width: 100%; z-index: 9999; height: 50px; background: #f3f3f3; margin: 0; border-top: 1px solid #e5e5e5; }
+    #info { padding: 12px 0 0 10px; width: 50%; display: inline-block; vertical-align: top; }
+    #nav { font-size: 12px; color: #cccccc; width: 44%; display: inline-block; text-align: right; vertical-align: top; padding: 12px 5px 0 0; }
+    #nav > * { display: inline-block; vertical-align: middle; margin: 0 3px; }
+    .theme-button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; border-radius: 4px; cursor: pointer; border: none; vertical-align: middle; transition: background-color 0.3s; margin: 0 2px; padding: 0; font-size: 16px; line-height: 1; background: rgba(0, 0, 0, 0.05); }
+    .theme-button:hover { background-color: rgba(0, 0, 0, 0.15); }
+
+    /* Ko-fi button */
+    .kofi-btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; height: 24px; border-radius: 4px; background: rgba(0, 0, 0, 0.05); color: #0052CC !important; font-weight: 400; text-decoration: none !important; line-height: 1; border: 1px solid transparent; vertical-align: middle; }
+    .kofi-btn:hover { background-color: rgba(0, 0, 0, 0.12); }
+
+    /* Dark mode */
+    body.dark-mode { background-color: #141414; color: #e0e0e0; }
+    body.dark-mode a { color: #4690DD !important; font-weight: lighter; }
+    body.dark-mode .kofi-btn { background: rgba(255,255,255,0.1); color: #4690DD !important; }
+    body.dark-mode .kofi-btn:hover { background: rgba(255,255,255,0.18); }
+    body.dark-mode .theme-button { background: rgba(255, 255, 255, 0.1); }
+    body.dark-mode .theme-button:hover { background: rgba(255, 255, 255, 0.2); }
+    body.dark-mode .terminal { background: #0b0b0b; color: #e6e6e6; border-color: #333; }
+    body.dark-mode .prompt { color: #4690DD; }
+    body.dark-mode .line-success, body.dark-mode .line-info { color: #ffffff; }
+    body.dark-mode .issue-id { color: #4690DD; }
+    body.dark-mode #brand { background: #141414; border-top: 1px solid #333; }
+    body.dark-mode .cli-welcome { color: #4690DD; border-color: #4690DD; }
+    body.dark-mode .cmd-palette { background: #0f0f0f; border-color: #333; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    body.dark-mode .input { border-color: #4690DD; }
+    body.dark-mode .input:focus { border-color: #4690DD; box-shadow: 0 0 0 2px rgba(70,144,221,0.25); }
+  </style>
+</head>
+<body>
+  <div id="error"></div>
+  <div id="success"></div>
+  <div class="container">
+    <div class="terminal" role="group" aria-label="Jira time entry terminal">
+      <div id="cli-output" class="terminal-output" aria-live="polite"><span class="cli-welcome">Welcome to Jira Time Log CLI <span class="jira-popup-beta-badge">BETA</span></span></div>
+      <div class="terminal-line">
+        <span class="prompt">➜</span>
+        <input id="cli-input" class="input" type="text" placeholder="e.g., PROJ-123 1h 30m yesterday Fix tests" autocomplete="off" spellcheck="false" aria-label="Command" />
+      </div>
+      <div class="hint">Enter to submit • ↑/↓ history • / for commands • help or ?</div>
+      <div id="cmd-palette" class="cmd-palette" role="listbox" aria-label="Slash commands"></div>
+    </div>
+  </div>
+
+  <div id="brand">
+    <div id="info">
+      <div style="text-align: left; padding-left: 4px;">
+        <a class="kofi-btn" href="https://ko-fi.com/haydenbarnesos" target="_blank" tabindex="1" title="Buy me a coffee"><span class="kofi-cup" aria-hidden="true">☕</span><span class="kofi-text"> Buy me a coffee</span></a>
+      </div>
+    </div>
+    <div id="nav">
+      <a href="popup.html?source=navigation" tabindex="1" style="color: #0052CC;"><img src="src/icons/cells.png" alt="Time Table" style="vertical-align: middle; width:20px; height:20px;"></a> |
+      <a href="search.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/magnifying-glass.png" alt="Search" style="vertical-align: middle; width:19px; height:19px;"></a> |
+      <a href="timerFeatureModule/timer.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/timer.png" alt="Timer" style="vertical-align: middle; width:20px; height:20px;"></a> |
+      <a href="options.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/settings.png" alt="Settings" style="vertical-align: middle; width:20px; height:20px;"></a> |
+      <button id="themeToggle" class="theme-button" title="Toggle dark mode"><span class="icon">🌙</span></button> |
+      <a href="https://github.com/haydencbarnes/jira-time-tracker-ext" target="_blank" tabindex="1" style="color: #0052CC;">Learn More</a>
+    </div>
+  </div>
+
+  <script src="jira-api.js"></script>
+  <script src="cli.js"></script>
+</body>
+</html>
+

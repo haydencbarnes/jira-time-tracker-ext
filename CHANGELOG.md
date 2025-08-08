@@ -1,3 +1,16 @@
+## 1.4.0 (Aug 08, 2025)
+- NEW! Feature: Added a CLI tab for natural language time entry.
+  - Batch logging (semicolon or new lines)
+  - Slash commands with a picker (/time, /me, /help)
+  - Command: /bug opens the GitHub new issue page to report bugs/features
+  - Quick summaries: `time ISSUE-123` and `time ISSUE-123 --me`
+  - Persistent history, dimmed user echoes, bright system responses
+  - Auto-highlight Jira issue keys in blue
+  - Welcome banner with classic orange BETA badge
+  - Overlay command picker with viewport-aware positioning
+- UI: Added caret button in footer to open CLI; centered and gradient focus/hover styling.
+- Options: Added CLI as a default tab option.
+
 ## 1.3.9 (Aug 07, 2025)
 - UI: Added Ko‑fi support button to brand section, moved to bottom-left; removed GitHub profile link and relocated “Designed by” to Settings.
 - UI: Standardized brand/footer spacing and icon spacing across tabs; reduced popup header Jira logo to 16px.

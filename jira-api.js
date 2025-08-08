@@ -32,7 +32,8 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
     };
 
     async function login() {
-        const url = `/user?username=${username}`;
+        // Use /myself to reliably fetch the current authenticated user for both Cloud and Server
+        const url = `/myself`;
         return apiRequest(url, 'GET');
     }
 

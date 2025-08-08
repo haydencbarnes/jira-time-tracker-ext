@@ -378,10 +378,36 @@
         body.dark-mode .theme-button:hover {
             background-color: rgba(255, 255, 255, 0.2);
         }
-        /* Emoji font support */
+        /* Fun gradient focus/hover state for caret button */
+        .caret-button:hover,
+        .caret-button:focus,
+        .caret-button:focus-visible {
+            outline: none;
+            background: linear-gradient(135deg, #4fd1ff 0%, #7a5cff 50%, #ff4fd1 100%);
+            color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(122, 92, 255, 0.35);
+        }
+        body.dark-mode .caret-button:hover,
+        body.dark-mode .caret-button:focus,
+        body.dark-mode .caret-button:focus-visible {
+            outline: none;
+            background: linear-gradient(135deg, #4690DD 0%, #7a5cff 50%, #ff4fd1 100%);
+            color: #1A1A1A;
+            box-shadow: 0 0 0 2px rgba(70, 144, 221, 0.35);
+        }
+        /* Emoji font support and perfect centering */
         .theme-button .icon {
             font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            line-height: 1;
         }
+
+        /* Fine-tune caret button centering */
+        .caret-button .icon { font-size: 18px; transform: translateY(-1px); }
 
         /* BETA badge for options - matching content-script style */
         .jira-popup-beta-badge {
@@ -479,6 +505,7 @@
                         <option value="popup.html">Time Table</option>
                         <option value="search.html">Search</option>
                         <option value="timerFeatureModule/timer.html">Timer</option>
+                        <option value="cli.html">CLI</option>
                     </select>
                 </td>
             </tr>
@@ -534,6 +561,7 @@
             <a href="timerFeatureModule/timer.html" id="timerLink" tabindex="1" style="color: #0052CC;"><img src="src/icons/timer.png" alt="Timer" style="vertical-align: middle; width:20px; height:20px;"></a> |
             <a href="search.html" tabindex="1" style="color: #0052CC;"><img src="src/icons/magnifying-glass.png" alt="Search" style="vertical-align: middle; width:19px; height:19px;"></a> |
             <a href="popup.html?source=navigation" tabindex="1" style="color: #0052CC;"><img src="src/icons/cells.png" alt="Time Table" style="vertical-align: middle; width:20px; height:20px;"></a> |
+            <a href="cli.html" tabindex="1" class="theme-button caret-button" title="Open CLI"><span class="icon">»</span></a> |
             <button id="themeToggle" class="theme-button" title="Toggle dark mode">
                 <span class="icon">🌙</span>
             </button> |
