@@ -361,14 +361,10 @@ function drawIssuesTable(issuesResponse, options) {
 
     logTable.appendChild(newTbody);
     
-    // Initialize worklog suggestions for all comment inputs if experimental features are enabled
+    // Initialize worklog suggestions for all comment inputs
     // This is done here because input elements are now created and theme is already applied
-    chrome.storage.sync.get(['experimentalFeatures'], function(result) {
-        if (result.experimentalFeatures) {
-            document.querySelectorAll('.issue-comment-input').forEach(input => {
-                initializeWorklogSuggestions(input);
-            });
-        }
+    document.querySelectorAll('.issue-comment-input').forEach(input => {
+        initializeWorklogSuggestions(input);
     });
 }
 
@@ -767,13 +763,6 @@ async function toggleStar(issueId, options) {
         
         // ⭐️ Re-run your frequent-worklog setup after the new table is in the DOM
         insertFrequentWorklogDescription(options);
-
-        // Re-initialize worklog suggestions for all comment inputs if experimental features are enabled
-        if (options.experimentalFeatures) {
-            document.querySelectorAll('.issue-comment-input').forEach(input => {
-                initializeWorklogSuggestions(input);
-            });
-        }
 
     } catch (err) {
         console.error('Error fetching issues after star update:', err);

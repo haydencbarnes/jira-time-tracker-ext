@@ -82,30 +82,18 @@ async function onDOMContentLoaded() {
     
     insertFrequentWorklogDescription(options);
 
-    // Initialize worklog suggestions for description field if experimental features are enabled
-    if (options.experimentalFeatures) {
-      const descriptionField = document.getElementById('description');
-      if (descriptionField) {
-        initializeWorklogSuggestions(descriptionField);
-      }
-    }
+  // Initialize worklog suggestions for description field
+  const descriptionField = document.getElementById('description');
+  if (descriptionField) {
+    initializeWorklogSuggestions(descriptionField);
+  }
   });
 
   const datePicker = document.getElementById('datePicker');
   datePicker.value = new Date().toISOString().split('T')[0];
 
   chrome.storage.onChanged.addListener(function(changes, namespace) {
-    if (namespace === 'sync' && 'experimentalFeatures' in changes) {
-      // Reload the page when experimental features setting changes
-      chrome.storage.sync.get(['experimentalFeatures'], function(result) {
-        if (result.experimentalFeatures) {
-          const descriptionField = document.getElementById('description');
-          if (descriptionField && typeof initializeWorklogSuggestions === 'function') {
-            initializeWorklogSuggestions(descriptionField);
-          }
-        }
-      });
-    }
+    // no-op for experimentalFeatures; more will be added later
   });
 }
 

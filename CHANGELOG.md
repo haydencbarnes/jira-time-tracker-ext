@@ -1,3 +1,8 @@
+## 1.4.1 (Aug 14, 2025)
+- Options: Added a top-right "Report bug" button and ensured it uses the extension blue. Moved it outside the settings table to preserve layout.
+- Options: Made the branding bar sticky (fixed to bottom) and allowed the options content to scroll behind with proper bottom padding.
+- UX: Worklog autosuggestions are now always enabled across Popup, Search, and Timer (no longer gated by Experimental Features).
+
 ## 1.4.0 (Aug 08, 2025)
 - NEW! Feature: Added a CLI tab for natural language time entry.
   - Batch logging (semicolon or new lines)
