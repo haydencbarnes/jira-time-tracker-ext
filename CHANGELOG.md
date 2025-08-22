@@ -1,3 +1,6 @@
+## 1.4.2 (Aug 21, 2025)
+- UX: Adjusted the width of the Jira ID column in the popup table to be better aligned with the other columns.
+
 ## 1.4.1 (Aug 14, 2025)
 - Options: Added a top-right "Report bug" button and ensured it uses the extension blue. Moved it outside the settings table to preserve layout.
 - Options: Made the branding bar sticky (fixed to bottom) and allowed the options content to scroll behind with proper bottom padding.
