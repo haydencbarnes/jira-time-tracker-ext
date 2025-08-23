@@ -224,8 +224,8 @@
           jiraTypeSelect.dispatchEvent(new Event('change'));
 
           const apiExtension = items.jiraType === 'cloud' ? '/rest/api/3' : '/rest/api/2';
-          const jira = await JiraAPI(items.jiraType, items.baseUrl, apiExtension, items.username, items.apiToken, items.jql);
-          const issues = await jira.getIssues(items.jql);
+          const jira = await JiraAPI(items.jiraType, items.baseUrl, items.username, items.apiToken);
+          const issues = await jira.getIssues(0, items.jql);
         });
     }
 })();
