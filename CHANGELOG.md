@@ -1,3 +1,14 @@
+## 1.4.4 (Aug 23, 2025)
+- Feature: Timer redesign with enhanced controls and time editing functionality
+  - Redesigned timer controls layout with improved visual hierarchy
+  - Added inline time editing capability - click edit icon to modify time directly
+  - Enhanced comment toggle functionality with collapsible comment section
+  - Improved timer display format (now shows "1h 05m 30s" instead of "01:05:30")
+  - Better visual feedback for active timer state with animation improvements
+  - Updated button icons and improved accessibility
+  - Enhanced dark mode support for new timer controls
+  - Streamlined UI with better space utilization and modern design
+
 ## 1.4.3 (Aug 23, 2025)
 - Bug fix: Fixed Jira search URL construction in Settings; corrected JQL and pagination parameters to remove 400 errors on Settings page. See [#14](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/14).
 

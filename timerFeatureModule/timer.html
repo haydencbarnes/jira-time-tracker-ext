@@ -12,7 +12,10 @@
             margin: 0;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            padding: 10px;
+            padding-bottom: 60px; /* Add space for footer */
+            position: relative;
+            box-sizing: border-box;
         }
 
         a {
@@ -48,13 +51,7 @@
         .kofi-btn:hover .kofi-cup { animation: kofi-pop 0.4s ease-out; }
         @keyframes kofi-pop { 0%{transform:translateY(0) scale(1)} 50%{transform:translateY(-2px) scale(1.15)} 100%{transform:translateY(0) scale(1)} }
 
-        .container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-            padding-bottom: 60px; /* Add space for footer */
-        }
+
 
         table {
             width: 100%;
@@ -251,11 +248,15 @@
         #timer-animation {
             width: 100%;
             height: 4px;
-            margin-bottom: 8px;
+            margin-bottom: 0;
             display: none;
             background-size: 200% auto;
             animation: slide 2s linear infinite;
             background-image: linear-gradient(to right, #0052CC 0%, #0052CC 20%, #e0e0e0 20%, #e0e0e0 100%);
+        }
+        
+        #timer-animation.active {
+            margin-bottom: 8px;
         }
 
         @keyframes slide {
@@ -574,60 +575,203 @@
             color: #666;
         }
 
+        /* New controls layout */
+        #controls {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            height: 48px;
+        }
+        
+        #controls > * {
+            height: 48px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 0;
+        }
+        
+        #timer {
+            flex: 3;
+            font-size: 18px;
+            text-align: center;
+            border: 1px solid #ddd;
+            background: #fff;
+            font-weight: bold;
+            padding: 0 12px;
+        }
+        
+        #startStop {
+            flex: 0 0 40px;
+            width: 40px;
+            background: #0052CC;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        #editTime,
+        #reset,
+        #toggleComment {
+            flex: 0 0 40px;
+            width: 40px;
+            background: #e0e0e0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        #startStop .material-icons,
+        #editTime .material-icons,
+        #reset .material-icons,
+        #toggleComment .material-icons {
+            font-size: 16px;
+            font-weight: 400;
+        }
+        
+        #startStop:hover {
+            background: #0041a8;
+        }
+
+        #editTime:hover,
+        #reset:hover,
+        #toggleComment:hover {
+            background: #d4d4d4;
+        }
+
+        #toggleComment.active {
+            background: #0052CC;
+            color: #fff;
+        }
+        
+        #logTime {
+            flex: 1;
+            background: #0052CC;
+            color: #fff;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        #logTime:hover {
+            background: #0041a8;
+        }
+        
+        body.dark-mode #timer {
+            background-color: #1A1A1A;
+            color: #e0e0e0;
+            border: 1px solid #333;
+        }
+        
+        body.dark-mode #startStop,
+        body.dark-mode #logTime {
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode #editTime,
+        body.dark-mode #reset,
+        body.dark-mode #toggleComment {
+            background: #333;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode #startStop:hover,
+        body.dark-mode #logTime:hover {
+            background: #5E9FE3;
+        }
+
+        body.dark-mode #editTime:hover,
+        body.dark-mode #reset:hover,
+        body.dark-mode #toggleComment:hover {
+            background: #444;
+        }
+
+        body.dark-mode #toggleComment.active {
+            background: #4690DD;
+            color: #1A1A1A;
+        }
+
+        body.dark-mode #commentContainer {
+            background-color: #1A1A1A;
+            border: 1px solid #333;
+        }
+
+        /* Comment container static under controls */
+        #commentContainer {
+            display: none;
+            margin-top: 8px;
+            width: 100%;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        #commentContainer.show {
+            display: flex;
+        }
+
     </style>
 </head>
 
 <body>
     <div id="error"></div>
     <div id="success"></div>
-    <div class="container">
-        <div id="timer-animation"></div>
-        <table>
-            <tr>
-                <td><label for="projectId">Project Id</label></td>
-                <td>
-                    <div class="input-wrapper">
-                        <input type="text" id="projectId" class="autocomplete-input" placeholder="Type to search projects">
-                        <span class="dropdown-arrow">&#9662;</span>
-                        <ul class="autocomplete-list" id="projectList"></ul>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td><label for="issueKey">Issue Key</label></td>
-                <td>
-                    <div class="input-wrapper">
-                        <input type="text" id="issueKey" class="autocomplete-input" placeholder="Type to search issues">
-                        <span class="dropdown-arrow">&#9662;</span>
-                        <ul class="autocomplete-list" id="issueList"></ul>
-                    </div>
-                </td>
-            </tr>
-        </table>
-        
-        <div id="timer">00:00:00</div>
-        <div class="button-container">
-            <button id="add15min" class="time-button">+ 15 min</button>
-            <button id="add30min" class="time-button">+ 30 min</button>
-            <button id="add1hr" class="time-button">+ 1 hr</button>
-        </div>
-        <div id="startStop-reset-container">
-            <button id="startStop">
-                <span class="material-icons" id="startStopIcon">play_arrow</span>
-            </button>
-            <button id="reset">
-                <span class="material-icons">refresh</span>
-            </button>
-        </div>
+    <div id="timer-animation"></div>
+    <table>
+        <tr>
+            <td><label for="projectId">Project ID</label></td>
+            <td>
+                <div class="input-wrapper">
+                    <input type="text" id="projectId" class="autocomplete-input" placeholder="Type to search projects">
+                    <span class="dropdown-arrow">&#9662;</span>
+                    <ul class="autocomplete-list" id="projectList"></ul>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td><label for="issueKey">Work Item ID</label></td>
+            <td>
+                <div class="input-wrapper">
+                    <input type="text" id="issueKey" class="autocomplete-input" placeholder="Type to search issues">
+                    <span class="dropdown-arrow">&#9662;</span>
+                    <ul class="autocomplete-list" id="issueList"></ul>
+                </div>
+            </td>
+        </tr>
+    </table>
+    
+    <div id="controls">
+        <input id="timer" type="text" value="0h 00m 00s" readonly>
+        <button id="startStop">
+            <span class="material-icons" id="startStopIcon">play_arrow</span>
+        </button>
+        <button id="editTime" class="icon-button">
+            <span class="material-icons">edit</span>
+        </button>
+        <button id="reset">
+            <span class="material-icons">delete</span>
+        </button>
+        <button id="toggleComment" class="icon-button">
+            <span class="material-icons">chat_bubble</span>
+        </button>
+        <button id="logTime" class="log-button">Log</button>
+    </div>
 
-        <div class="input-container">
-            <div class="suggestion-container" style="position: relative; flex: 1;">
-                <textarea id="description" placeholder="Describe your work, magic, or craft"></textarea>
-            </div>
-            <button id="frequentWorklogDescription1">1</button>
-            <button id="frequentWorklogDescription2">2</button>
+    <div id="commentContainer" class="input-container">
+        <div class="suggestion-container" style="position: relative; flex: 1;">
+            <textarea id="description" placeholder="Describe your work, magic, or craft"></textarea>
         </div>
-        <button id="logTime" style="margin-top: 10px;">Submit</button>
+        <button id="frequentWorklogDescription1">1</button>
+        <button id="frequentWorklogDescription2">2</button>
     </div>
 
     <div id="brand">
