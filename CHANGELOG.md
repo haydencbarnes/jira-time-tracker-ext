@@ -1,3 +1,6 @@
+## 1.4.3 (Aug 23, 2025)
+- Bug fix: Fixed Jira search URL construction in Settings; corrected JQL and pagination parameters to remove 400 errors on Settings page. See [#14](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/14).
+
 ## 1.4.2 (Aug 21, 2025)
 - UX: Adjusted the width of the Jira ID column in the popup table to be better aligned with the other columns.
 
