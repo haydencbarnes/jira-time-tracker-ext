@@ -574,6 +574,23 @@
             color: #666;
         }
 
+        /* New controls layout */
+        #controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .icon-button {
+            width: 36px;
+            padding: 6px;
+            font-size: 16px;
+        }
+        .log-button {
+            flex: 1;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 
@@ -584,7 +601,7 @@
         <div id="timer-animation"></div>
         <table>
             <tr>
-                <td><label for="projectId">Project Id</label></td>
+                <td><label for="projectId">Project ID</label></td>
                 <td>
                     <div class="input-wrapper">
                         <input type="text" id="projectId" class="autocomplete-input" placeholder="Type to search projects">
@@ -594,7 +611,7 @@
                 </td>
             </tr>
             <tr>
-                <td><label for="issueKey">Issue Key</label></td>
+                <td><label for="issueKey">Work Item ID</label></td>
                 <td>
                     <div class="input-wrapper">
                         <input type="text" id="issueKey" class="autocomplete-input" placeholder="Type to search issues">
@@ -605,29 +622,30 @@
             </tr>
         </table>
         
-        <div id="timer">00:00:00</div>
-        <div class="button-container">
-            <button id="add15min" class="time-button">+ 15 min</button>
-            <button id="add30min" class="time-button">+ 30 min</button>
-            <button id="add1hr" class="time-button">+ 1 hr</button>
-        </div>
-        <div id="startStop-reset-container">
-            <button id="startStop">
+        <input id="timer" type="text" value="0h 00m 00s" readonly>
+        <div id="controls">
+            <button id="startStop" class="icon-button">
                 <span class="material-icons" id="startStopIcon">play_arrow</span>
             </button>
-            <button id="reset">
-                <span class="material-icons">refresh</span>
+            <button id="editTime" class="icon-button">
+                <span class="material-icons">edit</span>
             </button>
+            <button id="reset" class="icon-button">
+                <span class="material-icons">delete</span>
+            </button>
+            <button id="toggleComment" class="icon-button">
+                <span class="material-icons">chat_bubble</span>
+            </button>
+            <button id="logTime" class="log-button">Log</button>
         </div>
 
-        <div class="input-container">
+        <div id="commentContainer" class="input-container" style="display:none;">
             <div class="suggestion-container" style="position: relative; flex: 1;">
                 <textarea id="description" placeholder="Describe your work, magic, or craft"></textarea>
             </div>
             <button id="frequentWorklogDescription1">1</button>
             <button id="frequentWorklogDescription2">2</button>
         </div>
-        <button id="logTime" style="margin-top: 10px;">Submit</button>
     </div>
 
     <div id="brand">
