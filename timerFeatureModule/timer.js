@@ -31,7 +31,9 @@ async function onDOMContentLoaded() {
     apiToken: '',
     baseUrl: '',
     projectId: '',
+    projectName: '',
     issueKey: '',
+    issueTitle: '',
     username: '',
     jiraType: 'server',
     frequentWorklogDescription1: '',
@@ -45,12 +47,25 @@ async function onDOMContentLoaded() {
     document.getElementById('startStop').addEventListener('click', toggleTimer);
     document.getElementById('reset').addEventListener('click', resetTimer);
     document.getElementById('logTime').addEventListener('click', logTimeClick);
+    
+    const toggleCommentBtn = document.getElementById('toggleComment');
+    if (toggleCommentBtn) {
+      toggleCommentBtn.addEventListener('click', toggleCommentVisibility);
+    }
+    const editTimeBtn = document.getElementById('editTime');
+    if (editTimeBtn) {
+      editTimeBtn.addEventListener('click', startTimeEditing);
+    }
 
     // Restore saved project and issue
-    if (options.projectId) {
+    if (options.projectId && options.projectName) {
+      document.getElementById('projectId').value = `${options.projectId}: ${options.projectName}`;
+    } else if (options.projectId) {
       document.getElementById('projectId').value = options.projectId;
     }
-    if (options.issueKey) {
+    if (options.issueKey && options.issueTitle) {
+      document.getElementById('issueKey').value = `${options.issueKey}: ${options.issueTitle}`;
+    } else if (options.issueKey) {
       document.getElementById('issueKey').value = options.issueKey;
     }
 
@@ -160,12 +175,21 @@ async function setupAutocomplete(JIRA) {
       let issuesResponse = await JIRA.getIssues(0, jql);
       let issues = issuesResponse.data;
       autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary}`), issueList, (selectedIssue) => {
-        chrome.storage.sync.set({ issueKey: selectedIssue.split(':')[0].trim() });
+        const issueKey = selectedIssue.split(':')[0].trim();
+        const issueTitle = selectedIssue.substring(selectedIssue.indexOf(':') + 1).trim();
+        chrome.storage.sync.set({ 
+          issueKey: issueKey,
+          issueTitle: issueTitle
+        });
         issueInput.value = selectedIssue;
       });
     }
-    // Save selected project
-    chrome.storage.sync.set({ projectId: selectedKey });
+    // Save selected project with name
+    const projectName = selectedProject.name;
+    chrome.storage.sync.set({ 
+      projectId: selectedKey,
+      projectName: projectName
+    });
   });
 }
 
@@ -284,11 +308,13 @@ function toggleTimer() {
     clearInterval(timer);
     startStopIcon.textContent = 'play_arrow';
     timerAnimation.style.display = 'none';
+    timerAnimation.classList.remove('active');
     chrome.runtime.sendMessage({ action: 'stopTimer' });
   } else {
     timer = setInterval(updateTimer, 1000);
-    startStopIcon.textContent = 'stop';
+    startStopIcon.textContent = 'pause';
     timerAnimation.style.display = 'block';
+    timerAnimation.classList.add('active');
     chrome.runtime.sendMessage({ action: 'startTimer', seconds: seconds });
   }
 
@@ -309,8 +335,10 @@ function updateTimerDisplay() {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  document.getElementById('timer').textContent = 
-    `${pad(hours)}:${pad(minutes)}:${pad(secs)}`;
+  const timerInput = document.getElementById('timer');
+  if (timerInput) {
+    timerInput.value = `${hours}h ${pad(minutes)}m ${pad(secs)}s`;
+  }
 }
 
 function resetTimer() {
@@ -322,12 +350,165 @@ function resetTimer() {
   const timerAnimation = document.getElementById('timer-animation');
   startStopIcon.textContent = 'play_arrow';
   timerAnimation.style.display = 'none';
+  timerAnimation.classList.remove('active');
   chrome.runtime.sendMessage({ action: 'resetTimer' });
   chrome.storage.sync.remove(['timerSeconds', 'timerIsRunning', 'timerLastUpdated']);
 }
 
 function pad(num) {
   return num.toString().padStart(2, '0');
+}
+
+// Handle editable time
+let _preEditSeconds = 0;
+function startTimeEditing() {
+  if (isRunning) {
+    displayError('Pause the timer before editing time.');
+    return;
+  }
+  const timerInput = document.getElementById('timer');
+  if (!timerInput) return;
+  _preEditSeconds = seconds;
+  timerInput.readOnly = false;
+  timerInput.focus();
+  timerInput.select();
+
+  const onBlur = () => applyTimeEditCleanup(true);
+  const onKey = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyTimeEditCleanup(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      seconds = _preEditSeconds;
+      updateTimerDisplay();
+      applyTimeEditCleanup(false);
+    }
+  };
+
+  function applyTimeEditCleanup(apply) {
+    timerInput.removeEventListener('blur', onBlur);
+    timerInput.removeEventListener('keydown', onKey);
+    if (apply) {
+      const parsed = parseTimeString(timerInput.value);
+      if (parsed !== null) {
+        seconds = parsed;
+        updateTimerDisplay();
+        saveTimerState();
+      } else {
+        // revert on invalid
+        seconds = _preEditSeconds;
+        updateTimerDisplay();
+        displayError('Invalid time. Use format like 1h 05m 30s.');
+      }
+    }
+    timerInput.readOnly = true;
+  }
+
+  timerInput.addEventListener('blur', onBlur);
+  timerInput.addEventListener('keydown', onKey);
+}
+
+function parseTimeString(text) {
+  if (!text) return null;
+  const normalized = text.trim().toLowerCase();
+  const regex = /^(?:\s*(\d+)\s*h)?\s*(?:([0-5]?\d)\s*m)?\s*(?:([0-5]?\d)\s*s)?\s*$/i;
+  const match = normalized.match(regex);
+  if (!match) return null;
+  const h = parseInt(match[1] || '0', 10);
+  const m = parseInt(match[2] || '0', 10);
+  const s = parseInt(match[3] || '0', 10);
+  if (Number.isNaN(h) || Number.isNaN(m) || Number.isNaN(s)) return null;
+  if (m > 59 || s > 59) return null;
+  return h * 3600 + m * 60 + s;
+}
+
+function toggleCommentVisibility() {
+  const container = document.getElementById('commentContainer');
+  const button = document.getElementById('toggleComment');
+  if (!container) return;
+  const showing = !container.classList.contains('show');
+  if (showing) {
+    container.classList.add('show');
+    button.classList.add('active');
+  } else {
+    container.classList.remove('show');
+    button.classList.remove('active');
+  }
+  document.dispatchEvent(new CustomEvent('commentContainerVisibilityChanged', { detail: { shown: showing } }));
+}
+
+function insertFrequentWorklogDescription(options) {
+  const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1');
+  const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2');
+  const descriptionField = document.getElementById('description');
+
+  if (!descriptionField) {
+    console.error('Description field not found');
+    return;
+  }
+
+  function hideButtons() {
+    if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'none';
+    if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'none';
+  }
+
+  function showButtons() {
+    if (frequentWorklogDescription1 && options.frequentWorklogDescription1) {
+      frequentWorklogDescription1.style.display = 'block';
+    }
+    if (frequentWorklogDescription2 && options.frequentWorklogDescription2) {
+      frequentWorklogDescription2.style.display = 'block';
+    }
+  }
+
+  // Attach click handlers
+  if (frequentWorklogDescription1 && options.frequentWorklogDescription1) {
+    frequentWorklogDescription1.addEventListener('click', function() {
+      descriptionField.value = options.frequentWorklogDescription1;
+      hideButtons();
+    });
+  }
+  if (frequentWorklogDescription2 && options.frequentWorklogDescription2) {
+    frequentWorklogDescription2.addEventListener('click', function() {
+      descriptionField.value = options.frequentWorklogDescription2;
+      hideButtons();
+    });
+  }
+
+  descriptionField.addEventListener('input', function() {
+    if (descriptionField.value === '') {
+      showButtons();
+    } else {
+      hideButtons();
+    }
+  });
+
+  // React when the comment container is shown/hidden
+  document.addEventListener('commentContainerVisibilityChanged', (e) => {
+    if (e.detail && e.detail.shown) {
+      if (descriptionField.value === '') {
+        showButtons();
+      } else {
+        hideButtons();
+      }
+    } else {
+      hideButtons();
+    }
+  });
+
+  // Initialize state only when container is visible at load
+  const container = document.getElementById('commentContainer');
+  const containerShown = container && container.classList.contains('show');
+  if (containerShown) {
+    if (descriptionField.value !== '') {
+      hideButtons();
+    } else {
+      showButtons();
+    }
+  } else {
+    hideButtons();
+  }
 }
 
 async function logTimeClick() {
@@ -416,97 +597,18 @@ function restoreTimerState() {
     const timerAnimation = document.getElementById('timer-animation');
     if (isRunning) {
       timer = setInterval(updateTimer, 1000);
-      startStopIcon.textContent = 'stop';
+      startStopIcon.textContent = 'pause';
       timerAnimation.style.display = 'block';
+      timerAnimation.classList.add('active');
       chrome.runtime.sendMessage({ action: 'startTimer', seconds: seconds });
     } else {
       startStopIcon.textContent = 'play_arrow';
       timerAnimation.style.display = 'none';
+      timerAnimation.classList.remove('active');
     }
   });
 }
 
-document.getElementById('add15min').addEventListener('click', function() {
-  addTime(15 * 60);  // Add 15 minutes in seconds
-});
-
-document.getElementById('add30min').addEventListener('click', function() {
-  addTime(30 * 60);  // Add 30 minutes in seconds
-});
-
-document.getElementById('add1hr').addEventListener('click', function() {
-  addTime(60 * 60);  // Add 1 hour in seconds
-});
-
-function addTime(secondsToAdd) {
-  seconds += secondsToAdd;
-  updateTimerDisplay();
-  chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
-  saveTimerState();
-}
-
-function insertFrequentWorklogDescription(options) {
-  const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1');
-  const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2');
-  const descriptionField = document.getElementById('description');
-  
-  if (!descriptionField) {
-    console.error('Description field not found');
-    return;
-  }
-  
-  function hideButtons() {
-    if (frequentWorklogDescription1) frequentWorklogDescription1.style.display = 'none';
-    if (frequentWorklogDescription2) frequentWorklogDescription2.style.display = 'none';
-  }
-  
-  function showButtons() {
-    if (frequentWorklogDescription1 && options.frequentWorklogDescription1) {
-      frequentWorklogDescription1.style.display = 'block';
-    }
-    if (frequentWorklogDescription2 && options.frequentWorklogDescription2) {
-      frequentWorklogDescription2.style.display = 'block';
-    }
-  }
-  
-  // Initially hide buttons if no descriptions are set
-  if (!options.frequentWorklogDescription1 && !options.frequentWorklogDescription2) {
-    hideButtons();
-    return;
-  }
-  
-  if (frequentWorklogDescription1 && options.frequentWorklogDescription1) {
-    frequentWorklogDescription1.addEventListener('click', function() {
-      descriptionField.value = options.frequentWorklogDescription1;
-      console.log('frequentWorklogDescription1 clicked');
-      hideButtons();
-    });
-  }
-  
-  if (frequentWorklogDescription2 && options.frequentWorklogDescription2) {
-    frequentWorklogDescription2.addEventListener('click', function() {
-      descriptionField.value = options.frequentWorklogDescription2;
-      console.log('frequentWorklogDescription2 clicked');
-      hideButtons();
-    });
-  }
-  
-  descriptionField.addEventListener('input', function() {
-    console.log('User started typing in the description field');
-    if (descriptionField.value === '') {
-      showButtons();
-    } else {
-      hideButtons();
-    }
-  });
-  
-  // Check initial description field state
-  if (descriptionField.value !== '') {
-    hideButtons();
-  } else {
-    showButtons();
-  }
-}
 
 function syncTimeWithBackground() {
   chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
