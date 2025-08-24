@@ -167,6 +167,8 @@
             font-size: 11px;
             border-radius: 4px;
             font-family: Arial, sans-serif;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .issue-log-date-input:focus {
@@ -801,6 +803,21 @@
             color: #90ee90; /* Lighter green for dark mode */
             background-color: rgba(46, 139, 87, 0.5);
         }
+
+        /* Increase spacing between Comment (5th) and Date (6th) columns to reduce visual gap */
+        #jira-log-time-table th:nth-child(5),
+        #jira-log-time-table td:nth-child(5) {
+            padding-right: 2px;
+        }
+        #jira-log-time-table th:nth-child(6),
+        #jira-log-time-table td:nth-child(6) {
+            padding-left: 2px;
+            padding-right: 2px; /* Reduce gap to Log button */
+        }
+        #jira-log-time-table th:nth-child(7),
+        #jira-log-time-table td:nth-child(7) {
+            padding-left: 2px; /* Reduce gap from Date column */
+        }
     </style>
 </head>
 
@@ -812,17 +829,17 @@
         <table id="jira-log-time-table">
             <thead>
               <tr>
-                <th width="17.25%">
+                <th width="18.25%">
                   <img src="src/icons/jira_logo.png" alt="Jira Logo"
                        style="vertical-align: middle; margin-right: 8px; width:16px; height:16px;">
                   Jira ID
                 </th>
-                <th width="28.75%">Summary</th>
-                <th width="9%">Total</th>
+                <th width="29.75%">Summary</th>
+                <th width="10%">Total</th>
                 <th width="5%">Log</th>
                 <th width="19%">Comment</th>
                 <th width="14%">Date</th>
-                <th width="7%"></th>
+                <th width="4%"></th>
               </tr>
             </thead>
             <!-- <tbody> is created dynamically popup.js -->

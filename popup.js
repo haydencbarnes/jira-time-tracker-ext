@@ -572,7 +572,7 @@ function generateLogTableRow(id, summary, worklog, options) {
     // 7) Submit button cell
     const actionButton = buildHTML('input', null, {
         type: 'button',
-        value: 'Log ↩',
+        value: '⇡',
         class: 'issue-log-time-btn',
         'data-issue-id': id
     });
