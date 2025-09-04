@@ -42,11 +42,27 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
     }
 
     async function getIssues(begin = 0, jql) {
-        const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project&maxResults=500&startAt=${begin}`;
-        console.log(`Requesting issues from: ${endpoint}`);
-        const response = await apiRequest(endpoint, 'GET');
-        console.log(`Response from Jira:`, response);
-        return handleIssueResp(response);
+        // Cloud has migrated to /search/jql (POST). Server/DC keeps /search (GET)
+        if (isJiraCloud) {
+            const endpoint = `/search/jql`;
+            const body = {
+                jql,
+                fields: ["summary", "parent", "project"],
+                maxResults: 500
+                // NOTE: New API uses token-based pagination. We intentionally
+                // do not send startAt here to avoid 400s. begin is ignored for Cloud.
+            };
+            console.log(`Requesting issues from: ${endpoint} (POST /search/jql)`);
+            const response = await apiRequest(endpoint, 'POST', body);
+            console.log(`Response from Jira:`, response);
+            return handleIssueResp(response);
+        } else {
+            const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project&maxResults=500&startAt=${begin}`;
+            console.log(`Requesting issues from: ${endpoint}`);
+            const response = await apiRequest(endpoint, 'GET');
+            console.log(`Response from Jira:`, response);
+            return handleIssueResp(response);
+        }
     }
 
     async function getIssueWorklog(id) {
@@ -220,18 +236,21 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
     }    
 
     function handleIssueResp(resp) {
-        if (!resp?.issues) {
+        // Support both classic and new JQL service shapes
+        const issues = resp?.issues || resp?.results || resp?.data?.issues || [];
+        if (!Array.isArray(issues)) {
             console.error("Invalid issue response format:", resp);
             return { total: 0, data: [] };
         }
+        const total = typeof resp?.total === 'number' ? resp.total : issues.length;
         return {
-            total: resp.total,
-            data: resp.issues.map(issue => ({
+            total,
+            data: issues.map(issue => ({
                 key: issue.key,
                 fields: {
-                    summary: issue.fields.summary,
-                    project: issue.fields.project,
-                    worklog: issue.fields.worklog || { worklogs: [] }
+                    summary: issue.fields?.summary,
+                    project: issue.fields?.project,
+                    worklog: issue.fields?.worklog || { worklogs: [] }
                 }
             }))
         };

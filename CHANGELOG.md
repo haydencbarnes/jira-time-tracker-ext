@@ -1,3 +1,7 @@
+## 1.4.5 (Sep 04, 2025)
+- Fix: Migrated Jira Cloud search to POST `/rest/api/3/search/jql` per Atlassian removal of the old `/search` endpoint (410 errors). This restores issue fetching on Cloud and future-proofs the extension.
+- Chore: Hardened issue parsing to support both legacy and new JQL service response shapes.
+
 ## 1.4.4 (Aug 23, 2025)
 - Feature: Timer redesign with enhanced controls and time editing functionality
   - Redesigned timer controls layout with improved visual hierarchy
