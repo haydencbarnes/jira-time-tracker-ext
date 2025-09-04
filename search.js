@@ -103,6 +103,8 @@ async function init(options) {
   try {    
     // Initialize the JIRA API with the provided options
     const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+    // Expose for autocomplete suggestions
+    window.JIRA = JIRA;
     console.log("JIRA API Object initialized:", JIRA);
 
     if (!JIRA || typeof JIRA.getProjects !== 'function' || typeof JIRA.getIssues !== 'function') {
@@ -139,10 +141,29 @@ async function setupAutocomplete(JIRA) {
     let selectedKey = selected.split(':')[0].trim();
     let selectedProject = projectMap.get(selectedKey);
     if (selectedProject) {
-      let jql = `project=${selectedProject.key}`;
-      let issuesResponse = await JIRA.getIssues(0, jql);
-      let issues = issuesResponse.data;
-      autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary || ''}`), issueList);
+      let jql = `project = ${selectedProject.key}`;
+      // Load first page immediately for responsiveness
+      let page = await JIRA.getIssuesPage(jql, null, 100);
+      let issueItems = page.data.map(i => `${i.key}: ${i.fields.summary || ''}`);
+      // Wire autocomplete with a live array reference
+      autocomplete(issueInput, issueItems, issueList);
+      // Infinite scroll and dynamic refresh
+      let loadingMore = false;
+      let nextCursor = page.nextCursor;
+      issueList.addEventListener('scroll', async () => {
+        if (loadingMore || !nextCursor) return;
+        const nearBottom = issueList.scrollTop + issueList.clientHeight >= issueList.scrollHeight - 20;
+        if (!nearBottom) return;
+        loadingMore = true;
+        const nextPage = await JIRA.getIssuesPage(jql, nextCursor, 100);
+        nextCursor = nextPage.nextCursor;
+        const more = nextPage.data.map(i => `${i.key}: ${i.fields.summary || ''}`);
+        issueItems.push(...more);
+        // Ask autocomplete to refresh with current input
+        const evt = new Event('refreshDropdown', { bubbles: true });
+        issueInput.dispatchEvent(evt);
+        loadingMore = false;
+      });
     }
   });
 }
@@ -177,7 +198,12 @@ function autocomplete(inp, arr, listElement, onSelect = null) {
     }
   });
 
-  function showDropdown(val) {
+  // Allow external trigger to re-render with current input and updated arr
+  inp.addEventListener("refreshDropdown", function(e) {
+    showDropdown(inp.value || '');
+  });
+
+  async function showDropdown(val) {
     closeAllLists();
     currentFocus = -1;
     isOpen = true;
@@ -185,6 +211,27 @@ function autocomplete(inp, arr, listElement, onSelect = null) {
     let matches = arr.filter(item => item.toLowerCase().includes(val.toLowerCase()));
     if (matches.length === 0 && !val) {
       matches = arr; // Show all options if input is empty
+    }
+    // If user typed something and we have few/no local matches, query server suggestions
+    if (val && matches.length < 5 && typeof window.JIRA === 'object' && inp.id === 'issueKey') {
+      try {
+        const projectInput = document.getElementById('projectId');
+        const selectedKey = projectInput && projectInput.value ? projectInput.value.split(':')[0].trim() : null;
+        const suggestions = await window.JIRA.getIssueSuggestions(val, selectedKey);
+        const suggestionItems = suggestions.data.map(i => `${i.key}: ${i.fields.summary || ''}`);
+        // Merge, prefer suggestions
+        const merged = [...suggestionItems, ...matches];
+        // De-dup
+        const seen = new Set();
+        matches = merged.filter(x => {
+          const k = x.split(':')[0].trim();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      } catch (e) {
+        // ignore suggestions errors, fall back to local
+      }
     }
     matches.forEach(item => {
       let li = document.createElement("li");

@@ -35,7 +35,7 @@ async function onDOMContentLoaded() {
     issueKey: '',
     issueTitle: '',
     username: '',
-    jiraType: 'server',
+    jiraType: 'cloud',
     frequentWorklogDescription1: '',
     frequentWorklogDescription2: '',
     darkMode: false,
@@ -171,10 +171,11 @@ async function setupAutocomplete(JIRA) {
     let selectedKey = selected.split(':')[0].trim();
     let selectedProject = projectMap.get(selectedKey);
     if (selectedProject) {
-      let jql = `project=${selectedProject.key}`;
-      let issuesResponse = await JIRA.getIssues(0, jql);
-      let issues = issuesResponse.data;
-      autocomplete(issueInput, issues.map(i => `${i.key}: ${i.fields.summary}`), issueList, (selectedIssue) => {
+      let jql = `project = ${selectedProject.key}`;
+      // First page for responsiveness
+      let page = await JIRA.getIssuesPage(jql, null, 100);
+      let issueItems = page.data.map(i => `${i.key}: ${i.fields.summary}`);
+      autocomplete(issueInput, issueItems, issueList, (selectedIssue) => {
         const issueKey = selectedIssue.split(':')[0].trim();
         const issueTitle = selectedIssue.substring(selectedIssue.indexOf(':') + 1).trim();
         chrome.storage.sync.set({ 
@@ -182,6 +183,23 @@ async function setupAutocomplete(JIRA) {
           issueTitle: issueTitle
         });
         issueInput.value = selectedIssue;
+      });
+      // Infinite scroll for more
+      let loadingMore = false;
+      let nextCursor = page.nextCursor;
+      issueList.addEventListener('scroll', async () => {
+        if (loadingMore || !nextCursor) return;
+        const nearBottom = issueList.scrollTop + issueList.clientHeight >= issueList.scrollHeight - 20;
+        if (!nearBottom) return;
+        loadingMore = true;
+        const nextPage = await JIRA.getIssuesPage(jql, nextCursor, 100);
+        nextCursor = nextPage.nextCursor;
+        const more = nextPage.data.map(i => `${i.key}: ${i.fields.summary}`);
+        issueItems.push(...more);
+        // Ask autocomplete to refresh with current input
+        const evt = new Event('refreshDropdown', { bubbles: true });
+        issueInput.dispatchEvent(evt);
+        loadingMore = false;
       });
     }
     // Save selected project with name
@@ -223,7 +241,7 @@ function autocomplete(inp, arr, listElement, onSelect = null) {
     }
   });
 
-  function showDropdown(val) {
+  async function showDropdown(val) {
     closeAllLists();
     currentFocus = -1;
     isOpen = true;
@@ -231,6 +249,25 @@ function autocomplete(inp, arr, listElement, onSelect = null) {
     let matches = arr.filter(item => item.toLowerCase().includes(val.toLowerCase()));
     if (matches.length === 0 && !val) {
       matches = arr; // Show all options if input is empty
+    }
+    // If user typed and few matches, query server suggestions for full set
+    if (val && matches.length < 5 && typeof JIRA === 'object' && inp.id === 'issueKey') {
+      try {
+        const projectInput = document.getElementById('projectId');
+        const selectedKey = projectInput && projectInput.value ? projectInput.value.split(':')[0].trim() : null;
+        const suggestions = await JIRA.getIssueSuggestions(val, selectedKey);
+        const suggestionItems = suggestions.data.map(i => `${i.key}: ${i.fields.summary}`);
+        const merged = [...suggestionItems, ...matches];
+        const seen = new Set();
+        matches = merged.filter(x => {
+          const k = x.split(':')[0].trim();
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      } catch (e) {
+        // ignore
+      }
     }
     matches.forEach(item => {
       let li = document.createElement("li");

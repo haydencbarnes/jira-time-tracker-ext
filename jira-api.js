@@ -26,6 +26,8 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         login,
         getIssue,
         getIssues,
+        getIssuesPage,
+        getIssueSuggestions,
         getIssueWorklog,
         updateWorklog,
         getProjects,
@@ -41,27 +43,157 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         return apiRequest(`/issue/${id}`);
     }
 
-    async function getIssues(begin = 0, jql) {
-        // Cloud has migrated to /search/jql (POST). Server/DC keeps /search (GET)
+    // Paged issues fetch for dropdowns/infinite scroll
+    async function getIssuesPage(jql, cursor = null, pageSize = 100) {
         if (isJiraCloud) {
             const endpoint = `/search/jql`;
             const body = {
-                jql,
-                fields: ["summary", "parent", "project"],
-                maxResults: 500
-                // NOTE: New API uses token-based pagination. We intentionally
-                // do not send startAt here to avoid 400s. begin is ignored for Cloud.
+                jql: jql || "",
+                maxResults: Math.min(pageSize, 100),
+                fields: ["summary", "parent", "project"]
             };
-            console.log(`Requesting issues from: ${endpoint} (POST /search/jql)`);
-            const response = await apiRequest(endpoint, 'POST', body);
-            console.log(`Response from Jira:`, response);
-            return handleIssueResp(response);
+            if (cursor) body.nextPageToken = cursor;
+            const resp = await apiRequest(endpoint, 'POST', body);
+            const issues = Array.isArray(resp?.issues) ? resp.issues : [];
+            return {
+                total: typeof resp?.total === 'number' ? resp.total : issues.length,
+                data: issues.map(issue => ({
+                    key: issue.key,
+                    fields: {
+                        summary: issue.fields?.summary,
+                        project: issue.fields?.project
+                    }
+                })),
+                nextCursor: resp?.nextPageToken || null
+            };
         } else {
-            const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project&maxResults=500&startAt=${begin}`;
-            console.log(`Requesting issues from: ${endpoint}`);
-            const response = await apiRequest(endpoint, 'GET');
-            console.log(`Response from Jira:`, response);
-            return handleIssueResp(response);
+            const startAt = Number.isFinite(Number(cursor)) ? Number(cursor) : 0;
+            const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project&maxResults=${pageSize}&startAt=${startAt}`;
+            const resp = await apiRequest(endpoint, 'GET');
+            const issues = Array.isArray(resp?.issues) ? resp.issues : [];
+            const total = typeof resp?.total === 'number' ? resp.total : issues.length;
+            const nextStart = startAt + issues.length;
+            return {
+                total,
+                data: issues.map(issue => ({
+                    key: issue.key,
+                    fields: {
+                        summary: issue.fields?.summary,
+                        project: issue.fields?.project
+                    }
+                })),
+                nextCursor: nextStart < total ? String(nextStart) : null
+            };
+        }
+    }
+
+    // Issue picker suggestions for fast type-ahead across all pages
+    async function getIssueSuggestions(query, projectKey = null) {
+        if (!query || typeof query !== 'string') {
+            return { total: 0, data: [] };
+        }
+        let endpoint = `/issue/picker?query=${encodeURIComponent(query)}`;
+        if (projectKey) {
+            const currentJql = `project = ${projectKey}`;
+            endpoint += `&currentJQL=${encodeURIComponent(currentJql)}`;
+        }
+        const resp = await apiRequest(endpoint, 'GET');
+        const sections = Array.isArray(resp?.sections) ? resp.sections : [];
+        const flatIssues = [];
+        for (const section of sections) {
+            const issues = Array.isArray(section?.issues) ? section.issues : [];
+            for (const issue of issues) {
+                flatIssues.push({
+                    key: issue?.key,
+                    fields: {
+                        summary: issue?.summaryText || issue?.summary || '',
+                        project: null
+                    }
+                });
+            }
+        }
+        // De-duplicate by key while preserving order
+        const seen = new Set();
+        const unique = [];
+        for (const it of flatIssues) {
+            if (it.key && !seen.has(it.key)) {
+                seen.add(it.key);
+                unique.push(it);
+            }
+        }
+        return { total: unique.length, data: unique };
+    }
+
+    async function getIssues(begin = 0, jql) {
+        // Cloud has migrated to /search/jql (POST). Server/DC keeps /search (GET)
+        if (isJiraCloud) {
+            const defaultPageSize = 100; // Jira Cloud caps page size at 100
+            const hardCap = 10000; // user-requested high cap to effectively paginate all
+            // If called for simple project dropdown (e.g., "project = KEY"), avoid fetching thousands of issues
+            const isSimpleProjectQuery = typeof jql === 'string' && /^\s*project\s*=\s*[^\s]+\s*$/i.test(jql);
+            const dropdownLimit = 200;
+            const desiredLimit = Number.isFinite(begin) && begin > 0
+                ? Math.min(begin, hardCap)
+                : (isSimpleProjectQuery ? dropdownLimit : hardCap);
+            let aggregatedIssues = [];
+            let total = null;
+            let nextPageToken = null;
+
+            while (aggregatedIssues.length < desiredLimit) {
+                const remaining = desiredLimit - aggregatedIssues.length;
+                const pageSize = Math.min(defaultPageSize, remaining);
+                const resp = await fetchCloudSearchPage(jql, nextPageToken, pageSize);
+                // Extract issues
+                const pageIssues = Array.isArray(resp?.issues) ? resp.issues : [];
+                if (pageIssues.length === 0) break;
+
+                aggregatedIssues = aggregatedIssues.concat(pageIssues);
+                if (typeof resp?.total === 'number') total = resp.total;
+
+                if ((typeof total === 'number' && aggregatedIssues.length >= total) || aggregatedIssues.length >= desiredLimit) break;
+
+                if (resp?.nextPageToken) {
+                    nextPageToken = resp.nextPageToken;
+                } else {
+                    break;
+                }
+            }
+
+            const normalized = { total: total ?? aggregatedIssues.length, issues: aggregatedIssues.slice(0, desiredLimit) };
+            return handleIssueResp(normalized);
+        } else {
+            // Implement pagination for Server/DC as well
+            const pageSize = 1000; // typical Server/DC caps; adjust safely
+            const hardCap = 10000;
+            let startAt = Number.isFinite(begin) && begin > 0 ? begin : 0;
+            let aggregatedIssues = [];
+            let total = null;
+
+            while (aggregatedIssues.length < hardCap) {
+                const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project&maxResults=${pageSize}&startAt=${startAt}`;
+                console.log(`Requesting issues from: ${endpoint}`);
+                const resp = await apiRequest(endpoint, 'GET');
+                console.log(`Response from Jira:`, resp);
+
+                const pageIssues = Array.isArray(resp?.issues) ? resp.issues : [];
+                if (!Array.isArray(pageIssues) || pageIssues.length === 0) {
+                    break;
+                }
+
+                aggregatedIssues = aggregatedIssues.concat(pageIssues);
+                if (typeof resp?.total === 'number') {
+                    total = resp.total;
+                }
+
+                if ((typeof total === 'number' && startAt + pageIssues.length >= total) || aggregatedIssues.length >= hardCap) {
+                    break;
+                }
+
+                startAt += pageIssues.length;
+            }
+
+            const normalized = { total: total ?? aggregatedIssues.length, issues: aggregatedIssues };
+            return handleIssueResp(normalized);
         }
     }
 
@@ -171,6 +303,21 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
                         return diskHit;
                     }
                 }
+            } else if (method === 'POST' && endpoint.replace(/^\//,'').startsWith('search/jql')) {
+                // Cache POST /search/jql pages by payload to keep dropdowns snappy
+                const cacheKey = getPostSearchJqlCacheKey(url, data);
+                const ttl = DEFAULT_TTL_MS;
+                const memHit = getFromMemoryCache(cacheKey, ttl);
+                if (memHit !== null) {
+                    console.log(`Memory cache hit for ${endpoint} POST body`);
+                    return memHit;
+                }
+                const diskHit = await getFromCache(cacheKey, ttl);
+                if (diskHit !== null) {
+                    console.log(`Disk cache hit for ${endpoint} POST body`);
+                    setInMemoryCache(cacheKey, diskHit);
+                    return diskHit;
+                }
             }
 
             const response = await fetch(url, options);
@@ -189,6 +336,11 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
                     if (!url.includes('/worklog')) {
                         await setInCache(key, parsed);
                     }
+                } else if (method === 'POST' && endpoint.replace(/^\//,'').startsWith('search/jql')) {
+                    // Persist POST /search/jql results keyed by payload
+                    const cacheKey = getPostSearchJqlCacheKey(url, data);
+                    setInMemoryCache(cacheKey, parsed);
+                    await setInCache(cacheKey, parsed);
                 }
                 return parsed;
             } else {
@@ -201,6 +353,18 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         }
     }    
 
+    // Build a stable cache key for POST /search/jql by selecting canonical fields
+    function getPostSearchJqlCacheKey(url, body) {
+        const keyObj = {
+            url,
+            jql: body?.jql || '',
+            fields: Array.isArray(body?.fields) ? body.fields : [],
+            maxResults: body?.maxResults || 0,
+            nextPageToken: body?.nextPageToken || ''
+        };
+        return `POSTJQL:${JSON.stringify(keyObj)}`;
+    }
+
     function handleJiraResponseError(response, errorData) {
         const errorMsg = typeof errorData === 'string' 
             ? errorData 
@@ -210,6 +374,18 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
 
         console.error(`Error ${response.status}: ${errorMsg}`);
         throw new Error(`Error ${response.status}: ${errorMsg}`);
+    }
+
+    // Cloud: request issues page via POST /search/jql (token-based pagination)
+    async function fetchCloudSearchPage(jql, nextPageToken, maxResults) {
+        const endpoint = `/search/jql`;
+        const body = {
+            jql: jql || "",
+            maxResults: maxResults || 100,
+            fields: ["summary", "parent", "project"]
+        };
+        if (nextPageToken) body.nextPageToken = nextPageToken;
+        return apiRequest(endpoint, 'POST', body);
     }
 
     function handleProjectResp(resp) {
