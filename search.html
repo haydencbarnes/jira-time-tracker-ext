@@ -385,6 +385,11 @@
             border: 1px solid #333;
         }
 
+        /* Ensure comment textarea matches inputs in dark mode */
+        body.dark-mode #description {
+            background-color: #1A1A1A;
+        }
+
         body.dark-mode input:focus,
         body.dark-mode textarea:focus,
         body.dark-mode select:focus,
@@ -583,7 +588,7 @@
     <div class="container">
         <table>
             <tr>
-                <td><label for="projectId">Project Id</label></td>
+                <td><label for="projectId">Project ID</label></td>
                 <td>
                     <div class="input-wrapper">
                         <input type="text" id="projectId" class="autocomplete-input" placeholder="Type to search projects">
