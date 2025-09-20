@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jira Log Time",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "Log/Track your time in Jira in seconds!",
   "host_permissions": [
     "<all_urls>"
@@ -16,7 +16,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content-script.js"],
+      "js": ["jira-issue-detection.js"],
       "css": ["content-script.css"],
       "run_at": "document_end"
     }

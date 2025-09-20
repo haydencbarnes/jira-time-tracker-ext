@@ -1,3 +1,9 @@
+## 1.4.8 (Sep 20, 2025)
+- Feature: Jira Work Item ID Detection graduated from BETA; now toggleable from Options.
+- Options: Added Issue Detection toggle; persists as `issueDetectionEnabled`.
+- Chore: Renamed content script to `jira-issue-detection.js` and updated manifest.
+- UX: Removed BETA labels/badges and experimental toast for detector.
+
 ## 1.4.7 (Sep 19, 2025)
 - Chore: Changed issue key to work item ID in all frontend tabs and error messages to match Jira's terminology.
 - UX: Made small tweaks to the settings page to make it more user-friendly.

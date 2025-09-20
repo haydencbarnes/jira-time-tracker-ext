@@ -1,5 +1,5 @@
-// JIRA Issue ID Detection and Time Tracking Content Script
-// This script runs on all web pages and detects JIRA issue IDs
+// JIRA Issue ID Detection and Time Tracking Content Script (stable)
+// Detects JIRA issue IDs on any page and provides a quick log-time popup
 
 class JiraIssueDetector {
   constructor() {
@@ -8,17 +8,16 @@ class JiraIssueDetector {
     this.currentPopup = null;
     this.JIRA_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/g;
     this.debounceTimeout = null;
-    
+
     this.init();
   }
 
   async init() {
-    // Check if experimental features are enabled
     const settings = await this.getExtensionSettings();
-    this.isEnabled = settings.experimentalFeatures;
-    
+    // Default ON unless explicitly disabled
+    this.isEnabled = settings.issueDetectionEnabled !== false;
+
     if (this.isEnabled) {
-      this.showExperimentalBadge();
       this.scanAndHighlightIssues();
       this.setupObserver();
     } else {
@@ -27,14 +26,16 @@ class JiraIssueDetector {
 
     // Listen for settings changes
     chrome.runtime.onMessage.addListener((message) => {
-      if (message.type === 'SETTINGS_CHANGED' && message.experimentalFeatures !== this.isEnabled) {
-        this.isEnabled = message.experimentalFeatures;
-        if (this.isEnabled) {
-          this.showExperimentalBadge();
-          this.scanAndHighlightIssues();
-          this.setupObserver();
-        } else {
-          this.cleanup();
+      if (message.type === 'SETTINGS_CHANGED' && typeof message.issueDetectionEnabled === 'boolean') {
+        const nextEnabled = message.issueDetectionEnabled;
+        if (nextEnabled !== this.isEnabled) {
+          this.isEnabled = nextEnabled;
+          if (this.isEnabled) {
+            this.scanAndHighlightIssues();
+            this.setupObserver();
+          } else {
+            this.cleanup();
+          }
         }
       }
     });
@@ -43,27 +44,13 @@ class JiraIssueDetector {
   async getExtensionSettings() {
     return new Promise((resolve) => {
       chrome.storage.sync.get({
-        experimentalFeatures: false,
+        issueDetectionEnabled: true,
         baseUrl: '',
         username: '',
         apiToken: '',
         jiraType: 'cloud'
       }, resolve);
     });
-  }
-
-  showExperimentalBadge() {
-    // Show a brief experimental feature badge
-    const badge = document.createElement('div');
-    badge.className = 'jira-experimental-badge';
-    badge.textContent = 'Jira Issue Detection On - BETA';
-    document.body.appendChild(badge);
-    
-    setTimeout(() => {
-      if (badge.parentNode) {
-        badge.parentNode.removeChild(badge);
-      }
-    }, 3000);
   }
 
   scanAndHighlightIssues() {
@@ -74,13 +61,13 @@ class JiraIssueDetector {
     const activeElement = document.activeElement;
     let selectionStart, selectionEnd;
     let selectionRange = null;
-    
+
     // Store cursor position for input elements
     if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
       selectionStart = activeElement.selectionStart;
       selectionEnd = activeElement.selectionEnd;
     }
-    
+
     // Store selection for contenteditable elements
     if (selection && selection.rangeCount > 0) {
       selectionRange = selection.getRangeAt(0).cloneRange();
@@ -142,9 +129,9 @@ class JiraIssueDetector {
   highlightIssuesInTextNode(textNode) {
     const text = textNode.textContent;
     const matches = [...text.matchAll(this.JIRA_PATTERN)];
-    
+
     if (matches.length === 0) return;
-    
+
     const parent = textNode.parentNode;
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
@@ -152,7 +139,7 @@ class JiraIssueDetector {
     matches.forEach(match => {
       const issueId = match[0];
       const startIndex = match.index;
-      
+
       // If inside a link, simply append icon after the link once and continue
       if (parent.tagName === 'A') {
         if (!parent.nextSibling || !parent.nextSibling.classList || !parent.nextSibling.classList.contains('jira-log-time-icon')) {
@@ -213,7 +200,7 @@ class JiraIssueDetector {
       logIcon.className = 'jira-log-time-icon';
       logIcon.dataset.issueId = issueId;
       logIcon.title = `Log time for ${issueId}`;
-      
+
       // Add click handler to the icon
       logIcon.addEventListener('click', (e) => {
         e.preventDefault();
@@ -221,7 +208,7 @@ class JiraIssueDetector {
         e.stopImmediatePropagation();
         this.showPopup(issueId, logIcon);
       });
-      
+
       // Also add mousedown to ensure we capture the event
       logIcon.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -235,7 +222,7 @@ class JiraIssueDetector {
 
       fragment.appendChild(container);
       this.highlightedIssues.add(issueId);
-      
+
       lastIndex = startIndex + issueId.length;
     });
 
@@ -252,19 +239,19 @@ class JiraIssueDetector {
 
   isActiveInputField(element) {
     if (!element) return false;
-    
+
     const tagName = element.tagName?.toLowerCase();
-    
+
     // Check for input elements
     if (tagName === 'input' || tagName === 'textarea') {
       return true;
     }
-    
+
     // Check for contenteditable elements
     if (element.isContentEditable) {
       return true;
     }
-    
+
     // Check if element is part of a rich text editor (common selectors)
     if (element.closest('[contenteditable="true"]') ||
         element.closest('.ProseMirror') ||
@@ -276,7 +263,7 @@ class JiraIssueDetector {
         element.closest('.email-compose')) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -286,7 +273,7 @@ class JiraIssueDetector {
     // Use MutationObserver to detect new content
     this.observer = new MutationObserver((mutations) => {
       let shouldScan = false;
-      
+
       mutations.forEach(mutation => {
         if ((mutation.type === 'childList' && mutation.addedNodes.length > 0) ||
             mutation.type === 'characterData') {
@@ -347,7 +334,7 @@ class JiraIssueDetector {
   async createPopup(issueId, settings) {
     const popup = document.createElement('div');
     popup.className = 'jira-issue-popup';
-    
+
     // Apply dark theme based on extension settings
     await this.applyThemeToPopup(popup);
 
@@ -362,7 +349,7 @@ class JiraIssueDetector {
 
     popup.innerHTML = `
       <div class="jira-issue-popup-header">
-        <h3 class="jira-issue-popup-title">Log Time: <a href="${issueUrl}" target="_blank" style="color: inherit; text-decoration: none;">${issueId}</a> <span class="jira-popup-beta-badge">BETA</span></h3>
+        <h3 class="jira-issue-popup-title">Log Time: <a href="${issueUrl}" target="_blank" style="color: inherit; text-decoration: none;">${issueId}</a></h3>
         <button class="jira-issue-popup-close" type="button" aria-label="Close">&times;</button>
       </div>
       
@@ -425,18 +412,18 @@ class JiraIssueDetector {
       const result = await new Promise((resolve) => {
         chrome.storage.sync.get(['followSystemTheme', 'darkMode'], resolve);
       });
-      
+
       const followSystem = result.followSystemTheme !== false; // default true
       const manualDark = result.darkMode === true;
-      
+
       let shouldUseDarkTheme = false;
-      
+
       if (followSystem) {
         shouldUseDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
       } else {
         shouldUseDarkTheme = manualDark;
       }
-      
+
       if (shouldUseDarkTheme) {
         popup.classList.add('dark');
       }
@@ -774,3 +761,5 @@ if (document.readyState === 'loading') {
 } else {
   new JiraIssueDetector();
 }
+
+

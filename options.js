@@ -8,6 +8,7 @@
     });    
 
     const experimentalFeaturesToggle = document.getElementById('experimentalFeatures');
+    const issueDetectionToggle = document.getElementById('issueDetectionToggle');
     const experimentalSlider = document.querySelector('#experimentalFeatures + .slider');
     const jiraTypeSelect = document.getElementById('jiraType');
     const urlRow = document.getElementById('urlRow');
@@ -152,6 +153,7 @@
         const baseUrl = baseUrlInput.value;
         const jql = document.getElementById('jql').value;
         const experimentalFeatures = experimentalFeaturesToggle.checked;
+        const issueDetectionEnabled = issueDetectionToggle.checked;
         const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1').value;
         const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2').value;
         const defaultPage = document.getElementById('defaultPage').value;
@@ -164,6 +166,7 @@
             baseUrl,
             jql,
             experimentalFeatures,
+            issueDetectionEnabled,
             frequentWorklogDescription1,
             frequentWorklogDescription2,
             defaultPage: defaultPage,
@@ -174,7 +177,8 @@
                 tabs.forEach(tab => {
                     chrome.tabs.sendMessage(tab.id, {
                         type: 'SETTINGS_CHANGED',
-                        experimentalFeatures: experimentalFeatures
+                        experimentalFeatures: experimentalFeatures,
+                        issueDetectionEnabled: issueDetectionEnabled
                     }, function(response) {
                         // Ignore errors for tabs that don't have content scripts
                         if (chrome.runtime.lastError) {
@@ -200,6 +204,7 @@
           baseUrl: '',
           jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)',
           experimentalFeatures: false,
+          issueDetectionEnabled: true,
           frequentWorklogDescription1: '',
           frequentWorklogDescription2: '',
           defaultPage: 'popup.html',
@@ -212,6 +217,7 @@
           baseUrlInput.value = items.baseUrl;
           document.getElementById('jql').value = items.jql;
           experimentalFeaturesToggle.checked = items.experimentalFeatures;
+          issueDetectionToggle.checked = items.issueDetectionEnabled !== false;
           document.getElementById('frequentWorklogDescription1').value = items.frequentWorklogDescription1;
           document.getElementById('frequentWorklogDescription2').value = items.frequentWorklogDescription2;
           document.getElementById('defaultPage').value = items.defaultPage;
