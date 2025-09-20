@@ -26,6 +26,29 @@ let JIRA;
 
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
+function enforceProjectIssueConsistency() {
+  try {
+    const projectInput = document.getElementById('projectId');
+    const issueInput = document.getElementById('issueKey');
+    const projectVal = projectInput && projectInput.value ? projectInput.value : '';
+    const issueVal = issueInput && issueInput.value ? issueInput.value : '';
+    const projectKey = projectVal ? projectVal.split(':')[0].trim().toUpperCase() : '';
+    const issueKey = issueVal ? issueVal.split(':')[0].trim().toUpperCase() : '';
+    const issuePrefix = issueKey.includes('-') ? issueKey.split('-')[0] : '';
+
+    if (projectKey && issuePrefix && projectKey !== issuePrefix) {
+      // Clear mismatched issue and remove saved values
+      if (issueInput) issueInput.value = '';
+      try { chrome.storage && chrome.storage.sync && chrome.storage.sync.remove && chrome.storage.sync.remove(['issueKey','issueTitle']); } catch(_) {}
+    }
+
+    // Track selected key for later change detection
+    if (projectInput && projectInput.dataset && projectKey) {
+      projectInput.dataset.selectedKey = projectKey;
+    }
+  } catch (_) {}
+}
+
 async function onDOMContentLoaded() {
   chrome.storage.sync.get({
     apiToken: '',
@@ -42,6 +65,21 @@ async function onDOMContentLoaded() {
     experimentalFeatures: false
   }, async (options) => {
     console.log('Storage options:', options);
+    // Restore saved project and issue BEFORE initializing autocomplete so it can bind to the correct project
+    if (options.projectId && options.projectName) {
+      document.getElementById('projectId').value = `${options.projectId}: ${options.projectName}`;
+    } else if (options.projectId) {
+      document.getElementById('projectId').value = options.projectId;
+    }
+    if (options.issueKey && options.issueTitle) {
+      document.getElementById('issueKey').value = `${options.issueKey}: ${options.issueTitle}`;
+    } else if (options.issueKey) {
+      document.getElementById('issueKey').value = options.issueKey;
+    }
+
+    // Enforce consistency between project and issue from restored values
+    enforceProjectIssueConsistency();
+
     await init(options);
 
     document.getElementById('startStop').addEventListener('click', toggleTimer);
@@ -55,18 +93,6 @@ async function onDOMContentLoaded() {
     const editTimeBtn = document.getElementById('editTime');
     if (editTimeBtn) {
       editTimeBtn.addEventListener('click', startTimeEditing);
-    }
-
-    // Restore saved project and issue
-    if (options.projectId && options.projectName) {
-      document.getElementById('projectId').value = `${options.projectId}: ${options.projectName}`;
-    } else if (options.projectId) {
-      document.getElementById('projectId').value = options.projectId;
-    }
-    if (options.issueKey && options.issueTitle) {
-      document.getElementById('issueKey').value = `${options.issueKey}: ${options.issueTitle}`;
-    } else if (options.issueKey) {
-      document.getElementById('issueKey').value = options.issueKey;
     }
 
     insertFrequentWorklogDescription(options);
@@ -154,7 +180,7 @@ async function init(options) {
 
 async function setupAutocomplete(JIRA) {
   const projectInput = document.getElementById('projectId');
-  const issueInput = document.getElementById('issueKey');
+  let issueInput = document.getElementById('issueKey');
   const projectList = document.getElementById('projectList');
   const issueList = document.getElementById('issueList');
 
@@ -167,12 +193,113 @@ async function setupAutocomplete(JIRA) {
   setupInputFocus(projectInput);
   setupInputFocus(issueInput);
 
+  function replaceIssueInput() {
+    const oldInput = issueInput;
+    const oldValue = oldInput.value;
+    const newInput = oldInput.cloneNode(true);
+    oldInput.parentNode.replaceChild(newInput, oldInput);
+    issueInput = newInput;
+    issueInput.value = oldValue;
+    setupDropdownArrow(issueInput);
+    setupInputFocus(issueInput);
+    attachIssueDirectHandlers(issueInput, projectInput);
+  }
+
+  function clearIssueInputAndStorage() {
+    if (issueInput) issueInput.value = '';
+    if (issueList) issueList.innerHTML = '';
+    try { chrome.storage && chrome.storage.sync && chrome.storage.sync.remove && chrome.storage.sync.remove(['issueKey','issueTitle']); } catch(_) {}
+  }
+
+  function getSelectedProjectKey() {
+    const val = projectInput && projectInput.value ? projectInput.value : '';
+    const key = val ? val.split(':')[0].trim() : '';
+    return key.toUpperCase();
+  }
+
+  function extractIssueKey(raw) {
+    if (typeof JIRA?.extractIssueKey === 'function') return JIRA.extractIssueKey(raw);
+    if (!raw) return '';
+    const text = String(raw).trim();
+    const token = text.split(/\s|:/)[0].trim();
+    return token.toUpperCase();
+  }
+
+  function isIssueKeyLike(key) {
+    if (typeof JIRA?.isIssueKeyLike === 'function') return JIRA.isIssueKeyLike(key);
+    return /^[A-Z][A-Z0-9_]*-\d+$/.test(key || '');
+  }
+
+  function attachIssueDirectHandlers(inputEl, projectEl) {
+    if (!inputEl) return;
+
+    const acceptIfValid = async () => {
+      const candidate = extractIssueKey(inputEl.value);
+      if (!isIssueKeyLike(candidate)) return;
+      const selectedProject = getSelectedProjectKey();
+      // Accept immediately to avoid slow suggestions; resolve summary via shared API
+      try {
+        const { key, summary } = await JIRA.resolveIssueKeyFast(candidate, selectedProject || null);
+        inputEl.value = summary ? `${key}: ${summary}` : key;
+        try { chrome.storage.sync.set({ issueKey: key, issueTitle: summary || '' }); } catch(_) {}
+      } catch (err) {
+        if (err && err.code === 'ISSUE_PROJECT_MISMATCH') {
+          clearIssueInputAndStorage();
+          displayError('Work item key does not match selected project.');
+        } else {
+          // Unknown error; still accept the raw key to keep UX snappy
+          inputEl.value = candidate;
+          try { chrome.storage.sync.set({ issueKey: candidate, issueTitle: '' }); } catch(_) {}
+        }
+      }
+    };
+
+    // Handle paste quickly without triggering suggestions
+    inputEl.addEventListener('paste', (e) => {
+      // Use clipboard directly if available; otherwise defer to after paste
+      const pasted = (e && e.clipboardData && e.clipboardData.getData) ? e.clipboardData.getData('text') : null;
+      const candidate = extractIssueKey(pasted || inputEl.value);
+      if (isIssueKeyLike(candidate)) {
+        // Delay to allow input value to update
+        setTimeout(acceptIfValid, 0);
+      }
+    });
+
+    // Accept on Enter when no dropdown selection
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const candidate = extractIssueKey(inputEl.value);
+        if (isIssueKeyLike(candidate)) {
+          e.preventDefault();
+          acceptIfValid();
+        }
+      }
+    });
+
+    // Accept on blur
+    inputEl.addEventListener('blur', () => {
+      const candidate = extractIssueKey(inputEl.value);
+      if (isIssueKeyLike(candidate)) {
+        setTimeout(acceptIfValid, 0);
+      }
+    });
+  }
+
   autocomplete(projectInput, projects.map(p => `${p.key}: ${p.name}`), projectList, async (selected) => {
     let selectedKey = selected.split(':')[0].trim();
     let selectedProject = projectMap.get(selectedKey);
     if (selectedProject) {
+      const previousKey = projectInput && projectInput.dataset ? projectInput.dataset.selectedKey : null;
+      // Record the newly selected key
+      if (projectInput && projectInput.dataset) projectInput.dataset.selectedKey = selectedKey;
+      // If project actually changed, clear any previously selected issue
+      if (previousKey && previousKey !== selectedKey) {
+        clearIssueInputAndStorage();
+      }
       let jql = `project = ${selectedProject.key}`;
       // First page for responsiveness
+      // Reset the issue input and listeners for a clean autocomplete rebind
+      replaceIssueInput();
       let page = await JIRA.getIssuesPage(jql, null, 100);
       let issueItems = page.data.map(i => `${i.key}: ${i.fields.summary}`);
       autocomplete(issueInput, issueItems, issueList, (selectedIssue) => {
@@ -209,6 +336,73 @@ async function setupAutocomplete(JIRA) {
       projectName: projectName
     });
   });
+
+  // Initialize issue autocomplete from saved project (so users don't have to reselect)
+  try {
+    const initialVal = projectInput && projectInput.value ? projectInput.value : '';
+    const initialKey = initialVal ? initialVal.split(':')[0].trim() : '';
+    if (initialKey && projectMap.has(initialKey)) {
+      // Track the currently active project key
+      if (projectInput && projectInput.dataset) projectInput.dataset.selectedKey = initialKey;
+
+      // If an issue is already filled but mismatched with the project, clear it
+      if (issueInput && issueInput.value) {
+        const existingIssueKey = issueInput.value.split(':')[0].trim();
+        const existingPrefix = existingIssueKey.includes('-') ? existingIssueKey.split('-')[0] : '';
+        if (existingPrefix && existingPrefix.toUpperCase() !== initialKey.toUpperCase()) {
+          clearIssueInputAndStorage();
+        }
+      }
+
+      // Preload first page of issues and bind autocomplete
+      const selectedProject = projectMap.get(initialKey);
+      const jql = `project = ${selectedProject.key}`;
+      replaceIssueInput();
+      const page = await JIRA.getIssuesPage(jql, null, 100);
+      let issueItems = page.data.map(i => `${i.key}: ${i.fields.summary}`);
+      autocomplete(issueInput, issueItems, issueList, (selectedIssue) => {
+        const issueKey = selectedIssue.split(':')[0].trim();
+        const issueTitle = selectedIssue.substring(selectedIssue.indexOf(':') + 1).trim();
+        chrome.storage.sync.set({ 
+          issueKey: issueKey,
+          issueTitle: issueTitle
+        });
+        issueInput.value = selectedIssue;
+      });
+      // Infinite scroll for more
+      let loadingMore = false;
+      let nextCursor = page.nextCursor;
+      issueList.addEventListener('scroll', async () => {
+        if (loadingMore || !nextCursor) return;
+        const nearBottom = issueList.scrollTop + issueList.clientHeight >= issueList.scrollHeight - 20;
+        if (!nearBottom) return;
+        loadingMore = true;
+        const nextPage = await JIRA.getIssuesPage(jql, nextCursor, 100);
+        nextCursor = nextPage.nextCursor;
+        const more = nextPage.data.map(i => `${i.key}: ${i.fields.summary}`);
+        issueItems.push(...more);
+        const evt = new Event('refreshDropdown', { bubbles: true });
+        issueInput.dispatchEvent(evt);
+        loadingMore = false;
+      });
+    }
+  } catch (e) {
+    // best-effort init
+  }
+
+  // If user manually edits the project text (not via dropdown), detect project key change and clear issue
+  if (projectInput) {
+    projectInput.addEventListener('input', () => {
+      const typedKey = projectInput.value ? projectInput.value.split(':')[0].trim() : '';
+      const currentKey = projectInput && projectInput.dataset ? projectInput.dataset.selectedKey : '';
+      if (typedKey && currentKey && typedKey !== currentKey) {
+        clearIssueInputAndStorage();
+      }
+    });
+  }
+
+  // Attach direct handlers initially
+  attachIssueDirectHandlers(issueInput, projectInput);
 }
 
 function setupDropdownArrow(input) {

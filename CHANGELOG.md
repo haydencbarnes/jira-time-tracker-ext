@@ -1,3 +1,7 @@
+## 1.4.6 (Sep 19, 2025)
+- Fix: Timer project/issue linkage is now strict. Changing the project clears the work item field and saved selection if mismatched; saved mismatched issues are auto-cleared on load.
+- UX: Pasting or typing a full issue key (e.g., ABC-123) is accepted instantly with summary fetched asynchronously; avoids slow suggestions round-trips. Shared helpers added to Jira API and used by Timer and Search.
+
 ## 1.4.5 (Sep 04, 2025)
 - Fix: Migrated Jira Cloud search to POST `/rest/api/3/search/jql` with `nextPageToken` pagination (up to 10k issues) after GET `/search` endpoint was permanently removed (410 error). This restores issue fetching on Cloud per Atlassian's CHANGE-2046.
 - Chore: Hardened issue parsing to support both legacy and new JQL service response shapes.

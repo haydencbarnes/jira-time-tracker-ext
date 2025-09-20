@@ -31,6 +31,11 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         getIssueWorklog,
         updateWorklog,
         getProjects,
+        // Utilities for shared UI behavior
+        resolveIssueKeyFast,
+        isIssueKeyLike,
+        extractIssueKey,
+        validateIssueMatchesProject,
     };
 
     async function login() {
@@ -435,6 +440,46 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
     // ---- storage-backed cache helpers ----
     function getCacheKey(url) {
         return `GET:${username || 'anon'}:${url}`;
+    }
+
+    // ---- shared helpers for fast issue acceptance and validation ----
+    function extractIssueKey(raw) {
+        if (!raw) return '';
+        const text = String(raw).trim();
+        const token = text.split(/\s|:/)[0].trim();
+        return token.toUpperCase();
+    }
+
+    function isIssueKeyLike(key) {
+        return /^[A-Z][A-Z0-9_]*-\d+$/.test(key || '');
+    }
+
+    function validateIssueMatchesProject(issueKey, projectKey) {
+        if (!issueKey || !projectKey) return true;
+        const prefix = String(issueKey).split('-')[0].toUpperCase();
+        return prefix === String(projectKey).toUpperCase();
+    }
+
+    async function resolveIssueKeyFast(rawText, projectKey = null) {
+        const key = extractIssueKey(rawText);
+        if (!isIssueKeyLike(key)) {
+            return { key: '', summary: '' };
+        }
+        if (projectKey && !validateIssueMatchesProject(key, projectKey)) {
+            const err = new Error('ISSUE_PROJECT_MISMATCH');
+            err.code = 'ISSUE_PROJECT_MISMATCH';
+            err.issueKey = key;
+            err.projectKey = projectKey;
+            throw err;
+        }
+        try {
+            const issue = await getIssue(key);
+            const summary = issue?.fields?.summary || '';
+            return { key, summary };
+        } catch (_) {
+            // If direct fetch fails, still return the key so UI can proceed
+            return { key, summary: '' };
+        }
     }
 
     // In-memory cache helpers (not persisted)

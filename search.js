@@ -124,7 +124,7 @@ async function init(options) {
 
 async function setupAutocomplete(JIRA) {
   const projectInput = document.getElementById('projectId');
-  const issueInput = document.getElementById('issueKey'); 
+  let issueInput = document.getElementById('issueKey'); 
   const projectList = document.getElementById('projectList');
   const issueList = document.getElementById('issueList');
 
@@ -137,12 +137,76 @@ async function setupAutocomplete(JIRA) {
   setupInputFocus(projectInput);
   setupInputFocus(issueInput);
 
+  function replaceIssueInput() {
+    const oldInput = issueInput;
+    const oldValue = oldInput.value;
+    const newInput = oldInput.cloneNode(true);
+    oldInput.parentNode.replaceChild(newInput, oldInput);
+    issueInput = newInput;
+    issueInput.value = oldValue;
+    setupDropdownArrow(issueInput);
+    setupInputFocus(issueInput);
+    attachIssueDirectHandlers(issueInput, projectInput, JIRA);
+  }
+
+  function getSelectedProjectKey() {
+    const val = projectInput && projectInput.value ? projectInput.value : '';
+    const key = val ? val.split(':')[0].trim() : '';
+    return key.toUpperCase();
+  }
+
+  function attachIssueDirectHandlers(inputEl, projectEl, JIRAInstance) {
+    if (!inputEl) return;
+    const extractIssueKey = (raw) => (typeof JIRAInstance?.extractIssueKey === 'function') ? JIRAInstance.extractIssueKey(raw) : String(raw || '').trim().split(/\s|:/)[0].toUpperCase();
+    const isIssueKeyLike = (key) => (typeof JIRAInstance?.isIssueKeyLike === 'function') ? JIRAInstance.isIssueKeyLike(key) : /^[A-Z][A-Z0-9_]*-\d+$/.test(key || '');
+
+    const acceptIfValid = async () => {
+      const candidate = extractIssueKey(inputEl.value);
+      if (!isIssueKeyLike(candidate)) return;
+      const selectedProject = getSelectedProjectKey();
+      try {
+        const { key, summary } = await JIRAInstance.resolveIssueKeyFast(candidate, selectedProject || null);
+        inputEl.value = summary ? `${key}: ${summary}` : key;
+      } catch (err) {
+        if (err && err.code === 'ISSUE_PROJECT_MISMATCH') {
+          inputEl.value = '';
+          displayError('Work item key does not match selected project.');
+        } else {
+          inputEl.value = candidate; // keep key
+        }
+      }
+    };
+
+    inputEl.addEventListener('paste', (e) => {
+      const pasted = (e && e.clipboardData && e.clipboardData.getData) ? e.clipboardData.getData('text') : null;
+      const candidate = extractIssueKey(pasted || inputEl.value);
+      if (isIssueKeyLike(candidate)) {
+        setTimeout(acceptIfValid, 0);
+      }
+    });
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const candidate = extractIssueKey(inputEl.value);
+        if (isIssueKeyLike(candidate)) {
+          e.preventDefault();
+          acceptIfValid();
+        }
+      }
+    });
+    inputEl.addEventListener('blur', () => {
+      const candidate = extractIssueKey(inputEl.value);
+      if (isIssueKeyLike(candidate)) setTimeout(acceptIfValid, 0);
+    });
+  }
+
   autocomplete(projectInput, projects.map(p => `${p.key}: ${p.name}`), projectList, async (selected) => {
     let selectedKey = selected.split(':')[0].trim();
     let selectedProject = projectMap.get(selectedKey);
     if (selectedProject) {
       let jql = `project = ${selectedProject.key}`;
       // Load first page immediately for responsiveness
+      // Reset handlers for new project context
+      replaceIssueInput();
       let page = await JIRA.getIssuesPage(jql, null, 100);
       let issueItems = page.data.map(i => `${i.key}: ${i.fields.summary || ''}`);
       // Wire autocomplete with a live array reference
@@ -166,6 +230,8 @@ async function setupAutocomplete(JIRA) {
       });
     }
   });
+  // Attach direct handlers initially
+  attachIssueDirectHandlers(issueInput, projectInput, JIRA);
 }
 
 function setupDropdownArrow(input) {
