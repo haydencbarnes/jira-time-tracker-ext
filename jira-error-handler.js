@@ -18,7 +18,7 @@ function handleJiraError(error, defaultMessage = 'An error occurred', context = 
         case 400:
             errorMessage = 'Bad Request - Invalid data sent to JIRA';
             if (context.includes('search') || context.includes('timer')) {
-                actionableSteps = 'The issue key or time format may be invalid. Verify the issue exists and use proper time format (e.g., 2h, 30m).';
+                actionableSteps = 'The work item key or time format may be invalid. Verify the issue exists and use proper time format (e.g., 2h, 30m).';
             } else {
                 actionableSteps = 'Check your JQL query in Settings, ensure all field names are correct, and verify that referenced projects/issue types exist.';
             }
@@ -37,7 +37,7 @@ function handleJiraError(error, defaultMessage = 'An error occurred', context = 
         case 404:
             errorMessage = 'Not Found - JIRA server or resource not found';
             if (context.includes('search') || context.includes('timer')) {
-                actionableSteps = 'Check that:\n1. The issue key exists and is accessible to you\n2. Your Base URL in Settings is correct\n3. The JIRA instance is accessible';
+                actionableSteps = 'Check that:\n1. The work item key exists and is accessible to you\n2. Your Base URL in Settings is correct\n3. The JIRA instance is accessible';
             } else {
                 actionableSteps = 'Check your Base URL in Settings:\n1. Ensure URL is correct (e.g., company.atlassian.net for Cloud)\n2. Remove any trailing slashes\n3. Verify the JIRA instance is accessible';
             }

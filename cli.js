@@ -201,7 +201,7 @@ async function onDOMContentLoaded() {
 function writeLine(outputEl, text, className) {
   const div = document.createElement('div');
   if (className) div.className = className;
-  // Convert issue keys like ABC-123 to styled spans
+  // Convert work item keys like ABC-123 to styled spans
   const html = text
     .replace(/\b([A-Z][A-Z0-9]+-\d+)\b/g, '<span class="issue-id">$1</span>');
   div.innerHTML = html;
@@ -293,7 +293,7 @@ function applySelectedCommand(palette, input) {
 }
 
 function wrapIssue(issueKey) {
-  // Return a text node with marker to style issue keys; since we use textContent,
+  // Return a text node with marker to style work item keys; since we use textContent,
   // we will substitute inline by adding zero-width joiners to preserve blue via CSS class
   // Simpler: return as string and rely on regex styling post-insert.
   return issueKey;
@@ -408,7 +408,7 @@ async function handleCommand(raw, ctx) {
   try {
     const parsed = parseNaturalLanguage(raw);
     if (!parsed.issueKey) {
-      showError('Issue key not found. Example: PROJ-123');
+      showError('Work item key not found. Example: PROJ-123');
       return;
     }
     if (!parsed.seconds || parsed.seconds <= 0) {
@@ -544,7 +544,7 @@ function toStartedTimestamp(dateObj) {
 function parseNaturalLanguage(input) {
   const text = input.trim();
 
-  // Extract issue key (e.g., ABC-123)
+  // Extract work item key (e.g., ABC-123)
   const issueMatch = text.match(/\b([A-Z][A-Z0-9]+-\d+)\b/);
   const issueKey = issueMatch ? issueMatch[1] : null;
 
@@ -563,7 +563,7 @@ function parseNaturalLanguage(input) {
 
   // If no explicit unit but looks like minutes number ("log 90 to ABC-1")
   if (totalSeconds === 0) {
-    // Avoid capturing digits that are part of an issue key like PROJ-123
+    // Avoid capturing digits that are part of a work item key like PROJ-123
     const minutesOnly = text.match(/(?<![A-Z0-9]-)\b(\d{1,4})\b(?!-)/);
     if (minutesOnly) {
       const mins = parseInt(minutesOnly[1], 10);
@@ -602,7 +602,7 @@ function parseNaturalLanguage(input) {
     date = new Date(y, m - 1, d);
   }
 
-  // Build comment: remove issue key, time tokens, date tokens
+  // Build comment: remove work item key, time tokens, date tokens
   let comment = text;
   if (issueKey) comment = comment.replace(issueKey, '');
   comment = comment.replace(/\b(\d+)\s*[dhm]\b/gi, '');

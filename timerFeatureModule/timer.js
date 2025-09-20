@@ -749,7 +749,7 @@ async function logTimeClick() {
 
   // Validation
   if (!issueKey) {
-    displayError('Issue Key is required. Please select or enter a valid issue key (e.g., PROJECT-123).');
+    displayError('Work Item Key is required. Please select or enter a valid work item key (e.g., PROJECT-123).');
     return;
   }
 
@@ -769,7 +769,7 @@ async function logTimeClick() {
     resetTimer();
   } catch (error) {
     console.error('Error logging time:', error);
-    window.JiraErrorHandler.handleJiraError(error, `Failed to log time for issue ${issueKey}`, 'timer');
+    window.JiraErrorHandler.handleJiraError(error, `Failed to log time for work item ${issueKey}`, 'timer');
   }
 }
 

@@ -1,3 +1,7 @@
+## 1.4.7 (Sep 19, 2025)
+- Chore: Changed issue key to work item ID in all frontend tabs and error messages to match Jira's terminology.
+- UX: Made small tweaks to the settings page to make it more user-friendly.
+
 ## 1.4.6 (Sep 19, 2025)
 - Fix: Timer project/issue linkage is now strict. Changing the project clears the work item field and saved selection if mismatched; saved mismatched issues are auto-cleared on load.
 - UX: Pasting or typing a full issue key (e.g., ABC-123) is accepted instantly with summary fetched asynchronously; avoids slow suggestions round-trips. Shared helpers added to Jira API and used by Timer and Search.

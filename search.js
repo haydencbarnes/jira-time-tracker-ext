@@ -377,7 +377,7 @@ async function logTimeClick(evt) {
 
   // Validation
   if (!issueKey) {
-    displayError('Issue Key is required. Please select or enter a valid issue key (e.g., PROJECT-123).');
+    displayError('Work Item Key is required. Please select or enter a valid work item key (e.g., PROJECT-123).');
     return;
   }
 
