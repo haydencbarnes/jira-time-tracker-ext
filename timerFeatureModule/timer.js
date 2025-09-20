@@ -2,6 +2,7 @@ let timer;
 let isRunning = false;
 let seconds = 0;
 let JIRA;
+let _timerSettings = null;
 
 (function immediateTheme() {
     // Synchronously read theme from storage (best effort, may be async, but runs before DOMContentLoaded)
@@ -65,6 +66,13 @@ async function onDOMContentLoaded() {
     experimentalFeatures: false
   }, async (options) => {
     console.log('Storage options:', options);
+    // Keep a minimal copy of settings for background requests
+    _timerSettings = {
+      jiraType: options.jiraType,
+      baseUrl: options.baseUrl,
+      username: options.username,
+      apiToken: options.apiToken
+    };
     // Restore saved project and issue BEFORE initializing autocomplete so it can bind to the correct project
     if (options.projectId && options.projectName) {
       document.getElementById('projectId').value = `${options.projectId}: ${options.projectName}`;
@@ -237,21 +245,19 @@ async function setupAutocomplete(JIRA) {
       const candidate = extractIssueKey(inputEl.value);
       if (!isIssueKeyLike(candidate)) return;
       const selectedProject = getSelectedProjectKey();
-      // Accept immediately to avoid slow suggestions; resolve summary via shared API
+      // Validate project/issue consistency locally and accept without network call
       try {
-        const { key, summary } = await JIRA.resolveIssueKeyFast(candidate, selectedProject || null);
-        inputEl.value = summary ? `${key}: ${summary}` : key;
-        try { chrome.storage.sync.set({ issueKey: key, issueTitle: summary || '' }); } catch(_) {}
-      } catch (err) {
-        if (err && err.code === 'ISSUE_PROJECT_MISMATCH') {
-          clearIssueInputAndStorage();
-          displayError('Work item key does not match selected project.');
-        } else {
-          // Unknown error; still accept the raw key to keep UX snappy
-          inputEl.value = candidate;
-          try { chrome.storage.sync.set({ issueKey: candidate, issueTitle: '' }); } catch(_) {}
+        if (selectedProject && typeof JIRA?.validateIssueMatchesProject === 'function') {
+          const ok = JIRA.validateIssueMatchesProject(candidate, selectedProject);
+          if (!ok) {
+            clearIssueInputAndStorage();
+            displayError('Work item key does not match selected project.');
+            return;
+          }
         }
-      }
+      } catch(_) {}
+      inputEl.value = candidate;
+      try { chrome.storage.sync.set({ issueKey: candidate, issueTitle: '' }); } catch(_) {}
     };
 
     // Handle paste quickly without triggering suggestions
@@ -762,11 +768,37 @@ async function logTimeClick() {
 
   try {
     const startedTime = new Date().toISOString();
-    await JIRA.updateWorklog(issueKey, seconds, startedTime, description);
-    displaySuccess(`You successfully logged: ${timeSpent} on ${issueKey}`);
-    
-    document.getElementById('description').value = '';
-    resetTimer();
+    // Prefer background worker to avoid CORS/preflight issues
+    const response = await new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({
+          action: 'logWorklog',
+          settings: _timerSettings,
+          issueId: issueKey,
+          timeInSeconds: seconds,
+          startedTime: startedTime,
+          comment: description
+        }, (resp) => {
+          // Handle runtime send errors gracefully
+          if (chrome.runtime && chrome.runtime.lastError) {
+            resolve({ success: false, error: { message: chrome.runtime.lastError.message } });
+          } else {
+            resolve(resp);
+          }
+        });
+      } catch (e) {
+        resolve({ success: false, error: { message: e?.message || 'Background request failed' } });
+      }
+    });
+
+    if (response && response.success) {
+      displaySuccess(`You successfully logged: ${timeSpent} on ${issueKey}`);
+      document.getElementById('description').value = '';
+      resetTimer();
+    } else {
+      const err = response && response.error ? new Error(response.error.message || 'Failed to log work') : new Error('Failed to log work');
+      throw err;
+    }
   } catch (error) {
     console.error('Error logging time:', error);
     window.JiraErrorHandler.handleJiraError(error, `Failed to log time for work item ${issueKey}`, 'timer');

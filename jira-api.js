@@ -5,11 +5,13 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
     const WORKLOG_TTL_MS = 60 * 1000;
     const memoryCache = new Map(); // in-memory cache to reduce storage.local usage
 
-    // Remove trailing slash from baseUrl if present
-    baseUrl = baseUrl.replace(/\/$/, '');
+    // Remove trailing slash and any accidental REST path suffix from baseUrl if present
+    baseUrl = baseUrl.replace(/\/$/, '')
+                     .replace(/\/rest\/api\/(?:latest|\d+)$/i, '');
 
     const headers = {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'Authorization': `Basic ${btoa(`${username}:${apiToken}`)}`
     };
 
@@ -271,9 +273,10 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
 
     function buildAbsoluteUrl(endpoint) {
         const cleanEndpoint = endpoint.replace(/^\/rest\/api\/\d+/, '').replace(/^\/+/, '');
-        return isJiraCloud
-            ? `https://${baseUrl}/rest/api/${apiVersion}/${cleanEndpoint}`
-            : `${baseUrl.startsWith('http') ? '' : 'https://'}${baseUrl}/rest/api/${apiVersion}/${cleanEndpoint}`;
+        // Normalize baseUrl to avoid double protocol (e.g., https://https://...) and ensure protocol exists
+        const hasProtocol = /^https?:\/\//i.test(baseUrl);
+        const normalizedBase = hasProtocol ? baseUrl : `https://${baseUrl}`;
+        return `${normalizedBase}/rest/api/${apiVersion}/${cleanEndpoint}`;
     }
 
     async function apiRequest(endpoint, method = 'GET', data = null) {
