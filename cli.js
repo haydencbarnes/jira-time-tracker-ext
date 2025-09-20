@@ -416,7 +416,9 @@ async function handleCommand(raw, ctx) {
       return;
     }
 
-    const startedTime = toStartedTimestamp(parsed.date);
+  const startedTime = typeof JIRA.buildStartedTimestamp === 'function' 
+    ? JIRA.buildStartedTimestamp(parsed.date)
+    : new Date(parsed.date || Date.now()).toISOString();
     await JIRA.updateWorklog(parsed.issueKey, parsed.seconds, startedTime, parsed.comment || '');
 
     const humanTime = formatHumanTime(parsed.seconds);
@@ -518,24 +520,6 @@ function formatHumanTime(seconds) {
 }
 
 // Build started timestamp using current local time on given date (or today)
-function toStartedTimestamp(dateObj) {
-  const date = dateObj ? new Date(dateObj) : new Date();
-  const now = new Date();
-  date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-  const tzo = -date.getTimezoneOffset();
-  const dif = tzo >= 0 ? '+' : '-';
-  const pad = (n, s = 2) => String(n).padStart(s, '0');
-  return (
-    `${date.getFullYear()}-` +
-    `${pad(date.getMonth() + 1)}-` +
-    `${pad(date.getDate())}T` +
-    `${pad(date.getHours())}:` +
-    `${pad(date.getMinutes())}:` +
-    `${pad(date.getSeconds())}.` +
-    `${pad(date.getMilliseconds(), 3)}` +
-    `${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`
-  );
-}
 
 // Parse natural language like:
 // - "PROJ-123 1h 30m today Fix tests"

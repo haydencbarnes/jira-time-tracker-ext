@@ -38,6 +38,7 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         isIssueKeyLike,
         extractIssueKey,
         validateIssueMatchesProject,
+        buildStartedTimestamp,
     };
 
     async function login() {
@@ -257,6 +258,36 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         }
         return result;
     }    
+
+    // Build a started timestamp using the current local time of day on the given date (or today)
+    function buildStartedTimestamp(dateInput) {
+        try {
+            const baseDate = dateInput ? new Date(dateInput) : new Date();
+            const now = new Date();
+            baseDate.setHours(
+                now.getHours(),
+                now.getMinutes(),
+                now.getSeconds(),
+                now.getMilliseconds()
+            );
+            const tzo = -baseDate.getTimezoneOffset();
+            const dif = tzo >= 0 ? '+' : '-';
+            const pad = (n, s = 2) => String(n).padStart(s, '0');
+            return (
+                `${baseDate.getFullYear()}-` +
+                `${pad(baseDate.getMonth() + 1)}-` +
+                `${pad(baseDate.getDate())}T` +
+                `${pad(baseDate.getHours())}:` +
+                `${pad(baseDate.getMinutes())}:` +
+                `${pad(baseDate.getSeconds())}.` +
+                `${pad(baseDate.getMilliseconds(), 3)}` +
+                `${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`
+            );
+        } catch (_) {
+            // Fallback to ISO string if anything goes wrong
+            return new Date().toISOString();
+        }
+    }
 
     function parseDate(date) {
         const dateObj = new Date(date);

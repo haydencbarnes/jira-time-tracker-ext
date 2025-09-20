@@ -403,7 +403,9 @@ async function logTimeClick(evt) {
   }, async (options) => {
     try {
       const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
-      const startedTime = getStartedTime(date);
+      const startedTime = typeof JIRA.buildStartedTimestamp === 'function' 
+        ? JIRA.buildStartedTimestamp(date)
+        : new Date(date).toISOString();
       const timeSpentSeconds = convertTimeToSeconds(timeSpent);
 
       console.log({
@@ -425,41 +427,6 @@ async function logTimeClick(evt) {
   });
 }
 
-function getStartedTime(dateString) {
-  // Parse the input date string
-  const [year, month, day] = dateString.split('-').map(Number);
-  
-  // Create a date object using the local timezone
-  const date = new Date(year, month - 1, day);
-  const now = new Date();
-
-  // Combine the input date with the current time
-  date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-
-  // Calculate timezone offset
-  const tzo = -date.getTimezoneOffset();
-  const dif = tzo >= 0 ? '+' : '-';
-
-  // Format the date string
-  const formattedDate = 
-    `${date.getFullYear()}-` +
-    `${pad(date.getMonth() + 1)}-` +
-    `${pad(date.getDate())}T` +
-    `${pad(date.getHours())}:` +
-    `${pad(date.getMinutes())}:` +
-    `${pad(date.getSeconds())}.` +
-    `${pad(date.getMilliseconds(), 3)}` +
-    `${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
-
-  console.log("Input date string:", dateString);
-  console.log("Formatted start time:", formattedDate);
-  
-  return formattedDate;
-}
-
-function pad(num, size = 2) {
-  return num.toString().padStart(size, '0');
-}
 
 function convertTimeToSeconds(timeStr) {
   const timeUnits = {
