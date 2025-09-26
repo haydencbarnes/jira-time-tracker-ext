@@ -200,6 +200,7 @@ function initializeWorklogSuggestions(input) {
     completionElement.style.background = 'transparent';
     completionElement.style.border = '1px solid transparent';
     completionElement.style.zIndex = '0';
+    completionElement.style.visibility = 'hidden';
     completionElement.style.resize = 'none';
     completionElement.style.whiteSpace = 'pre-wrap';
     completionElement.style.overflow = 'hidden';
@@ -207,7 +208,7 @@ function initializeWorklogSuggestions(input) {
     
     // Set color based on dark mode
     const isDarkMode = document.body.classList.contains('dark-mode');
-    completionElement.style.color = isDarkMode ? '#666' : '#999';
+    completionElement.style.color = isDarkMode ? 'rgba(138, 180, 255, 0.85)' : 'rgba(0, 0, 0, 0.35)';
     
     inputElement.parentNode.insertBefore(completionElement, inputElement);
     
@@ -216,7 +217,7 @@ function initializeWorklogSuggestions(input) {
 
     function updateSuggestionColor() {
         const isDarkMode = document.body.classList.contains('dark-mode');
-        completionElement.style.color = isDarkMode ? '#666' : '#999';
+        completionElement.style.color = isDarkMode ? 'rgba(138, 180, 255, 0.85)' : 'rgba(0, 0, 0, 0.35)';
     }
 
     function updateSuggestions() {
@@ -229,6 +230,7 @@ function initializeWorklogSuggestions(input) {
         if (cursorPos !== text.length) {
             suggestionActive = false;
             completionElement.textContent = '';
+            completionElement.style.visibility = 'hidden';
             return;
         }
 
@@ -238,6 +240,7 @@ function initializeWorklogSuggestions(input) {
         if (!currentWord || currentWord.length < 2) {
             suggestionActive = false;
             completionElement.textContent = '';
+            completionElement.style.visibility = 'hidden';
             return;
         }
 
@@ -253,13 +256,15 @@ function initializeWorklogSuggestions(input) {
                     const prefix = text.slice(0, text.length - currentWord.length);
                     const fullSuggestion = prefix + currentWord + completion;
                     completionElement.textContent = fullSuggestion;
+                    completionElement.style.visibility = completion ? 'visible' : 'hidden';
                     suggestionActive = true;
                     return;
                 }
             }
         }
         
-        completionElement.textContent = '';
+        completionElement.innerHTML = '';
+        completionElement.style.visibility = 'hidden';
         suggestionActive = false;
     }
 
@@ -270,7 +275,8 @@ function initializeWorklogSuggestions(input) {
                 e.preventDefault();
                 inputElement.value = completionElement.textContent;
                 suggestionActive = false;
-                completionElement.textContent = '';
+                completionElement.innerHTML = '';
+                completionElement.style.visibility = 'hidden';
                 // Move cursor to end
                 const length = inputElement.value.length;
                 inputElement.setSelectionRange(length, length);
@@ -278,17 +284,20 @@ function initializeWorklogSuggestions(input) {
                 e.preventDefault();
                 inputElement.value = originalValue;
                 suggestionActive = false;
-                completionElement.textContent = '';
+                completionElement.innerHTML = '';
+                completionElement.style.visibility = 'hidden';
             } else if (e.key === 'Backspace') {
                 // Clear the suggestion and let backspace work on the original text
                 inputElement.value = originalValue;
                 suggestionActive = false;
-                completionElement.textContent = '';
+                completionElement.innerHTML = '';
+                completionElement.style.visibility = 'hidden';
                 // Let the backspace event continue to remove one character
             } else {
                 // For any other key press while suggestion is active, accept the suggestion
                 suggestionActive = false;
-                completionElement.textContent = '';
+                completionElement.innerHTML = '';
+                completionElement.style.visibility = 'hidden';
             }
         }
     });
@@ -305,11 +314,14 @@ function initializeWorklogSuggestions(input) {
         if (suggestionActive) {
             inputElement.value = originalValue;
             suggestionActive = false;
-            completionElement.textContent = '';
+            completionElement.innerHTML = '';
+            completionElement.style.visibility = 'hidden';
         }
         // Learn from the input when it loses focus
         if (inputElement.value) {
             worklogSuggestions.learnFromText(inputElement.value);
         }
     });
+
+    completionElement.style.visibility = 'hidden';
 } 

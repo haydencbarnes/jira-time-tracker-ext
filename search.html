@@ -93,6 +93,34 @@
             display: flex;
         }
 
+        .suggestion-container {
+            position: relative;
+            flex: 1;
+            width: 100%;
+        }
+
+        body.dark-mode .suggestion-container {
+            background-color: #1A1A1A;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        body.dark-mode .suggestion-container textarea {
+            background: transparent;
+            border: none;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .suggestion-container textarea:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        body.dark-mode .suggestion-container:focus-within {
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 1px rgba(74, 144, 226, 0.35);
+        }
+
         .date-picker {
             position: relative;
             width: 100%;
@@ -385,11 +413,6 @@
             border: 1px solid #333;
         }
 
-        /* Ensure comment textarea matches inputs in dark mode */
-        body.dark-mode #description {
-            background-color: #1A1A1A;
-        }
-
         body.dark-mode input:focus,
         body.dark-mode textarea:focus,
         body.dark-mode select:focus,
@@ -560,7 +583,7 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            color: #999;
+            color: rgba(0, 0, 0, 0.35);
             padding: 5px;
             box-sizing: border-box;
             font-size: 11px;
@@ -573,10 +596,11 @@
             overflow: hidden;
             line-height: inherit;
             margin: 0;
+            text-shadow: none;
         }
 
         body.dark-mode .suggestion-completion {
-            color: #666;
+            color: rgba(138, 180, 255, 0.85);
         }
 
     </style>
@@ -624,7 +648,7 @@
             <tr>
                 <td><label for="description">Comment</label></td>
                 <td>
-                    <div class="input-container">
+                        <div class="input-container">
                         <div class="suggestion-container" style="position: relative; flex: 1;">
                             <textarea id="description" placeholder="Describe your work, magic, or craft"></textarea>
                         </div>

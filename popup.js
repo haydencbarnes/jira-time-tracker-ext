@@ -364,6 +364,8 @@ function drawIssuesTable(issuesResponse, options) {
     // Initialize worklog suggestions for all comment inputs
     // This is done here because input elements are now created and theme is already applied
     document.querySelectorAll('.issue-comment-input').forEach(input => {
+        input.style.position = 'relative';
+        input.style.zIndex = '1';
         initializeWorklogSuggestions(input);
     });
 }

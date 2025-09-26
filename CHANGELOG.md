@@ -1,3 +1,7 @@
+## 1.4.9 (Sep 26, 2025)
+- Fix: Dark mode autosuggestions now remain visible on search, timer, and popup comment fields.
+- UX: Adjusted suggestion styling to provide subtle yet readable completions in both light and dark themes.
+
 ## 1.4.8 (Sep 20, 2025)
 - Feature: Jira Work Item ID Detection graduated from BETA; now toggleable from Options.
 - Options: Added Issue Detection toggle; persists as `issueDetectionEnabled`.
