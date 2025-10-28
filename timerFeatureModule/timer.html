@@ -76,6 +76,8 @@
             width: 100%;
             box-sizing: border-box;
             padding: 5px;
+            border: 1px solid #767676;
+            border-radius: 4px;
         }
 
         #description {
@@ -499,11 +501,13 @@
             border: 1px solid #1a4a1a;
         }
 
-        body.dark-mode #projectId, #issueKey {
+        body.dark-mode #projectId,
+        body.dark-mode #issueKey {
             outline: none;
         }
 
-        body.dark-mode #projectId:focus, #issueKey:focus {
+        body.dark-mode #projectId:focus,
+        body.dark-mode #issueKey:focus {
             border-color: #4a90e2;
             outline: none;
         }
@@ -707,7 +711,6 @@
             width: 100%;
             background: #fff;
             border: 1px solid #ddd;
-            border-radius: 8px;
             padding: 10px;
             flex-direction: column;
             gap: 8px;

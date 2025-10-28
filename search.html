@@ -101,7 +101,6 @@
 
         body.dark-mode .suggestion-container {
             background-color: #1A1A1A;
-            border: 1px solid #333;
             border-radius: 4px;
         }
 
@@ -118,7 +117,6 @@
 
         body.dark-mode .suggestion-container:focus-within {
             border-color: #4a90e2;
-            box-shadow: 0 0 0 1px rgba(74, 144, 226, 0.35);
         }
 
         .date-picker {
@@ -177,6 +175,16 @@
             position: relative;
             z-index: 1;
             background: transparent;
+            border: 1px solid #767676;
+            border-radius: 4px;
+        }
+
+        body.dark-mode #description {
+            border: 1px solid #333;
+        }
+
+        body.dark-mode #description:focus {
+            border: 1px solid #4a90e2;
         }
 
         .autocomplete-list li:hover {
@@ -411,6 +419,7 @@
             background-color: #1A1A1A;
             color: #e0e0e0;
             border: 1px solid #333;
+            border-radius: 4px;
         }
 
         body.dark-mode input:focus,

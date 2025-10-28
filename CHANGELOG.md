@@ -1,3 +1,6 @@
+## 1.4.10 (Oct 27, 2025)
+- UX: Small UI fixes: Adjusted timer and search input field styling to be more consistent with the rest of the extension.
+
 ## 1.4.9 (Sep 26, 2025)
 - Fix: Dark mode autosuggestions now remain visible on search, timer, and popup comment fields.
 - UX: Adjusted suggestion styling to provide subtle yet readable completions in both light and dark themes.
