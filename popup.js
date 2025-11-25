@@ -137,17 +137,53 @@ async function init(options) {
             return;
         }
 
-        // Show the main loading spinner
-        toggleVisibility('div[id=loader-container]');
+        // Try to show cached data immediately for instant popup
+        const cacheKey = `issuesCache:${options.baseUrl}:${options.jql}`;
+        let showedCached = false;
+        
         try {
-            // Fetch the issues from Jira
+            const cached = await new Promise(resolve => {
+                chrome.storage.local.get([cacheKey], items => resolve(items[cacheKey]));
+            });
+            
+            if (cached && cached.data && Date.now() - cached.ts < 5 * 60 * 1000) {
+                // Show cached data immediately (if less than 5 min old)
+                console.log('Showing cached issues');
+                onFetchSuccess(cached.data, options);
+                showedCached = true;
+            }
+        } catch (e) {
+            console.warn('Cache read failed', e);
+        }
+
+        // Show loader only if we didn't show cached data
+        if (!showedCached) {
+            toggleVisibility('div[id=loader-container]');
+        }
+
+        try {
+            // Fetch fresh issues from Jira
             const issuesResponse = await JIRA.getIssues(0, options.jql);
-            onFetchSuccess(issuesResponse, options); // Pass options to the function
+            
+            // Cache the response
+            try {
+                chrome.storage.local.set({ [cacheKey]: { data: issuesResponse, ts: Date.now() } });
+            } catch (e) {
+                console.warn('Cache write failed', e);
+            }
+            
+            // Update UI with fresh data
+            onFetchSuccess(issuesResponse, options);
         } catch (error) {
             console.error('Error fetching issues:', error);
-            window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch issues from JIRA', 'popup');
+            // Only show error if we didn't show cached data
+            if (!showedCached) {
+                window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch issues from JIRA', 'popup');
+            }
         } finally {
-            toggleVisibility('div[id=loader-container]'); // Hide loader
+            if (!showedCached) {
+                toggleVisibility('div[id=loader-container]');
+            }
         }
     } catch (error) {
         console.error('Error initializing JIRA API:', error);

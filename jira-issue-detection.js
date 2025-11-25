@@ -17,8 +17,15 @@ class JiraIssueDetector {
     // Default ON unless explicitly disabled
     this.isEnabled = settings.issueDetectionEnabled !== false;
 
+    // Skip entirely if extension isn't configured - no point scanning
+    if (!settings.baseUrl || !settings.apiToken) {
+      console.log('JIRA Detection: Extension not configured, skipping');
+      return;
+    }
+
     if (this.isEnabled) {
-      this.scanAndHighlightIssues();
+      // Defer initial scan to avoid blocking page load
+      this.scheduleIdleScan();
       this.setupObserver();
     } else {
       console.log('JIRA Detection: Feature disabled');
@@ -31,7 +38,7 @@ class JiraIssueDetector {
         if (nextEnabled !== this.isEnabled) {
           this.isEnabled = nextEnabled;
           if (this.isEnabled) {
-            this.scanAndHighlightIssues();
+            this.scheduleIdleScan();
             this.setupObserver();
           } else {
             this.cleanup();
@@ -39,6 +46,15 @@ class JiraIssueDetector {
         }
       }
     });
+  }
+
+  // Use requestIdleCallback to avoid blocking the main thread
+  scheduleIdleScan() {
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => this.scanAndHighlightIssues(), { timeout: 2000 });
+    } else {
+      setTimeout(() => this.scanAndHighlightIssues(), 100);
+    }
   }
 
   async getExtensionSettings() {
@@ -55,6 +71,15 @@ class JiraIssueDetector {
 
   scanAndHighlightIssues() {
     if (!this.isEnabled) return;
+
+    // Quick check: skip pages unlikely to have JIRA issues (performance optimization)
+    const bodyText = document.body?.innerText || '';
+    if (bodyText.length > 500000) {
+      // Very large page - only scan if we find a potential match in first 50k chars
+      if (!this.JIRA_PATTERN.test(bodyText.slice(0, 50000))) {
+        return;
+      }
+    }
 
     // Store current selection to restore later
     const selection = window.getSelection();
@@ -76,11 +101,9 @@ class JiraIssueDetector {
     // Clear existing highlights
     this.clearHighlights();
 
+    // Only scan document.body - skip expensive shadow DOM enumeration
+    // Shadow DOM scanning was causing performance issues with querySelectorAll('*')
     const roots = [document.body];
-    // Collect all shadow roots currently in the DOM
-    document.querySelectorAll('*').forEach(el=>{
-      if(el.shadowRoot) roots.push(el.shadowRoot);
-    });
 
     const filterFn = {
       acceptNode: (node)=>{
@@ -96,6 +119,7 @@ class JiraIssueDetector {
     };
 
     const processRoot = root=>{
+      if (!root) return;
       const walker = document.createTreeWalker(root,NodeFilter.SHOW_TEXT,filterFn,false);
       const list=[];let n;while(n=walker.nextNode()){if(n.textContent.trim().match(this.JIRA_PATTERN)) list.push(n);}list.forEach(t=>this.highlightIssuesInTextNode(t));
     };
@@ -270,39 +294,48 @@ class JiraIssueDetector {
   setupObserver() {
     if (!this.isEnabled) return;
 
-    // Use MutationObserver to detect new content
+    // Disconnect any existing observer
+    this.observer?.disconnect();
+
+    // Use MutationObserver to detect new content - optimized for performance
     this.observer = new MutationObserver((mutations) => {
-      let shouldScan = false;
+      // Only trigger rescan if significant content was added
+      let hasSignificantChange = false;
 
-      mutations.forEach(mutation => {
-        if ((mutation.type === 'childList' && mutation.addedNodes.length > 0) ||
-            mutation.type === 'characterData') {
-          shouldScan = true;
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          // Check if any added node might contain JIRA patterns
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
+              const text = node.textContent || '';
+              if (text.length > 3 && this.JIRA_PATTERN.test(text)) {
+                hasSignificantChange = true;
+                break;
+              }
+            }
+          }
         }
-      });
+        if (hasSignificantChange) break;
+      }
 
-      if (shouldScan) {
+      if (hasSignificantChange) {
         // Debounce scanning to avoid excessive calls
         clearTimeout(this.debounceTimeout);
         this.debounceTimeout = setTimeout(() => {
-          this.scanAndHighlightIssues();
-        }, 500);
+          this.scheduleIdleScan();
+        }, 1000); // Increased debounce for better performance
       }
     });
 
+    // Only observe childList, not characterData (reduces overhead significantly)
     this.observer.observe(document.body, {
       childList: true,
-      characterData: true,
-      subtree: true
+      subtree: true,
+      characterData: false
     });
 
-    // Listen to user input events but avoid interfering with cursor position
-    window.addEventListener('input', (e) => {
-      clearTimeout(this.debounceTimeout);
-      this.debounceTimeout = setTimeout(() => {
-        this.scanAndHighlightIssues();
-      }, 200); // Reasonable delay
-    }, true);
+    // Remove the global input listener - it's too aggressive
+    // Users can refresh page or use the popup if needed
   }
 
   async showPopup(issueId, targetElement) {

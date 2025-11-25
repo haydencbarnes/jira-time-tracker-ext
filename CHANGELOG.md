@@ -1,3 +1,10 @@
+## 1.4.11 (Nov 25, 2025)
+- Performance: Optimized popup load time with local caching; shows cached issues instantly while refreshing in background.
+- Performance: Changed content script to run at `document_idle` to avoid blocking page load.
+- Performance: Optimized Work Item ID Detection with idle scheduling and smarter DOM scanning.
+- Performance: Added `defer` to popup scripts and preconnect hints for external fonts.
+- Fix: Reduced MutationObserver overhead by only triggering rescans when relevant content is added.
+
 ## 1.4.10 (Oct 27, 2025)
 - UX: Small UI fixes: Adjusted timer and search input field styling to be more consistent with the rest of the extension.
 
