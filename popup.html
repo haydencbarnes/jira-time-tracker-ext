@@ -143,8 +143,9 @@
 
         .truncate {
             white-space: normal;
-            overflow: visible;
-            text-overflow: clip;
+            overflow: hidden;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         /* Ensure table cells expand to fit content */

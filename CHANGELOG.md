@@ -1,3 +1,6 @@
+## 1.4.12 (Dec 01, 2025)
+- Fix: Long issue summaries now wrap within the column instead of overflowing into adjacent columns.
+
 ## 1.4.11 (Nov 25, 2025)
 - Performance: Optimized popup load time with local caching; shows cached issues instantly while refreshing in background.
 - Performance: Changed content script to run at `document_idle` to avoid blocking page load.
