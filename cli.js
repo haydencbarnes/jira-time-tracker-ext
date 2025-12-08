@@ -151,8 +151,14 @@ async function onDOMContentLoaded() {
         .map(s => s.trim())
         .filter(Boolean);
 
+      const batchSeconds = parts.reduce((acc, part) => {
+        const parsed = parseNaturalLanguage(part);
+        return parsed?.seconds > 0 ? acc + parsed.seconds : acc;
+      }, 0);
+
       if (parts.length > 1) {
-        writeLine(output, `Batch: ${parts.length} entries`, 'line-subtle');
+        const totalLabel = batchSeconds > 0 ? ` — total: ${formatHumanTime(batchSeconds)}` : '';
+        writeLine(output, `Batch: ${parts.length} entries${totalLabel}`, 'line-subtle');
       }
 
       for (const part of parts) {
