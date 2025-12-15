@@ -1,5 +1,8 @@
+## 1.4.14 (Dec 15, 2025)
+- Fix: CLI: Batch totals stay in hours unless over 24h; day conversion now only applies above 24h.
+
 ## 1.4.13 (Dec 08, 2025)
-- CLI: Batch header now includes total parsed time across entries.
+- Feature: CLI: Batch header now includes total parsed time across entries.
 
 ## 1.4.12 (Dec 01, 2025)
 - Fix: Long issue summaries now wrap within the column instead of overflowing into adjacent columns.

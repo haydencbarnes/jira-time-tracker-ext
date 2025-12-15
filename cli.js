@@ -516,8 +516,18 @@ function buildMeIdentifiersFromUsername(username) {
 function formatHumanTime(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  const d = Math.floor(h / 8); // display day-equivalent if large
-  if (d >= 1 && h % 8 === 0 && m === 0) return `${d}d`;
+
+  // Prefer hours; only convert to days when the total exceeds 24h
+  if (h > 24) {
+    const d = Math.floor(h / 24);
+    const remH = h % 24;
+    const parts = [];
+    if (d) parts.push(`${d}d`);
+    if (remH) parts.push(`${remH}h`);
+    if (m) parts.push(`${m}m`);
+    return parts.join(' ');
+  }
+
   const parts = [];
   if (h) parts.push(`${h}h`);
   if (m) parts.push(`${m}m`);
