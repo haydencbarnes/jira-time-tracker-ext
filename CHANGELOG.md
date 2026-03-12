@@ -1,3 +1,6 @@
+## 1.4.15 (Mar 12, 2026)
+- UX: CLI: Auto-scroll to last message unless user has scrolled up; input bar pinned to bottom of terminal; viewport scrolls to keep terminal line visible after commands.
+
 ## 1.4.14 (Dec 15, 2025)
 - Fix: CLI: Batch totals stay in hours unless over 24h; day conversion now only applies above 24h.
 

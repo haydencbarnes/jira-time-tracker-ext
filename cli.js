@@ -64,12 +64,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
+const CLI_AUTO_SCROLL_THRESHOLD_PX = 24;
+let shouldAutoScrollOutput = true;
+let pendingScrollFrame = null;
+let pendingFollowupScrollFrame = null;
+
 async function onDOMContentLoaded() {
   const output = document.getElementById('cli-output');
   const input = document.getElementById('cli-input');
   const palette = document.getElementById('cmd-palette');
 
   // Welcome banner is rendered inline in the terminal via cli.html; suppress extra ready line
+  initOutputAutoScroll(output);
+  scrollToBottom(output, { force: true });
 
   const options = await readOptions();
   const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
@@ -165,7 +172,7 @@ async function onDOMContentLoaded() {
         writeLine(output, `➜ ${part}`, 'line-user');
         await handleCommand(part, { JIRA, options, output, input, meIdentifiers });
       }
-      scrollToBottom(output);
+      scrollToBottom(output, { force: true });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (historyIndex > 0) {
@@ -205,6 +212,7 @@ async function onDOMContentLoaded() {
 }
 
 function writeLine(outputEl, text, className) {
+  const shouldStickToBottom = shouldAutoScrollOutput;
   const div = document.createElement('div');
   if (className) div.className = className;
   // Convert work item keys like ABC-123 to styled spans
@@ -212,10 +220,53 @@ function writeLine(outputEl, text, className) {
     .replace(/\b([A-Z][A-Z0-9]+-\d+)\b/g, '<span class="issue-id">$1</span>');
   div.innerHTML = html;
   outputEl.appendChild(div);
+  if (shouldStickToBottom) {
+    scrollToBottom(outputEl, { force: true });
+  }
 }
 
-function scrollToBottom(outputEl) {
+function initOutputAutoScroll(outputEl) {
+  if (!outputEl) return;
+  outputEl.addEventListener('scroll', () => {
+    shouldAutoScrollOutput = isNearBottom(outputEl);
+  }, { passive: true });
+}
+
+function isNearBottom(outputEl) {
+  if (!outputEl) return true;
+  return outputEl.scrollHeight - outputEl.scrollTop - outputEl.clientHeight <= CLI_AUTO_SCROLL_THRESHOLD_PX;
+}
+
+function syncScrollToBottom(outputEl) {
   outputEl.scrollTop = outputEl.scrollHeight;
+  document.getElementById('cli-bottom-anchor')?.scrollIntoView({ block: 'end', inline: 'nearest' });
+  const pageScroller = document.scrollingElement;
+  if (pageScroller) {
+    pageScroller.scrollTop = pageScroller.scrollHeight;
+  }
+  window.scrollTo(0, document.documentElement.scrollHeight);
+}
+
+function scrollToBottom(outputEl, { force = false } = {}) {
+  if (!outputEl) return;
+  if (!force && !shouldAutoScrollOutput) return;
+  if (force) {
+    shouldAutoScrollOutput = true;
+  }
+  if (pendingScrollFrame !== null) {
+    cancelAnimationFrame(pendingScrollFrame);
+  }
+  if (pendingFollowupScrollFrame !== null) {
+    cancelAnimationFrame(pendingFollowupScrollFrame);
+  }
+  pendingScrollFrame = requestAnimationFrame(() => {
+    pendingScrollFrame = null;
+    syncScrollToBottom(outputEl);
+    pendingFollowupScrollFrame = requestAnimationFrame(() => {
+      pendingFollowupScrollFrame = null;
+      syncScrollToBottom(outputEl);
+    });
+  });
 }
 
 const COMMAND_ITEMS = [

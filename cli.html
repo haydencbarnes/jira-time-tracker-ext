@@ -40,11 +40,14 @@
       border-radius: 6px;
       border: 1px solid #ddd;
       min-height: 280px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       padding: 10px;
       box-sizing: border-box;
       position: relative;
     }
-    .terminal-output { white-space: pre-wrap; line-height: 1.4; min-height: 220px; }
+    .terminal-output { white-space: pre-wrap; line-height: 1.4; flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; }
     .terminal-line { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
     .prompt { color: #0052CC; }
     .input {
@@ -59,6 +62,7 @@
     }
     .input:focus { border-color: #0052CC; box-shadow: 0 0 0 2px rgba(0,82,204,0.18); }
     .hint { color: #999; font-size: 12px; margin-top: 6px; }
+    .cli-bottom-anchor { height: 1px; }
     .line-success { color: #111111; }
     .line-info { color: #111111; }
     .line-user { color: #9aa4af; }
@@ -145,6 +149,7 @@
         <input id="cli-input" class="input" type="text" placeholder="e.g., PROJ-123 1h 30m yesterday Fix tests" autocomplete="off" spellcheck="false" aria-label="Command" />
       </div>
       <div class="hint">Enter to submit • ↑/↓ history • / for commands • help or ?</div>
+      <div id="cli-bottom-anchor" class="cli-bottom-anchor" aria-hidden="true"></div>
       <div id="cmd-palette" class="cmd-palette" role="listbox" aria-label="Slash commands"></div>
     </div>
   </div>
