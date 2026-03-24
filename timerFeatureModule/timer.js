@@ -245,19 +245,19 @@ async function setupAutocomplete(JIRA) {
       const candidate = extractIssueKey(inputEl.value);
       if (!isIssueKeyLike(candidate)) return;
       const selectedProject = getSelectedProjectKey();
-      // Validate project/issue consistency locally and accept without network call
       try {
-        if (selectedProject && typeof JIRA?.validateIssueMatchesProject === 'function') {
-          const ok = JIRA.validateIssueMatchesProject(candidate, selectedProject);
-          if (!ok) {
-            clearIssueInputAndStorage();
-            displayError('Work item key does not match selected project.');
-            return;
-          }
+        const { key, summary } = await JIRA.resolveIssueKeyFast(candidate, selectedProject || null);
+        inputEl.value = summary ? `${key}: ${summary}` : key;
+        try { chrome.storage.sync.set({ issueKey: key, issueTitle: summary || '' }); } catch (_) {}
+      } catch (err) {
+        if (err && err.code === 'ISSUE_PROJECT_MISMATCH') {
+          clearIssueInputAndStorage();
+          displayError('Work item key does not match selected project.');
+        } else {
+          inputEl.value = candidate;
+          try { chrome.storage.sync.set({ issueKey: candidate, issueTitle: '' }); } catch (_) {}
         }
-      } catch(_) {}
-      inputEl.value = candidate;
-      try { chrome.storage.sync.set({ issueKey: candidate, issueTitle: '' }); } catch(_) {}
+      }
     };
 
     // Handle paste quickly without triggering suggestions
