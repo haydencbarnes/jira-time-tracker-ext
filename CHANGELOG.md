@@ -1,3 +1,6 @@
+## 1.4.16 (Mar 23, 2026)
+- UX: Timer tab: Entering or pasting a work item key (with or without a project selected) now resolves the summary via Jira and fills the field like the Search tab; `issueTitle` is saved in sync storage when available.
+
 ## 1.4.15 (Mar 12, 2026)
 - UX: CLI: Auto-scroll to last message unless user has scrolled up; input bar pinned to bottom of terminal; viewport scrolls to keep terminal line visible after commands.
 
