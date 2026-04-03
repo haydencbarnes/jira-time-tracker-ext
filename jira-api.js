@@ -33,6 +33,10 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         getIssueWorklog,
         updateWorklog,
         getProjects,
+        getTransitions,
+        transitionIssue,
+        updateIssue,
+        searchAssignableUsers,
         // Utilities for shared UI behavior
         resolveIssueKeyFast,
         isIssueKeyLike,
@@ -178,7 +182,7 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
             let total = null;
 
             while (aggregatedIssues.length < hardCap) {
-                const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project&maxResults=${pageSize}&startAt=${startAt}`;
+                const endpoint = `/search?jql=${encodeURIComponent(jql)}&fields=summary,parent,project,status,assignee&maxResults=${pageSize}&startAt=${startAt}`;
                 console.log(`Requesting issues from: ${endpoint}`);
                 const resp = await apiRequest(endpoint, 'GET');
                 console.log(`Response from Jira:`, resp);
@@ -317,7 +321,7 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         const options = {
             method,
             headers,
-            ...(data && method === 'POST' && { body: JSON.stringify(data) })
+            ...(data && (method === 'POST' || method === 'PUT') && { body: JSON.stringify(data) })
         };
     
         console.log(`Making API request to URL: ${url} with options:`, options);
@@ -421,7 +425,7 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
         const body = {
             jql: jql || "",
             maxResults: maxResults || 100,
-            fields: ["summary", "parent", "project"]
+            fields: ["summary", "parent", "project", "status", "assignee"]
         };
         if (nextPageToken) body.nextPageToken = nextPageToken;
         return apiRequest(endpoint, 'POST', body);
@@ -465,11 +469,33 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
                 fields: {
                     summary: issue.fields?.summary,
                     project: issue.fields?.project,
+                    status: issue.fields?.status || null,
+                    assignee: issue.fields?.assignee || null,
                     worklog: issue.fields?.worklog || { worklogs: [] }
                 }
             }))
         };
     }  
+
+    async function getTransitions(issueKey) {
+        return apiRequest(`/issue/${issueKey}/transitions`, 'GET');
+    }
+
+    async function transitionIssue(issueKey, transitionId) {
+        return apiRequest(`/issue/${issueKey}/transitions`, 'POST', {
+            transition: { id: transitionId }
+        });
+    }
+
+    async function updateIssue(issueKey, fields) {
+        return apiRequest(`/issue/${issueKey}`, 'PUT', { fields });
+    }
+
+    async function searchAssignableUsers(issueKey, query, maxResults = 10) {
+        const endpoint = `/user/assignable/search?issueKey=${encodeURIComponent(issueKey)}&query=${encodeURIComponent(query)}&maxResults=${maxResults}`;
+        const resp = await apiRequest(endpoint, 'GET');
+        return Array.isArray(resp) ? resp : [];
+    }
 
     // ---- storage-backed cache helpers ----
     function getCacheKey(url) {

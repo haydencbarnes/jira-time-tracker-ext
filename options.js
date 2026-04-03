@@ -151,7 +151,6 @@
         const username = document.getElementById('username').value;
         const apiToken = document.getElementById('password').value;
         const baseUrl = baseUrlInput.value;
-        const jql = document.getElementById('jql').value;
         const experimentalFeatures = experimentalFeaturesToggle.checked;
         const issueDetectionEnabled = issueDetectionToggle.checked;
         const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1').value;
@@ -164,7 +163,6 @@
             username,
             apiToken,
             baseUrl,
-            jql,
             experimentalFeatures,
             issueDetectionEnabled,
             frequentWorklogDescription1,
@@ -215,7 +213,6 @@
           document.getElementById('username').value = items.username;
           document.getElementById('password').value = items.apiToken;
           baseUrlInput.value = items.baseUrl;
-          document.getElementById('jql').value = items.jql;
           experimentalFeaturesToggle.checked = items.experimentalFeatures;
           issueDetectionToggle.checked = items.issueDetectionEnabled !== false;
           document.getElementById('frequentWorklogDescription1').value = items.frequentWorklogDescription1;
