@@ -163,7 +163,24 @@ function filterExpiredStars(starredIssues, days) {
 }
 
 // ===== Gear settings panel =====
-function openGearModal() {
+function syncGearPanelState(options) {
+    const jqlTextarea = document.getElementById('gear-jql');
+    if (jqlTextarea) jqlTextarea.value = options.jql || DEFAULT_JQL;
+
+    const statusToggle = document.getElementById('gear-show-status');
+    if (statusToggle) statusToggle.checked = !!options.timeTableColumns.showStatus;
+
+    const assigneeToggle = document.getElementById('gear-show-assignee');
+    if (assigneeToggle) assigneeToggle.checked = !!options.timeTableColumns.showAssignee;
+
+    const commentToggle = document.getElementById('gear-show-comment');
+    if (commentToggle) commentToggle.checked = !!options.timeTableColumns.showComment;
+
+    renderGearColumnOrder(options.timeTableColumnOrder);
+}
+
+function openGearModal(options = window._ttOptions) {
+    if (options) syncGearPanelState(options);
     const backdrop = document.getElementById('gear-modal-backdrop');
     backdrop.style.display = 'flex';
     const btn = document.getElementById('gearBtn');
@@ -183,12 +200,7 @@ function initGearPanel(options) {
     const saveBtn = document.getElementById('gear-save-btn');
     const jqlTextarea = document.getElementById('gear-jql');
 
-    jqlTextarea.value = options.jql || DEFAULT_JQL;
-    document.getElementById('gear-show-status').checked = options.timeTableColumns.showStatus;
-    document.getElementById('gear-show-assignee').checked = options.timeTableColumns.showAssignee;
-    document.getElementById('gear-show-comment').checked = options.timeTableColumns.showComment;
-
-    renderGearColumnOrder(options.timeTableColumnOrder);
+    syncGearPanelState(options);
 
     closeBtn.addEventListener('click', closeGearModal);
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeGearModal(); });
@@ -828,10 +840,11 @@ async function loadTransitions(issueKey, select, currentStatusName, options) {
             opt.textContent = '\u2192 ' + t.name;
             select.appendChild(opt);
         });
-        select.addEventListener('change', async () => {
+        select.onchange = async () => {
             const transitionId = select.value;
             if (!transitionId) return;
             try {
+                select.disabled = true;
                 const J = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
                 await J.transitionIssue(issueKey, transitionId);
                 const newName = select.options[select.selectedIndex].textContent.replace('\u2192 ', '');
@@ -839,12 +852,14 @@ async function loadTransitions(issueKey, select, currentStatusName, options) {
                 select.selectedIndex = 0;
                 // Reload transitions for the new state
                 while (select.options.length > 1) select.remove(1);
-                loadTransitions(issueKey, select, newName, options);
+                await loadTransitions(issueKey, select, newName, options);
             } catch (err) {
                 window.JiraErrorHandler.handleJiraError(err, `Failed to transition ${issueKey}`, 'popup');
                 select.selectedIndex = 0;
+            } finally {
+                select.disabled = false;
             }
-        });
+        };
     } catch (_) {}
 }
 

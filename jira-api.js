@@ -482,9 +482,11 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
     }
 
     async function transitionIssue(issueKey, transitionId) {
-        return apiRequest(`/issue/${issueKey}/transitions`, 'POST', {
+        const result = await apiRequest(`/issue/${issueKey}/transitions`, 'POST', {
             transition: { id: transitionId }
         });
+        await invalidateGetCache(`/issue/${issueKey}/transitions`);
+        return result;
     }
 
     async function updateIssue(issueKey, fields) {
@@ -593,6 +595,17 @@ async function JiraAPI(jiraType, baseUrl, username, apiToken) {
             await storageLocalSet(key, { value, ts: Date.now() });
         } catch (e) {
             console.warn('Cache write error:', e);
+        }
+    }
+
+    async function invalidateGetCache(endpoint) {
+        try {
+            const url = buildAbsoluteUrl(endpoint);
+            const key = getCacheKey(url);
+            memoryCache.delete(key);
+            await storageLocalRemove(key);
+        } catch (e) {
+            console.warn(`Failed to invalidate cache for ${endpoint}`, e);
         }
     }
 
