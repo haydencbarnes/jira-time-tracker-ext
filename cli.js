@@ -198,15 +198,13 @@ async function onDOMContentLoaded() {
       closeCommandPalette(palette);
       return;
     }
-    // Update palette suggestions while user types command name
-    if (palette?.dataset.open === 'true') {
-      if (/^\/[a-zA-Z]*$/.test(t)) {
-        const prefix = t.slice(1).toLowerCase();
-        updateCommandPalette(palette, prefix);
-      } else {
-        // user typed a space/args: close palette to restore normal arrows
-        closeCommandPalette(palette);
-      }
+    // Open or refresh palette when typing "/" and the command name (no args yet)
+    if (/^\/[a-zA-Z]*$/.test(t)) {
+      const prefix = t.slice(1).toLowerCase();
+      openCommandPalette(palette, input, prefix);
+    } else {
+      // user typed a space/args: close palette to restore normal arrows
+      closeCommandPalette(palette);
     }
   });
 }
@@ -223,6 +221,12 @@ function writeLine(outputEl, text, className) {
   if (shouldStickToBottom) {
     scrollToBottom(outputEl, { force: true });
   }
+}
+
+function clearCliOutput(outputEl) {
+  if (!outputEl) return;
+  outputEl.replaceChildren();
+  scrollToBottom(outputEl, { force: true });
 }
 
 function initOutputAutoScroll(outputEl) {
@@ -273,6 +277,7 @@ const COMMAND_ITEMS = [
   { cmd: '/time ISSUE-123', desc: 'Show total and today for an issue', key: 'time' },
   { cmd: '/time ISSUE-123 --me', desc: 'Show only your time on an issue', key: 'time' },
   { cmd: '/me ISSUE-123', desc: 'Alias for your time only', key: 'me' },
+  { cmd: '/clear', desc: 'Clear terminal output', key: 'clear' },
   { cmd: '/bug', desc: 'Report a bug or request a feature', key: 'bug' },
   { cmd: '/help', desc: 'Show help', key: 'help' },
 ];
@@ -340,7 +345,9 @@ function movePaletteSelection(palette, delta) {
   let idx = current ? nodes.indexOf(current) : -1;
   idx = Math.max(0, Math.min(nodes.length - 1, idx + delta));
   nodes.forEach(n => n.classList.remove('active'));
-  nodes[idx]?.classList.add('active');
+  const next = nodes[idx];
+  next?.classList.add('active');
+  next?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 function applySelectedCommand(palette, input) {
@@ -405,6 +412,14 @@ async function handleCommand(raw, ctx) {
       await showIssueTimes(issueKey, JIRA, output, onlyMe, meIdentifiers);
       return;
     }
+    if (cmd === 'clear' || cmd === 'cls') {
+      if (rest.trim()) {
+        writeLine(output, 'Usage: /clear');
+        return;
+      }
+      clearCliOutput(output);
+      return;
+    }
     if (cmd === 'bug') {
       // Open issues page in a new tab
       try {
@@ -430,6 +445,11 @@ async function handleCommand(raw, ctx) {
     return;
   }
 
+  if (lc === 'clear' || lc === 'cls') {
+    clearCliOutput(output);
+    return;
+  }
+
   if (lc === 'help' || lc === '?') {
     writeLine(output, 'Usage: ISSUE TIME [DATE] [COMMENT]');
     writeLine(output, '  - TIME: 1h, 30m, 1d, combos like "1h 30m"');
@@ -438,9 +458,12 @@ async function handleCommand(raw, ctx) {
     writeLine(output, '  time ISSUE-123           # show total and today time for an issue');
     writeLine(output, '  time ISSUE-123 --me      # show only your time totals');
     writeLine(output, '  ISSUE-123?               # quick alias to show times');
+    writeLine(output, 'Other commands:');
+    writeLine(output, '  clear (or cls)           # clear terminal output');
     writeLine(output, 'Slash commands:');
     writeLine(output, '  /time ISSUE-123 [--me]   # same as above, quicker');
     writeLine(output, '  /me ISSUE-123            # show only your time totals');
+    writeLine(output, '  /clear                   # clear terminal output');
     writeLine(output, '  /bug                     # open issues page to report bugs');
     writeLine(output, '  /help                    # help');
     writeLine(output, 'Examples:');

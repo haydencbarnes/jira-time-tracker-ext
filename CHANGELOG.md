@@ -1,3 +1,9 @@
+## 1.4.17 (Apr 3, 2026)
+- Fix: CLI slash command palette now opens when typing `/` (not only after ArrowDown). See [#23](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/23).
+- UX: CLI command palette uses light and dark styles consistent with the terminal theme.
+- Feature: `clear`, `cls`, and `/clear` to clear terminal output. See [#24](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/24).
+- Fix: CLI command palette scrolls to keep the keyboard-highlighted item visible.
+
 ## 1.4.16 (Mar 23, 2026)
 - UX: Timer tab: Entering or pasting a work item key (with or without a project selected) now resolves the summary via Jira and fills the field like the Search tab; `issueTitle` is saved in sync storage when available.
 
