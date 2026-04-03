@@ -70,27 +70,27 @@
     .line-subtle { color: #b6bcc4; }
     .issue-id { color: #0052CC; font-weight: 600; }
 
-    /* Slash command palette */
+    /* Slash command palette (light: matches terminal) */
     .cmd-palette {
       position: fixed;
       min-width: 320px;
       max-width: calc(100vw - 16px);
       max-height: 220px;
       overflow-y: auto;
-      background: #111;
-      color: #e6e6e6;
-      border: 1px solid #2a2a2a;
+      background: #fff;
+      color: #1a1a1a;
+      border: 1px solid #ddd;
       border-radius: 6px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
       padding: 6px;
       display: none;
       z-index: 10001; /* above footer/brand */
       margin: 0 8px; /* viewport padding */
     }
     .cmd-item { padding: 8px 10px; border-radius: 4px; cursor: pointer; line-height: 1.2; }
-    .cmd-item .cmd-label { color: #cde4ff; font-weight: 600; }
-    .cmd-item .cmd-desc { color: #9aa4af; font-size: 12px; display: block; margin-top: 2px; }
-    .cmd-item.active { background: rgba(79, 209, 255, 0.12); }
+    .cmd-item .cmd-label { color: #0052CC; font-weight: 600; }
+    .cmd-item .cmd-desc { color: #666; font-size: 12px; display: block; margin-top: 2px; }
+    .cmd-item.active { background: rgba(0, 82, 204, 0.1); }
 
     /* Classic orange BETA badge */
     .jira-popup-beta-badge {
@@ -133,7 +133,15 @@
     body.dark-mode .issue-id { color: #4690DD; }
     body.dark-mode #brand { background: #141414; border-top: 1px solid #333; }
     body.dark-mode .cli-welcome { color: #4690DD; border-color: #4690DD; }
-    body.dark-mode .cmd-palette { background: #0f0f0f; border-color: #333; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+    body.dark-mode .cmd-palette {
+      background: #141414;
+      color: #e6e6e6;
+      border-color: #333;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+    }
+    body.dark-mode .cmd-item .cmd-label { color: #7eb8ff; }
+    body.dark-mode .cmd-item .cmd-desc { color: #9aa4af; }
+    body.dark-mode .cmd-item.active { background: rgba(70, 144, 221, 0.18); }
     body.dark-mode .input { border-color: #4690DD; }
     body.dark-mode .input:focus { border-color: #4690DD; box-shadow: 0 0 0 2px rgba(70,144,221,0.25); }
   </style>
@@ -148,7 +156,7 @@
         <span class="prompt">➜</span>
         <input id="cli-input" class="input" type="text" placeholder="e.g., PROJ-123 1h 30m yesterday Fix tests" autocomplete="off" spellcheck="false" aria-label="Command" />
       </div>
-      <div class="hint">Enter to submit • ↑/↓ history • / for commands • help or ?</div>
+      <div class="hint">Enter to submit • ↑/↓ history • / for commands • clear • help or ?</div>
       <div id="cli-bottom-anchor" class="cli-bottom-anchor" aria-hidden="true"></div>
       <div id="cmd-palette" class="cmd-palette" role="listbox" aria-label="Slash commands"></div>
     </div>
