@@ -277,6 +277,10 @@ function renderGearColumnOrder(order) {
 }
 
 function initDragAndDrop(ul) {
+    // The gear modal re-renders the same list element on each open, so only bind once.
+    if (ul.dataset.dragAndDropInitialized === 'true') return;
+    ul.dataset.dragAndDropInitialized = 'true';
+
     let draggedItem = null;
     ul.addEventListener('dragstart', (e) => {
         draggedItem = e.target.closest('li');
