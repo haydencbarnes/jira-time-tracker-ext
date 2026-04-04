@@ -14,9 +14,15 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 4. **Submit**: Click the "Submit" button to log your time. You will receive a success message and the form fields will clear automatically.
 
 ### How Time Table Works
-1. **View Entries**: Navigate to the "Time Table" tab to see a summary (or your custom JQL query summary) of your logged time.
-2. **Edit Entries**: You can add your logged time entries as needed.
+1. **View Entries**: Navigate to the **Time Table** tab to see issues returned by your custom JQL (see below) and your logged time.
+2. **Edit Entries**: Enter time, optional worklog comment, and date, then use the submit button on each row to log work.
 3. **Detailed View**: Click on any issue to open it in Jira.
+
+**Time Table settings (gear icon top right)**  
+Open the gear button in the table header (top right) to configure the Time Table:
+- **Custom JQL**: Filter which issues appear.
+- **Columns**: Toggle **Status** (workflow transitions per issue), **Assignee** (search and update assignment), and **Comment**.
+- **Column order**: Drag to reorder middle columns (Jira ID and submit button stay fixed first and last).
 
 **Optional(s)**:
 - Star an issue to keep it at the top of your time table.
@@ -36,7 +42,7 @@ This is the type of Jira instance you are using, whether that be Server or Cloud
 
 #### Jira Domain/URL
 
-This is your Jira Domain URL, whether that be Server or Cloud. For example: `https://jira.atlassian.com/.
+This is your Jira Domain URL, whether that be Server or Cloud. For example: `https://jira.atlassian.com/`.
 
 #### Username/Email
 
@@ -46,14 +52,13 @@ Your Jira Username/Email.
 
 This is your Jira REST API Token.
 
-#### Custom JQL Query
-The example JQL query is ((assignee=currentUser()) OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done). This means that the extension will only show issues that are:
-1. Assigned to you or you have logged time on
-2. Must not be Closed or Done.
+#### Custom JQL (Time Table)
 
-All issues that meet the above criteria will be displayed in the extension table popup view. You can then select the issue you want to log time on, enter the time spent, add a comment, and adjust the date if you wish. Click the "Submit" button to log the time spent on the issue.
+The default JQL is `(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)`. That means the Time Table shows issues that are:
+1. Assigned to you or you have logged time on, and
+2. Not in **Closed** or **Done**.
 
-You can edit/customize the custom JQL query in the Settings tab under preferences.
+You edit Custom JQL in **Time Table settings (gear icon top right)** on the Time Table tab—not in the global Options page.
 
 ## Other features
 #### Worklog Snippets
