@@ -996,18 +996,6 @@
             min-height: 48px;
         }
         .gear-section textarea:focus { outline: none; border-color: #0052CC; }
-        .gear-toggle-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 4px 0;
-        }
-        .gear-toggle-row label { font-size: 12px; cursor: pointer; }
-        .gear-toggle-row input[type="checkbox"] {
-            width: auto;
-            margin-right: 6px;
-            cursor: pointer;
-        }
         #gear-column-order {
             list-style: none;
             padding: 0;
@@ -1026,6 +1014,21 @@
             gap: 6px;
             user-select: none;
         }
+        #gear-column-order li label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            flex: 1;
+            font-size: 11px;
+        }
+        #gear-column-order li input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+        #gear-column-order li.col-always .drag-handle { color: #bbb; }
+        #gear-column-order li.col-disabled { opacity: 0.5; }
         #gear-column-order li.dragging { opacity: 0.4; }
         #gear-column-order li .drag-handle { color: #999; font-size: 12px; }
         #gear-column-order li.drag-over {
@@ -1071,13 +1074,14 @@
             border-color: #333;
         }
         body.dark-mode .gear-section textarea:focus { border-color: #4690DD; }
-        body.dark-mode .gear-toggle-row label { color: #e0e0e0; }
         body.dark-mode #gear-column-order li {
             background: #252525;
             border-color: #333;
             color: #e0e0e0;
         }
         body.dark-mode #gear-column-order li .drag-handle { color: #666; }
+        body.dark-mode #gear-column-order li.col-always .drag-handle { color: #444; }
+        body.dark-mode #gear-column-order li.col-disabled { opacity: 0.5; }
         body.dark-mode #gear-column-order li.drag-over {
             border-top-color: #4690DD;
         }
@@ -1139,22 +1143,7 @@
                 </div>
                 <div class="gear-section">
                     <div class="gear-section-title">Columns</div>
-                    <div class="gear-toggle-row">
-                        <label><input type="checkbox" id="gear-show-status"> Status</label>
-                    </div>
-                    <div class="gear-toggle-row">
-                        <label><input type="checkbox" id="gear-show-assignee"> Assignee</label>
-                    </div>
-                    <div class="gear-toggle-row">
-                        <label><input type="checkbox" id="gear-show-total" checked> Total</label>
-                    </div>
-                    <div class="gear-toggle-row">
-                        <label><input type="checkbox" id="gear-show-comment" checked> Comment</label>
-                    </div>
-                </div>
-                <div class="gear-section">
-                    <div class="gear-section-title">Column Order</div>
-                    <p class="gear-hint">Drag to reorder (Jira ID and submit are locked)</p>
+                    <p class="gear-hint">Toggle visibility and drag to reorder (Jira ID and submit button are locked)</p>
                     <ul id="gear-column-order"></ul>
                 </div>
                 <button id="gear-save-btn">Save & Close</button>

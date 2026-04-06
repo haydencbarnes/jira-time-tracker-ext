@@ -168,19 +168,7 @@ function syncGearPanelState(options) {
     const jqlTextarea = document.getElementById('gear-jql');
     if (jqlTextarea) jqlTextarea.value = options.jql || DEFAULT_JQL;
 
-    const statusToggle = document.getElementById('gear-show-status');
-    if (statusToggle) statusToggle.checked = !!options.timeTableColumns.showStatus;
-
-    const assigneeToggle = document.getElementById('gear-show-assignee');
-    if (assigneeToggle) assigneeToggle.checked = !!options.timeTableColumns.showAssignee;
-
-    const totalToggle = document.getElementById('gear-show-total');
-    if (totalToggle) totalToggle.checked = options.timeTableColumns.showTotal !== false;
-
-    const commentToggle = document.getElementById('gear-show-comment');
-    if (commentToggle) commentToggle.checked = !!options.timeTableColumns.showComment;
-
-    renderGearColumnOrder(options.timeTableColumnOrder);
+    renderGearColumnOrder(options.timeTableColumnOrder, options.timeTableColumns);
 }
 
 function openGearModal(options = window._ttOptions) {
@@ -214,12 +202,7 @@ function initGearPanel(options) {
 
     saveBtn.addEventListener('click', async () => {
         const newJql = jqlTextarea.value.trim() || DEFAULT_JQL;
-        const newCols = {
-            showStatus: document.getElementById('gear-show-status').checked,
-            showAssignee: document.getElementById('gear-show-assignee').checked,
-            showTotal: document.getElementById('gear-show-total').checked,
-            showComment: document.getElementById('gear-show-comment').checked,
-        };
+        const newCols = readGearColumnVisibility();
         const newOrder = readGearColumnOrder();
         const jqlChanged = newJql !== options.jql;
 
@@ -265,20 +248,41 @@ function redrawCurrentTable(options) {
     });
 }
 
-// Drag-and-drop column order in gear panel
-function renderGearColumnOrder(order) {
+// Drag-and-drop column order in gear panel (with inline visibility toggles)
+function renderGearColumnOrder(order, colSettings) {
     const ul = document.getElementById('gear-column-order');
     ul.innerHTML = '';
-    // Only show reorderable columns (exclude locked first/last)
     const reorderable = order.filter(id => id !== 'issueId' && id !== 'actions' && COLUMN_DEFS[id]);
     reorderable.forEach(colId => {
+        const def = COLUMN_DEFS[colId];
         const li = document.createElement('li');
         li.setAttribute('draggable', 'true');
         li.setAttribute('data-col-id', colId);
-        li.innerHTML = `<span class="drag-handle">&#x2630;</span> ${COLUMN_DEFS[colId].label}`;
+
+        if (def.optional) {
+            const checked = isColumnEnabled(colId, colSettings);
+            li.innerHTML = `<span class="drag-handle">&#x2630;</span>`
+                + `<label><input type="checkbox" data-col-toggle="${colId}" ${checked ? 'checked' : ''}> ${def.label}</label>`;
+            if (!checked) li.classList.add('col-disabled');
+            li.querySelector('input').addEventListener('change', (e) => {
+                li.classList.toggle('col-disabled', !e.target.checked);
+            });
+        } else {
+            li.classList.add('col-always');
+            li.innerHTML = `<span class="drag-handle">&#x2630;</span> ${def.label}`;
+        }
         ul.appendChild(li);
     });
     initDragAndDrop(ul);
+}
+
+function isColumnEnabled(colId, colSettings) {
+    if (!colSettings) return COLUMN_DEFS[colId].optional ? false : true;
+    if (colId === 'status') return !!colSettings.showStatus;
+    if (colId === 'assignee') return !!colSettings.showAssignee;
+    if (colId === 'total') return colSettings.showTotal !== false;
+    if (colId === 'comment') return !!colSettings.showComment;
+    return true;
 }
 
 function initDragAndDrop(ul) {
@@ -323,6 +327,17 @@ function readGearColumnOrder() {
     const lis = document.querySelectorAll('#gear-column-order li');
     const middle = [...lis].map(li => li.getAttribute('data-col-id'));
     return ['issueId', ...middle, 'actions'];
+}
+
+function readGearColumnVisibility() {
+    const toggles = document.querySelectorAll('#gear-column-order input[data-col-toggle]');
+    const cols = {};
+    toggles.forEach(cb => {
+        const id = cb.getAttribute('data-col-toggle');
+        const key = 'show' + id.charAt(0).toUpperCase() + id.slice(1);
+        cols[key] = cb.checked;
+    });
+    return Object.assign({}, DEFAULT_TIME_TABLE_COLUMNS, cols);
 }
 
 function buildHTML(tag, html, attrs) {
