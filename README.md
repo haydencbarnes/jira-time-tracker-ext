@@ -21,7 +21,7 @@ Easily log time spent on Jira tasks directly from your browser with this conveni
 **Time Table settings (gear icon top right)**  
 Open the gear button in the table header (top right) to configure the Time Table:
 - **Custom JQL**: Filter which issues appear.
-- **Columns**: Toggle **Status** (workflow transitions per issue), **Assignee** (search and update assignment), and **Comment**.
+- **Columns**: Toggle **Status** (workflow transitions per issue), **Assignee** (search and update assignment), **Total** (aggregated logged time per issue), and **Comment**.
 - **Column order**: Drag to reorder middle columns (Jira ID and submit button stay fixed first and last).
 
 **Optional(s)**:

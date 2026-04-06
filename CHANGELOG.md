@@ -1,9 +1,10 @@
 ## 1.4.18 (Apr 3, 2026)
 - Feature: Time Table column optionality and settings (see [#22](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/22)).
-  - Gear control in the table header (last column) opens **Time Table settings**: Custom JQL, optional **Status**, **Assignee**, and **Comment** columns, and drag-and-drop column reorder (Jira ID and submit stay first/last).
+  - Gear control in the table header (last column) opens **Time Table settings**: Custom JQL, optional **Status**, **Assignee**, **Total**, and **Comment** columns, and drag-and-drop column reorder (Jira ID and submit stay first/last).
   - **Custom JQL** for the Time Table moved out of global Options into this panel; Options no longer includes the JQL row.
   - Optional **Status** column: select legal workflow transitions per issue.
   - Optional **Assignee** column: search assignable users and update assignment (Cloud `accountId` / Server `name`).
+  - Optional **Total** column: aggregated logged time on the issue (on by default).
   - Dynamic table header/body generation with proportional column widths; `jira-api` search now requests `status` and `assignee`, plus `getTransitions`, `transitionIssue`, `updateIssue`, `searchAssignableUsers`.
 - UX: Time Table help text for Custom JQL; Log/Date column spacing and time input `box-sizing`; assignee input aligned with other fields; dark-mode focus ring on status select and assignee input (`#4a90e2`).
 
