@@ -1,7 +1,56 @@
+// ===== Column model =====
+const COLUMN_DEFS = {
+    issueId:  { label: 'Jira ID', baseWidth: 14, locked: 'first', hasLogo: true },
+    summary:  { label: 'Summary', baseWidth: 25 },
+    status:   { label: 'Status', baseWidth: 10, optional: true },
+    assignee: { label: 'Assignee', baseWidth: 10, optional: true },
+    total:    { label: 'Total', baseWidth: 8, optional: true },
+    log:      { label: 'Log', baseWidth: 7 },
+    comment:  { label: 'Comment', baseWidth: 15, optional: true },
+    date:     { label: 'Date', baseWidth: 10 },
+    actions:  { label: '', baseWidth: 3, locked: 'last' }
+};
+const DEFAULT_COLUMN_ORDER = ['issueId', 'summary', 'total', 'log', 'comment', 'date', 'actions'];
+const DEFAULT_JQL = '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)';
+const DEFAULT_TIME_TABLE_COLUMNS = { showStatus: false, showAssignee: false, showTotal: true, showComment: true };
+
+function visibilityKey(colId) {
+    return 'show' + colId.charAt(0).toUpperCase() + colId.slice(1);
+}
+
+function getVisibleColumns(columnOrder, colSettings) {
+    return columnOrder.filter(colId => {
+        const def = COLUMN_DEFS[colId];
+        if (!def) return false;
+        if (!def.optional) return true;
+        return !!colSettings[visibilityKey(colId)];
+    });
+}
+
+function getColumnWidths(visibleColumns) {
+    const totalBase = visibleColumns.reduce((sum, id) => sum + COLUMN_DEFS[id].baseWidth, 0);
+    const widths = {};
+    visibleColumns.forEach(id => {
+        widths[id] = ((COLUMN_DEFS[id].baseWidth / totalBase) * 100).toFixed(1) + '%';
+    });
+    return widths;
+}
+
+// Ensure columnOrder contains all known ids (handles upgrade from older storage)
+function normalizeColumnOrder(stored) {
+    const allIds = Object.keys(COLUMN_DEFS);
+    if (!Array.isArray(stored) || stored.length === 0) return DEFAULT_COLUMN_ORDER.slice();
+    const result = stored.filter(id => COLUMN_DEFS[id]);
+    allIds.forEach(id => { if (!result.includes(id)) result.splice(result.length - 1, 0, id); });
+    // Enforce issueId first, actions last
+    const withoutLocked = result.filter(id => id !== 'issueId' && id !== 'actions');
+    return ['issueId', ...withoutLocked, 'actions'];
+}
+
+// ===== Theme =====
 document.addEventListener('DOMContentLoaded', function() {
     const themeToggle = document.getElementById('themeToggle');
     
-    // Unified theme logic
     function applyTheme(followSystem, manualDark) {
         if (followSystem) {
             const mql = window.matchMedia('(prefers-color-scheme: dark)');
@@ -24,20 +73,17 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.classList.remove('dark-mode');
         }
     }
-    // Load settings and apply theme
     chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function(result) {
-        const followSystem = result.followSystemTheme !== false; // default true
+        const followSystem = result.followSystemTheme !== false;
         const manualDark = result.darkMode === true;
         applyTheme(followSystem, manualDark);
     });
-    // Theme button disables system-following and sets manual override
     themeToggle.addEventListener('click', function() {
         const isDark = !document.body.classList.contains('dark-mode');
         updateThemeButton(isDark);
         setTheme(isDark);
         chrome.storage.sync.set({ darkMode: isDark, followSystemTheme: false });
     });
-    // Listen for changes from other tabs/options
     chrome.storage.onChanged.addListener(function(changes, namespace) {
         if (namespace === 'sync' && ('followSystemTheme' in changes || 'darkMode' in changes)) {
             chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function(result) {
@@ -49,7 +95,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Function to update the theme button icon
 function updateThemeButton(isDark) {
   const themeToggle = document.getElementById('themeToggle');
   const iconSpan = themeToggle.querySelector('.icon');
@@ -62,13 +107,14 @@ function updateThemeButton(isDark) {
   }
 }
 
+// ===== Main init =====
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
 async function onDOMContentLoaded() {
     chrome.storage.sync.get({
         apiToken: '',
         baseUrl: '',
-        jql: '',
+        jql: DEFAULT_JQL,
         username: '',
         jiraType: 'server',
         frequentWorklogDescription1: '',
@@ -76,29 +122,32 @@ async function onDOMContentLoaded() {
         starredIssues: {},
         defaultPage: 'popup.html',
         darkMode: false,
-        experimentalFeatures: false
+        experimentalFeatures: false,
+        timeTableColumns: DEFAULT_TIME_TABLE_COLUMNS,
+        timeTableColumnOrder: DEFAULT_COLUMN_ORDER
     }, async (options) => {
-        // Get current URL and check for the 'source' parameter
+        // Normalize column settings
+        options.timeTableColumns = Object.assign({}, DEFAULT_TIME_TABLE_COLUMNS, options.timeTableColumns);
+        options.timeTableColumnOrder = normalizeColumnOrder(options.timeTableColumnOrder);
+
         const urlParams = new URLSearchParams(window.location.search);
         const isNavigatingBack = urlParams.get('source') === 'navigation';
         
-        // Check if we need to redirect
         const currentPage = window.location.pathname.split('/').pop();
         if (currentPage !== options.defaultPage && !isNavigatingBack) {
             window.location.href = options.defaultPage;
             return;
         }
         
-        // Clean out any stars older than 90 days
         options.starredIssues = filterExpiredStars(options.starredIssues, 90);
-        
-        // Save any cleaned out stars back to storage so they don't accumulate
         chrome.storage.sync.set({ starredIssues: options.starredIssues }, () => {});
         
+        // Store options globally so gear panel can access them
+        window._ttOptions = options;
+
+        initGearPanel(options);
         await init(options);
         insertFrequentWorklogDescription(options);
-        
-        // Worklog suggestions will be initialized after table is drawn where input elements exist
     });
 }
 
@@ -114,6 +163,188 @@ function filterExpiredStars(starredIssues, days) {
     return filtered;
 }
 
+// ===== Gear settings panel =====
+function syncGearPanelState(options) {
+    const jqlTextarea = document.getElementById('gear-jql');
+    if (jqlTextarea) jqlTextarea.value = options.jql || DEFAULT_JQL;
+
+    renderGearColumnOrder(options.timeTableColumnOrder, options.timeTableColumns);
+}
+
+function openGearModal(options = window._ttOptions) {
+    if (options) syncGearPanelState(options);
+    const backdrop = document.getElementById('gear-modal-backdrop');
+    backdrop.style.display = 'flex';
+    const btn = document.getElementById('gearBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+}
+
+function closeGearModal() {
+    const backdrop = document.getElementById('gear-modal-backdrop');
+    backdrop.style.display = 'none';
+    const btn = document.getElementById('gearBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function initGearPanel(options) {
+    if (window._gearPanelInitialized) return;
+    window._gearPanelInitialized = true;
+
+    const backdrop = document.getElementById('gear-modal-backdrop');
+    const closeBtn = document.getElementById('gear-modal-close');
+    const saveBtn = document.getElementById('gear-save-btn');
+    const jqlTextarea = document.getElementById('gear-jql');
+
+    syncGearPanelState(options);
+
+    closeBtn.addEventListener('click', closeGearModal);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeGearModal(); });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && backdrop.style.display !== 'none') closeGearModal();
+    });
+
+    saveBtn.addEventListener('click', async () => {
+        const newJql = jqlTextarea.value.trim() || DEFAULT_JQL;
+        const newCols = readGearColumnVisibility();
+        const newOrder = readGearColumnOrder();
+        const jqlChanged = newJql !== options.jql;
+
+        options.jql = newJql;
+        options.timeTableColumns = newCols;
+        options.timeTableColumnOrder = newOrder;
+
+        chrome.storage.sync.set({
+            jql: newJql,
+            timeTableColumns: newCols,
+            timeTableColumnOrder: newOrder,
+        });
+
+        closeGearModal();
+
+        if (jqlChanged) {
+            // Refetch with new JQL
+            try {
+                const JIRA = await getSharedJira(options);
+                const issuesResponse = await JIRA.getIssues(0, options.jql);
+                const cacheKey = `issuesCache:${options.baseUrl}:${options.jql}`;
+                chrome.storage.local.set({ [cacheKey]: { data: issuesResponse, ts: Date.now() } });
+                onFetchSuccess(issuesResponse, options);
+            } catch (err) {
+                window.JiraErrorHandler.handleJiraError(err, 'Failed to fetch issues with new JQL', 'popup');
+            }
+        } else {
+            // Just redraw table with new column settings
+            redrawCurrentTable(options);
+        }
+        insertFrequentWorklogDescription(options);
+    });
+}
+
+function redrawCurrentTable(options) {
+    const cacheKey = `issuesCache:${options.baseUrl}:${options.jql}`;
+    chrome.storage.local.get([cacheKey], (items) => {
+        const cached = items[cacheKey];
+        if (cached && cached.data) {
+            onFetchSuccess(cached.data, options);
+            insertFrequentWorklogDescription(options);
+        }
+    });
+}
+
+// Drag-and-drop column order in gear panel (with inline visibility toggles)
+function renderGearColumnOrder(order, colSettings) {
+    const ul = document.getElementById('gear-column-order');
+    ul.innerHTML = '';
+    const reorderable = order.filter(id => id !== 'issueId' && id !== 'actions' && COLUMN_DEFS[id]);
+    reorderable.forEach(colId => {
+        const def = COLUMN_DEFS[colId];
+        const li = document.createElement('li');
+        li.setAttribute('draggable', 'true');
+        li.setAttribute('data-col-id', colId);
+
+        if (def.optional) {
+            const checked = isColumnEnabled(colId, colSettings);
+            li.innerHTML = `<span class="drag-handle">&#x2630;</span>`
+                + `<label><input type="checkbox" data-col-toggle="${colId}" ${checked ? 'checked' : ''}> ${def.label}</label>`;
+            if (!checked) li.classList.add('col-disabled');
+            li.querySelector('input').addEventListener('change', (e) => {
+                li.classList.toggle('col-disabled', !e.target.checked);
+            });
+        } else {
+            li.classList.add('col-always');
+            li.innerHTML = `<span class="drag-handle">&#x2630;</span> ${def.label}`;
+        }
+        ul.appendChild(li);
+    });
+    initDragAndDrop(ul);
+}
+
+function isColumnEnabled(colId, colSettings) {
+    if (!colSettings) return !COLUMN_DEFS[colId].optional;
+    if (!COLUMN_DEFS[colId].optional) return true;
+    return !!colSettings[visibilityKey(colId)];
+}
+
+function initDragAndDrop(ul) {
+    // The gear modal re-renders the same list element on each open, so only bind once.
+    if (ul.dataset.dragAndDropInitialized === 'true') return;
+    ul.dataset.dragAndDropInitialized = 'true';
+
+    let draggedItem = null;
+    ul.addEventListener('dragstart', (e) => {
+        draggedItem = e.target.closest('li');
+        if (draggedItem) draggedItem.classList.add('dragging');
+    });
+    ul.addEventListener('dragend', () => {
+        if (draggedItem) draggedItem.classList.remove('dragging');
+        ul.querySelectorAll('li').forEach(li => li.classList.remove('drag-over'));
+        draggedItem = null;
+    });
+    ul.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const target = e.target.closest('li');
+        if (!target || target === draggedItem) return;
+        ul.querySelectorAll('li').forEach(li => li.classList.remove('drag-over'));
+        target.classList.add('drag-over');
+    });
+    ul.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const target = e.target.closest('li');
+        if (!target || target === draggedItem || !draggedItem) return;
+        const items = [...ul.querySelectorAll('li')];
+        const dragIdx = items.indexOf(draggedItem);
+        const dropIdx = items.indexOf(target);
+        if (dragIdx < dropIdx) {
+            target.after(draggedItem);
+        } else {
+            target.before(draggedItem);
+        }
+        ul.querySelectorAll('li').forEach(li => li.classList.remove('drag-over'));
+    });
+}
+
+function readGearColumnOrder() {
+    const lis = document.querySelectorAll('#gear-column-order li');
+    const middle = [...lis].map(li => li.getAttribute('data-col-id'));
+    return ['issueId', ...middle, 'actions'];
+}
+
+function readGearColumnVisibility() {
+    const toggles = document.querySelectorAll('#gear-column-order input[data-col-toggle]');
+    const cols = {};
+    toggles.forEach(cb => {
+        const id = cb.getAttribute('data-col-toggle');
+        cols[visibilityKey(id)] = cb.checked;
+    });
+    return Object.assign({}, DEFAULT_TIME_TABLE_COLUMNS, cols);
+}
+
+function escapeHTML(str) {
+    const el = document.createElement('span');
+    el.textContent = str;
+    return el.innerHTML;
+}
+
 function buildHTML(tag, html, attrs) {
     const element = document.createElement(tag);
     if (html) element.innerHTML = html;
@@ -123,12 +354,34 @@ function buildHTML(tag, html, attrs) {
     return element;
 }
 
+async function getSharedJira(options) {
+    const jiraConfig = {
+        jiraType: options.jiraType,
+        baseUrl: options.baseUrl,
+        username: options.username,
+        apiToken: options.apiToken
+    };
+    const configKey = JSON.stringify(jiraConfig);
+
+    if (window._ttJiraConfigKey !== configKey || !window._ttJiraPromise) {
+        window._ttJiraConfigKey = configKey;
+        window._ttJiraPromise = JiraAPI(
+            jiraConfig.jiraType,
+            jiraConfig.baseUrl,
+            jiraConfig.username,
+            jiraConfig.apiToken
+        );
+    }
+
+    return window._ttJiraPromise;
+}
+
 async function init(options) {
     console.log("Options received:", options);
 
     try {
         // Initialize the JIRA API with the provided options
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const JIRA = await getSharedJira(options);
         console.log("JIRA API Object:", JIRA);
 
         if (!JIRA || typeof JIRA.getIssues !== 'function') {
@@ -196,22 +449,13 @@ function onFetchSuccess(issuesResponse, options) {
     drawIssuesTable(issuesResponse, options); // Pass options to the function
 }
 
-function onFetchError(error) {
-    toggleVisibility('div[id=loader-container]');
-    window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch data from JIRA', 'popup');
-}
-
 function getWorklog(issueId, JIRA) {
     const totalTime = document.querySelector(`div.issue-total-time-spent[data-issue-id="${issueId}"]`);
+    if (!totalTime) return;
     const loader = totalTime.previousSibling;
 
-    if (!totalTime || !loader) {
-        console.warn(`Elements not found for issue id: ${issueId}`);
-        return;
-    }
-
+    if (loader) loader.style.display = 'block';
     totalTime.style.display = 'none';
-    loader.style.display = 'block';
 
     JIRA.getIssueWorklog(issueId)
         .then((response) => onWorklogFetchSuccess(response, totalTime, loader))
@@ -232,15 +476,14 @@ function onWorklogFetchSuccess(response, totalTime, loader) {
         console.error(`Error in summing worklogs: ${error.stack}`);
         totalTime.innerText = '0 hrs';
     }
-    totalTime.style.display = 'block';
-    loader.style.display = 'none';
-    // Ensure inputs are cleared
+    if (totalTime) totalTime.style.display = 'block';
+    if (loader) loader.style.display = 'none';
     document.querySelectorAll('input.issue-time-input, input.issue-comment-input').forEach(input => input.value = '');
 }
 
 function onWorklogFetchError(error, totalTime, loader) {
-    totalTime.style.display = 'block';
-    loader.style.display = 'none';
+    if (totalTime) totalTime.style.display = 'block';
+    if (loader) loader.style.display = 'none';
     window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch worklog data', 'popup');
 }
 
@@ -255,11 +498,6 @@ async function logTimeClick(evt) {
     const loader = document.querySelector(`div.loader-mini[data-issue-id="${issueId}"]`);
 
     console.log(`Processing issue ID: ${issueId}`);
-    console.log('timeInput:', timeInput);
-    console.log('dateInput:', dateInput);
-    console.log('commentInput:', commentInput);
-    console.log('totalTimeSpans:', totalTimeSpans);
-    console.log('loader:', loader);
 
     if (!timeInput || !timeInput.value) {
         displayError('Time field is required. Please enter the time you want to log (e.g., 2h, 30m, 1d).');
@@ -279,12 +517,9 @@ async function logTimeClick(evt) {
     }
 
     if (totalTimeSpans && loader) {
-        totalTimeSpans.innerText = ''; // Clear previous total time
+        totalTimeSpans.innerText = '';
         totalTimeSpans.style.display = 'none';
         loader.style.display = 'block';
-    } else {
-        console.warn(`This issue does not have matching total time or loader spans: ${issueId}`);
-        return;
     }
 
     const startedTime = getStartedTime(dateInput.value);
@@ -299,11 +534,12 @@ async function logTimeClick(evt) {
             })
         );
 
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const JIRA = await getSharedJira(options);
 
-        console.log(`Update worklog details: issueId=${issueId}, timeSpentSeconds=${timeSpentSeconds}, startedTime=${startedTime}, comment=${commentInput.value}`);
+        const commentValue = commentInput ? commentInput.value : '';
+        console.log(`Update worklog details: issueId=${issueId}, timeSpentSeconds=${timeSpentSeconds}, startedTime=${startedTime}, comment=${commentValue}`);
         
-        const result = await JIRA.updateWorklog(issueId, timeSpentSeconds, startedTime, commentInput.value);
+        const result = await JIRA.updateWorklog(issueId, timeSpentSeconds, startedTime, commentValue);
 
         // Handle successful response
         console.log("Worklog successfully updated:", result);
@@ -311,9 +547,8 @@ async function logTimeClick(evt) {
         // Display success message with the logged time
         showSuccessAnimation(issueId, timeInput.value);
 
-        // Clear the input fields upon success
         timeInput.value = '';
-        commentInput.value = '';
+        if (commentInput) commentInput.value = '';
 
         // Fetch updated worklogs so that the displayed time is consistent
         getWorklog(issueId, JIRA);
@@ -321,8 +556,8 @@ async function logTimeClick(evt) {
     } catch (error) {
         console.error(`Error in logTimeClick function: ${error.stack}`);
 
-        totalTimeSpans.style.display = 'block';
-        loader.style.display = 'none';
+        if (totalTimeSpans) totalTimeSpans.style.display = 'block';
+        if (loader) loader.style.display = 'none';
 
         // Check for specific known issues before calling handleJiraError
         if (error && error.status === 200) {
@@ -370,35 +605,49 @@ function toggleVisibility(query) {
 
 function drawIssuesTable(issuesResponse, options) {
     const logTable = document.getElementById('jira-log-time-table');
+    const visibleCols = getVisibleColumns(options.timeTableColumnOrder, options.timeTableColumns);
+    const widths = getColumnWidths(visibleCols);
+
+    // Build <thead> dynamically
+    const theadTr = logTable.querySelector('thead tr');
+    theadTr.innerHTML = '';
+    visibleCols.forEach(colId => {
+        const def = COLUMN_DEFS[colId];
+        const th = document.createElement('th');
+        th.setAttribute('data-col', colId);
+        th.style.width = widths[colId];
+        if (colId === 'issueId') {
+            th.innerHTML = '<img src="src/icons/jira_logo.png" alt="Jira Logo" style="vertical-align:middle;margin-right:8px;width:16px;height:16px;"> Jira ID';
+        } else if (colId === 'actions') {
+            const gearBtn = document.createElement('button');
+            gearBtn.id = 'gearBtn';
+            gearBtn.title = 'Time Table settings';
+            gearBtn.setAttribute('aria-expanded', 'false');
+            gearBtn.setAttribute('aria-controls', 'gear-modal-backdrop');
+            gearBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5.5a.5.5 0 0 0-.5.5v1.07a5.5 5.5 0 0 0-1.56.64L3.7 1.97a.5.5 0 0 0-.7 0l-.71.7a.5.5 0 0 0 0 .71l.74.74A5.5 5.5 0 0 0 2.4 5.7H1.3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1.1a5.5 5.5 0 0 0 .63 1.58l-.74.74a.5.5 0 0 0 0 .7l.71.71a.5.5 0 0 0 .7 0l.74-.74a5.5 5.5 0 0 0 1.56.64V12.5a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1.07a5.5 5.5 0 0 0 1.56-.64l.74.74a.5.5 0 0 0 .7 0l.71-.7a.5.5 0 0 0 0-.71l-.74-.74A5.5 5.5 0 0 0 11.6 7.7h1.1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1.1a5.5 5.5 0 0 0-.63-1.58l.74-.74a.5.5 0 0 0 0-.7l-.71-.71a.5.5 0 0 0-.7 0l-.74.74A5.5 5.5 0 0 0 8 2.07V1a.5.5 0 0 0-.5-.5h-1zM7 4.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/></svg>';
+            gearBtn.addEventListener('click', () => openGearModal());
+            th.appendChild(gearBtn);
+        } else {
+            th.textContent = def.label;
+        }
+        theadTr.appendChild(th);
+    });
 
     // Remove any existing <tbody>
     const oldTbody = logTable.querySelector('tbody');
-    if (oldTbody) {
-        oldTbody.remove();
-    }
+    if (oldTbody) oldTbody.remove();
 
-    // Create a fresh <tbody>
     const newTbody = document.createElement('tbody');
-
     const issues = issuesResponse.data || [];
-
-    // ⭐️ Reorder so starred issues appear on top
     const sortedIssues = sortByStar(issues, options.starredIssues);
 
     sortedIssues.forEach((issue) => {
-        const row = generateLogTableRow(
-            issue.key,
-            issue.fields.summary,
-            issue.fields.worklog,
-            options
-        );
+        const row = generateLogTableRow(issue, options, visibleCols);
         newTbody.appendChild(row);
     });
 
     logTable.appendChild(newTbody);
     
-    // Initialize worklog suggestions for all comment inputs
-    // This is done here because input elements are now created and theme is already applied
     document.querySelectorAll('.issue-comment-input').forEach(input => {
         input.style.position = 'relative';
         input.style.zIndex = '1';
@@ -417,208 +666,253 @@ function sortByStar(issues, starredIssues) {
     });
 }
 
-function generateLogTableRow(id, summary, worklog, options) {
-    const row = buildHTML('tr', null, { 'data-issue-id': id });
+// ===== Cell builders (one per column id) =====
+const cellBuilders = {
+    issueId(issue, options) {
+        const id = issue.key;
+        const td = buildHTML('td', '', { class: 'issue-id', 'data-col': 'issueId', 'data-issue-id': id });
+        const isStarred = !!options.starredIssues[id];
+        const starIcon = buildHTML('span', '', { class: 'star-icon' });
+        starIcon.textContent = isStarred ? '\u2605' : '\u2606';
+        starIcon.classList.add(isStarred ? 'starred' : 'unstarred');
+        starIcon.addEventListener('click', () => toggleStar(id, options));
+        td.appendChild(starIcon);
+        td.appendChild(document.createTextNode(' '));
 
-    // 1) Create a single <td> for the star + Jira ID (to keep 7 total columns)
-    const idCell = buildHTML('td', '', { class: 'issue-id', 'data-issue-id': id });
-
-    // (A) Star icon
-    const isStarred = !!options.starredIssues[id];
-    const starIcon = buildHTML('span', '', { class: 'star-icon' });
-    // Use textContent so we don't get any weird encoding
-    starIcon.textContent = isStarred ? '\u2605' : '\u2606'; // ★ or ☆
-
-    // Apply the correct color class
-    starIcon.classList.add(isStarred ? 'starred' : 'unstarred');
-
-    // Toggle star on click
-    starIcon.addEventListener('click', () => toggleStar(id, options));
-
-    idCell.appendChild(starIcon);
-    idCell.appendChild(document.createTextNode(' ')); // small spacer
-
-    // (B) Jira ID link
-    const baseUrl = options.baseUrl.startsWith('http')
-        ? options.baseUrl
-        : `https://${options.baseUrl}`;
-    const normalizedBaseUrl = baseUrl.endsWith('/')
-        ? baseUrl
-        : `${baseUrl}/`;
-    const jiraLink = buildHTML('a', id, {
-        href: `${normalizedBaseUrl}browse/${id}`,
-        target: '_blank',
-        'data-issue-id': id
-    });
-        
+        const baseUrl = options.baseUrl.startsWith('http') ? options.baseUrl : `https://${options.baseUrl}`;
+        const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+        const jiraLink = buildHTML('a', id, { href: `${normalizedBaseUrl}browse/${id}`, target: '_blank', 'data-issue-id': id });
         let tooltipTimeout;
-        
         jiraLink.addEventListener('mouseover', async (e) => {
-            // Clear any existing timeout
-            if (tooltipTimeout) {
-                clearTimeout(tooltipTimeout);
-                tooltipTimeout = null;
-            }
-            
+            if (tooltipTimeout) { clearTimeout(tooltipTimeout); tooltipTimeout = null; }
             const existingTooltip = document.querySelector('.worklog-tooltip');
             if (existingTooltip) existingTooltip.remove();
-        
             const tooltip = document.createElement('div');
             tooltip.className = 'worklog-tooltip';
             tooltip.innerHTML = 'Loading worklogs...';
-            
-            // Smart tooltip positioning: above or below based on available space
             const rect = e.target.getBoundingClientRect();
-            const viewportHeight = window.innerHeight;
-            const spaceBelow = viewportHeight - rect.bottom;
-            const spaceAbove = rect.top;
-            
-            // Position tooltip
+            const spaceBelow = window.innerHeight - rect.bottom;
             tooltip.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 370))}px`;
-            
-            if (spaceBelow >= 150 || spaceBelow >= spaceAbove) {
-                // Position below
-                tooltip.style.top = `${rect.bottom + 5}px`;
-            } else {
-                // Position above
-                tooltip.style.top = `${rect.top - 155}px`;
-            }
-            
+            tooltip.style.top = (spaceBelow >= 150 || spaceBelow >= rect.top)
+                ? `${rect.bottom + 5}px` : `${rect.top - 155}px`;
             document.body.appendChild(tooltip);
-        
             try {
-                const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                const JIRA = await getSharedJira(options);
                 const worklogResponse = await JIRA.getIssueWorklog(id);
-                
-                // Show last 5 worklogs with user information
-                const recentLogs = worklogResponse.worklogs
-                    .slice(-5)
-                    .reverse()
-                    .map(log => {
-                        const date = new Date(log.started).toLocaleDateString();
-                        const hours = (log.timeSpentSeconds / 3600).toFixed(1);
-                        const comment = typeof log.comment === 'string' 
-                            ? log.comment 
-                            : log.comment?.content?.[0]?.content?.[0]?.text || 'No comment';
-                        const author = log.author?.displayName || log.author?.name || 'Unknown user';
-                        return `<div style="margin-bottom: 4px;">
-                            <strong>${date}</strong> - ${author}<br>
-                            ${hours}h - ${comment}
-                        </div>`;
-                    })
-                    .join('');
-                    
+                const recentLogs = worklogResponse.worklogs.slice(-5).reverse().map(log => {
+                    const date = new Date(log.started).toLocaleDateString();
+                    const hours = (log.timeSpentSeconds / 3600).toFixed(1);
+                    const comment = typeof log.comment === 'string'
+                        ? log.comment
+                        : log.comment?.content?.[0]?.content?.[0]?.text || 'No comment';
+                    const author = log.author?.displayName || log.author?.name || 'Unknown user';
+                    return `<div style="margin-bottom:4px;"><strong>${escapeHTML(date)}</strong> - ${escapeHTML(author)}<br>${escapeHTML(hours)}h - ${escapeHTML(comment)}</div>`;
+                }).join('');
                 tooltip.innerHTML = recentLogs || 'No recent worklogs';
-            } catch (error) {
-                tooltip.innerHTML = 'Error loading worklogs';
-            }
+            } catch (_) { tooltip.innerHTML = 'Error loading worklogs'; }
         });
-        
-        // Add mouseout event listener with delay to prevent flickering
-        jiraLink.addEventListener('mouseout', (e) => {
+        jiraLink.addEventListener('mouseout', () => {
             tooltipTimeout = setTimeout(() => {
-                const tooltip = document.querySelector('.worklog-tooltip');
-                if (tooltip) tooltip.remove();
+                const t = document.querySelector('.worklog-tooltip');
+                if (t) t.remove();
             }, 150);
-        });        
-        
-    idCell.appendChild(jiraLink);
+        });
+        td.appendChild(jiraLink);
+        return td;
+    },
 
-    row.appendChild(idCell);
+    summary(issue) {
+        const td = buildHTML('td', null, { class: 'issue-summary truncate', 'data-col': 'summary' });
+        td.textContent = issue.fields.summary;
+        return td;
+    },
 
-    // 2) Summary cell
-    const summaryCell = buildHTML('td', summary, { class: 'issue-summary truncate' });
-    row.appendChild(summaryCell);
+    status(issue, options) {
+        const td = buildHTML('td', null, { 'data-col': 'status' });
+        const statusName = issue.fields.status?.name || 'Unknown';
+        const select = document.createElement('select');
+        select.className = 'status-select';
+        select.setAttribute('data-issue-id', issue.key);
+        const currentOpt = document.createElement('option');
+        currentOpt.value = '';
+        currentOpt.textContent = statusName;
+        currentOpt.selected = true;
+        select.appendChild(currentOpt);
+        loadTransitions(issue.key, select, statusName, options);
+        td.appendChild(select);
+        return td;
+    },
 
-    // 3) Total Time cell
-    const worklogs = worklog?.worklogs || [];
-    const totalSecs = worklogs.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
-    const totalTime = (totalSecs / 3600).toFixed(1) + ' hrs';
+    assignee(issue, options) {
+        const td = buildHTML('td', null, { 'data-col': 'assignee' });
+        const container = document.createElement('div');
+        container.className = 'assignee-container';
+        const assigneeName = issue.fields.assignee?.displayName || 'Unassigned';
+        const input = document.createElement('input');
+        input.className = 'assignee-input';
+        input.value = assigneeName;
+        input.setAttribute('data-issue-id', issue.key);
+        input.setAttribute('data-current-assignee', assigneeName);
+        const dropdown = document.createElement('ul');
+        dropdown.className = 'assignee-dropdown';
+        dropdown.style.display = 'none';
+        let debounceTimer;
+        input.addEventListener('focus', () => input.select());
+        input.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                const query = input.value.trim();
+                if (!query) { dropdown.style.display = 'none'; return; }
+                try {
+                    const JIRA = await getSharedJira(options);
+                    const users = await JIRA.searchAssignableUsers(issue.key, query, 5);
+                    dropdown.innerHTML = '';
+                    if (users.length === 0) { dropdown.style.display = 'none'; return; }
+                    users.forEach(user => {
+                        const li = document.createElement('li');
+                        li.textContent = user.displayName;
+                        li.addEventListener('mousedown', async (e) => {
+                            e.preventDefault();
+                            try {
+                                const J = await getSharedJira(options);
+                                const assigneeField = options.jiraType === 'cloud'
+                                    ? { accountId: user.accountId }
+                                    : { name: user.name };
+                                await J.updateIssue(issue.key, { assignee: assigneeField });
+                                input.value = user.displayName;
+                                input.setAttribute('data-current-assignee', user.displayName);
+                                dropdown.style.display = 'none';
+                            } catch (err) {
+                                window.JiraErrorHandler.handleJiraError(err, `Failed to assign ${issue.key}`, 'popup');
+                            }
+                        });
+                        dropdown.appendChild(li);
+                    });
+                    dropdown.style.display = 'block';
+                } catch (_) { dropdown.style.display = 'none'; }
+            }, 300);
+        });
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                dropdown.style.display = 'none';
+                input.value = input.getAttribute('data-current-assignee') || 'Unassigned';
+            }, 200);
+        });
+        container.appendChild(input);
+        container.appendChild(dropdown);
+        td.appendChild(container);
+        return td;
+    },
 
-    const totalTimeCell = buildHTML('td', null, { class: 'issue-total-time' });
-    const loader = buildHTML('div', '', {
-        class: 'loader-mini',
-        'data-issue-id': id
-    });
-    const totalTimeDiv = buildHTML('div', totalTime, {
-        class: 'issue-total-time-spent',
-        'data-issue-id': id
-    });
-    totalTimeCell.appendChild(loader);
-    totalTimeCell.appendChild(totalTimeDiv);
-    row.appendChild(totalTimeCell);
+    total(issue, options) {
+        const id = issue.key;
+        const worklogs = issue.fields.worklog?.worklogs || [];
+        const totalSecs = worklogs.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
+        const totalTime = (totalSecs / 3600).toFixed(1) + ' hrs';
+        const td = buildHTML('td', null, { class: 'issue-total-time', 'data-col': 'total' });
+        const loader = buildHTML('div', '', { class: 'loader-mini', 'data-issue-id': id });
+        const totalTimeDiv = buildHTML('div', totalTime, { class: 'issue-total-time-spent', 'data-issue-id': id });
+        td.appendChild(loader);
+        td.appendChild(totalTimeDiv);
+        (async () => {
+            try {
+                const JIRA = await getSharedJira(options);
+                const resp = await JIRA.getIssueWorklog(id);
+                const secs = resp.worklogs.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
+                totalTimeDiv.textContent = (secs / 3600).toFixed(1) + ' hrs';
+            } catch (_) {}
+            loader.style.display = 'none';
+        })();
+        return td;
+    },
 
-    // Fetch updated worklog details
-    fetchWorklogDetails(id, options).then((details) => {
-        const secs = details.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
-        totalTimeDiv.textContent = (secs / 3600).toFixed(1) + ' hrs';
-        loader.style.display = 'none';
-    });
+    log(issue) {
+        const td = buildHTML('td', null, { 'data-col': 'log' });
+        td.appendChild(buildHTML('input', null, {
+            class: 'issue-time-input', 'data-issue-id': issue.key, placeholder: 'Xhms'
+        }));
+        return td;
+    },
 
-    async function fetchWorklogDetails(issueId, opts) {
-        const JIRA = await JiraAPI(opts.jiraType, opts.baseUrl, opts.username, opts.apiToken);
-        const worklogResponse = await JIRA.getIssueWorklog(issueId);
-        return worklogResponse.worklogs;
+    comment(issue) {
+        const td = buildHTML('td', null, { 'data-col': 'comment' });
+        const container = buildHTML('div', null, {
+            class: 'suggestion-container',
+            style: 'position:relative;display:inline-block;width:100%;'
+        });
+        container.appendChild(buildHTML('input', null, {
+            class: 'issue-comment-input', 'data-issue-id': issue.key,
+            placeholder: 'Comment', style: 'width:100%;box-sizing:border-box;'
+        }));
+        container.appendChild(buildHTML('button', '1', { class: 'frequentWorklogDescription1' }));
+        container.appendChild(buildHTML('button', '2', { class: 'frequentWorklogDescription2' }));
+        td.appendChild(container);
+        return td;
+    },
+
+    date(issue) {
+        const td = buildHTML('td', null, { 'data-col': 'date' });
+        td.appendChild(buildHTML('input', null, {
+            type: 'date', class: 'issue-log-date-input',
+            value: new Date().toDateInputValue(), 'data-issue-id': issue.key
+        }));
+        return td;
+    },
+
+    actions(issue) {
+        const td = buildHTML('td', null, { 'data-col': 'actions' });
+        const btn = buildHTML('input', null, {
+            type: 'button', value: '\u21E1', class: 'issue-log-time-btn', 'data-issue-id': issue.key
+        });
+        btn.addEventListener('click', async (event) => await logTimeClick(event));
+        td.appendChild(btn);
+        return td;
     }
+};
 
-    // 4) Time input cell
-    const timeInput = buildHTML('input', null, {
-        class: 'issue-time-input',
-        'data-issue-id': id,
-        placeholder: 'Xhms'
-    });
-    const timeInputCell = buildHTML('td');
-    timeInputCell.appendChild(timeInput);
-    row.appendChild(timeInputCell);
+async function loadTransitions(issueKey, select, currentStatusName, options) {
+    try {
+        const JIRA = await getSharedJira(options);
+        const resp = await JIRA.getTransitions(issueKey);
+        (resp.transitions || []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = '\u2192 ' + t.name;
+            select.appendChild(opt);
+        });
+        select.onchange = async () => {
+            const transitionId = select.value;
+            if (!transitionId) return;
+            try {
+                select.disabled = true;
+                const J = await getSharedJira(options);
+                await J.transitionIssue(issueKey, transitionId);
+                const newName = select.options[select.selectedIndex].textContent.replace('\u2192 ', '');
+                select.options[0].textContent = newName;
+                select.selectedIndex = 0;
+                // Reload transitions for the new state
+                while (select.options.length > 1) select.remove(1);
+                await loadTransitions(issueKey, select, newName, options);
+            } catch (err) {
+                window.JiraErrorHandler.handleJiraError(err, `Failed to transition ${issueKey}`, 'popup');
+                select.selectedIndex = 0;
+                select.disabled = false;
+            }
+        };
+    } catch (err) {
+        console.warn(`Failed to load transitions for ${issueKey}:`, err);
+        select.disabled = true;
+        select.title = 'Could not load transitions — you may lack permission for this issue';
+    }
+}
 
-    // 5) Comment input cell (with frequent buttons)
-    const commentInputContainer = buildHTML('div', null, {
-        class: 'suggestion-container',
-        style: 'position: relative; display: inline-block; width: 100%;'
+function generateLogTableRow(issue, options, visibleCols) {
+    const row = buildHTML('tr', null, { 'data-issue-id': issue.key });
+    visibleCols.forEach(colId => {
+        if (cellBuilders[colId]) {
+            row.appendChild(cellBuilders[colId](issue, options));
+        }
     });
-    const commentInput = buildHTML('input', null, {
-        class: 'issue-comment-input',
-        'data-issue-id': id,
-        placeholder: 'Comment',
-        style: 'width: 100%; box-sizing: border-box;'
-    });
-    const commentButton1 = buildHTML('button', '1', {
-        class: 'frequentWorklogDescription1'
-    });
-    const commentButton2 = buildHTML('button', '2', {
-        class: 'frequentWorklogDescription2'
-    });
-    commentInputContainer.appendChild(commentInput);
-    commentInputContainer.appendChild(commentButton1);
-    commentInputContainer.appendChild(commentButton2);
-    
-    const commentCell = buildHTML('td');
-    commentCell.appendChild(commentInputContainer);
-    row.appendChild(commentCell);
-
-    // 6) Date input cell
-    const dateInput = buildHTML('input', null, {
-        type: 'date',
-        class: 'issue-log-date-input',
-        value: new Date().toDateInputValue(),
-        'data-issue-id': id
-    });
-    const dateCell = buildHTML('td');
-    dateCell.appendChild(dateInput);
-    row.appendChild(dateCell);
-
-    // 7) Submit button cell
-    const actionButton = buildHTML('input', null, {
-        type: 'button',
-        value: '⇡',
-        class: 'issue-log-time-btn',
-        'data-issue-id': id
-    });
-    actionButton.addEventListener('click', async (event) => await logTimeClick(event));
-    const actionCell = buildHTML('td');
-    actionCell.appendChild(actionButton);
-    row.appendChild(actionCell);
-
     return row;
 }
 
@@ -692,9 +986,8 @@ function getStartedTime(dateString) {
     return formattedDate;
 }
 
-function pad(num) {
-    const norm = Math.abs(Math.floor(num));
-    return (norm < 10 ? '0' : '') + norm;
+function pad(num, width = 2) {
+    return String(Math.abs(Math.floor(num))).padStart(width, '0');
 }
 
 function insertFrequentWorklogDescription(options) {
@@ -793,7 +1086,7 @@ async function toggleStar(issueId, options) {
     });
 
     try {
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const JIRA = await getSharedJira(options);
         const issuesResponse = await JIRA.getIssues(0, options.jql);
         
         // Redraw table so starred item jumps to top
@@ -812,35 +1105,33 @@ function showSuccessAnimation(issueId, loggedTime) {
     if (!row) return;
 
     const totalTimeCell = row.querySelector('td.issue-total-time');
-    if (!totalTimeCell) return;
+    let indicator;
 
-    // Ensure relative positioning for the absolute indicator
-    totalTimeCell.style.position = 'relative';
+    if (totalTimeCell) {
+        totalTimeCell.style.position = 'relative';
+        indicator = document.createElement('span');
+        indicator.className = 'logged-time-indicator';
+        indicator.textContent = `+${loggedTime}`;
+        totalTimeCell.appendChild(indicator);
+    }
 
-    // Create and add indicator
-    const indicator = document.createElement('span');
-    indicator.className = 'logged-time-indicator';
-    indicator.textContent = `+${loggedTime}`;
-    totalTimeCell.appendChild(indicator);
-
-    // Add highlight class
     row.classList.add('success-highlight');
 
-    // Set timeouts to remove indicator and highlight
     setTimeout(() => {
-        indicator.remove();
-        totalTimeCell.style.position = ''; // Reset position
-    }, 5000); // Remove indicator after 5 seconds (matching CSS animation)
+        if (indicator) {
+            indicator.remove();
+            if (totalTimeCell) totalTimeCell.style.position = '';
+        }
+    }, 5000);
 
     setTimeout(() => {
-        row.classList.add('fade-highlight'); // Start fade out transition
+        row.classList.add('fade-highlight');
         row.classList.remove('success-highlight');
-    }, 4000); // Start fade slightly before indicator disappears
+    }, 4000);
 
-    // Clean up fade class after transition ends
     setTimeout(() => {
          row.classList.remove('fade-highlight');
-    }, 5000); // Matches the fade duration
+    }, 5000);
 }
 
 function showErrorAnimation(issueId) {

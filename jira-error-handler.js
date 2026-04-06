@@ -20,7 +20,7 @@ function handleJiraError(error, defaultMessage = 'An error occurred', context = 
             if (context.includes('search') || context.includes('timer')) {
                 actionableSteps = 'The work item key or time format may be invalid. Verify the issue exists and use proper time format (e.g., 2h, 30m).';
             } else {
-                actionableSteps = 'Check your JQL query in Settings, ensure all field names are correct, and verify that referenced projects/issue types exist.';
+                actionableSteps = 'Check your JQL query in Time Table settings (gear icon top right), ensure all field names are correct, and verify that referenced projects/issue types exist.';
             }
             break;
             
@@ -63,7 +63,7 @@ function handleJiraError(error, defaultMessage = 'An error occurred', context = 
                 actionableSteps = 'Network or CORS issue. Check:\n1. Your internet connection\n2. Base URL is correct in Settings\n3. JIRA server is accessible from your browser';
             } else if (error.message?.includes('Invalid JQL')) {
                 errorMessage = 'Invalid JQL Query';
-                actionableSteps = 'Your JQL query in Settings contains errors. Verify the query works in JIRA\'s issue search before using it here.';
+                actionableSteps = 'Your JQL query in Time Table settings (gear icon top right) contains errors. Verify the query works in JIRA\'s issue search before using it here.';
             } else if (error.message?.includes('Worklog must not be null')) {
                 errorMessage = 'Timer Error - No time recorded';
                 actionableSteps = 'Please start and stop the timer before trying to log time. Make sure the timer has recorded some time.';
