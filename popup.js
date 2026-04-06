@@ -896,7 +896,6 @@ async function loadTransitions(issueKey, select, currentStatusName, options) {
             } catch (err) {
                 window.JiraErrorHandler.handleJiraError(err, `Failed to transition ${issueKey}`, 'popup');
                 select.selectedIndex = 0;
-            } finally {
                 select.disabled = false;
             }
         };
