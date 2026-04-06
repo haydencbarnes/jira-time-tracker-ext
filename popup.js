@@ -425,15 +425,11 @@ function onFetchError(error) {
 
 function getWorklog(issueId, JIRA) {
     const totalTime = document.querySelector(`div.issue-total-time-spent[data-issue-id="${issueId}"]`);
+    if (!totalTime) return;
     const loader = totalTime.previousSibling;
 
-    if (!totalTime || !loader) {
-        console.warn(`Elements not found for issue id: ${issueId}`);
-        return;
-    }
-
+    if (loader) loader.style.display = 'block';
     totalTime.style.display = 'none';
-    loader.style.display = 'block';
 
     JIRA.getIssueWorklog(issueId)
         .then((response) => onWorklogFetchSuccess(response, totalTime, loader))
@@ -454,15 +450,14 @@ function onWorklogFetchSuccess(response, totalTime, loader) {
         console.error(`Error in summing worklogs: ${error.stack}`);
         totalTime.innerText = '0 hrs';
     }
-    totalTime.style.display = 'block';
-    loader.style.display = 'none';
-    // Ensure inputs are cleared
+    if (totalTime) totalTime.style.display = 'block';
+    if (loader) loader.style.display = 'none';
     document.querySelectorAll('input.issue-time-input, input.issue-comment-input').forEach(input => input.value = '');
 }
 
 function onWorklogFetchError(error, totalTime, loader) {
-    totalTime.style.display = 'block';
-    loader.style.display = 'none';
+    if (totalTime) totalTime.style.display = 'block';
+    if (loader) loader.style.display = 'none';
     window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch worklog data', 'popup');
 }
 
@@ -496,12 +491,9 @@ async function logTimeClick(evt) {
     }
 
     if (totalTimeSpans && loader) {
-        totalTimeSpans.innerText = ''; // Clear previous total time
+        totalTimeSpans.innerText = '';
         totalTimeSpans.style.display = 'none';
         loader.style.display = 'block';
-    } else {
-        console.warn(`This issue does not have matching total time or loader spans: ${issueId}`);
-        return;
     }
 
     const startedTime = getStartedTime(dateInput.value);
@@ -538,8 +530,8 @@ async function logTimeClick(evt) {
     } catch (error) {
         console.error(`Error in logTimeClick function: ${error.stack}`);
 
-        totalTimeSpans.style.display = 'block';
-        loader.style.display = 'none';
+        if (totalTimeSpans) totalTimeSpans.style.display = 'block';
+        if (loader) loader.style.display = 'none';
 
         // Check for specific known issues before calling handleJiraError
         if (error && error.status === 200) {
@@ -1083,35 +1075,33 @@ function showSuccessAnimation(issueId, loggedTime) {
     if (!row) return;
 
     const totalTimeCell = row.querySelector('td.issue-total-time');
-    if (!totalTimeCell) return;
+    let indicator;
 
-    // Ensure relative positioning for the absolute indicator
-    totalTimeCell.style.position = 'relative';
+    if (totalTimeCell) {
+        totalTimeCell.style.position = 'relative';
+        indicator = document.createElement('span');
+        indicator.className = 'logged-time-indicator';
+        indicator.textContent = `+${loggedTime}`;
+        totalTimeCell.appendChild(indicator);
+    }
 
-    // Create and add indicator
-    const indicator = document.createElement('span');
-    indicator.className = 'logged-time-indicator';
-    indicator.textContent = `+${loggedTime}`;
-    totalTimeCell.appendChild(indicator);
-
-    // Add highlight class
     row.classList.add('success-highlight');
 
-    // Set timeouts to remove indicator and highlight
     setTimeout(() => {
-        indicator.remove();
-        totalTimeCell.style.position = ''; // Reset position
-    }, 5000); // Remove indicator after 5 seconds (matching CSS animation)
+        if (indicator) {
+            indicator.remove();
+            if (totalTimeCell) totalTimeCell.style.position = '';
+        }
+    }, 5000);
 
     setTimeout(() => {
-        row.classList.add('fade-highlight'); // Start fade out transition
+        row.classList.add('fade-highlight');
         row.classList.remove('success-highlight');
-    }, 4000); // Start fade slightly before indicator disappears
+    }, 4000);
 
-    // Clean up fade class after transition ends
     setTimeout(() => {
          row.classList.remove('fade-highlight');
-    }, 5000); // Matches the fade duration
+    }, 5000);
 }
 
 function showErrorAnimation(issueId) {
