@@ -339,6 +339,12 @@ function readGearColumnVisibility() {
     return Object.assign({}, DEFAULT_TIME_TABLE_COLUMNS, cols);
 }
 
+function escapeHTML(str) {
+    const el = document.createElement('span');
+    el.textContent = str;
+    return el.innerHTML;
+}
+
 function buildHTML(tag, html, attrs) {
     const element = document.createElement(tag);
     if (html) element.innerHTML = html;
@@ -441,11 +447,6 @@ async function init(options) {
 function onFetchSuccess(issuesResponse, options) {
     console.log("Fetched issues:", issuesResponse);
     drawIssuesTable(issuesResponse, options); // Pass options to the function
-}
-
-function onFetchError(error) {
-    toggleVisibility('div[id=loader-container]');
-    window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch data from JIRA', 'popup');
 }
 
 function getWorklog(issueId, JIRA) {
@@ -705,7 +706,7 @@ const cellBuilders = {
                         ? log.comment
                         : log.comment?.content?.[0]?.content?.[0]?.text || 'No comment';
                     const author = log.author?.displayName || log.author?.name || 'Unknown user';
-                    return `<div style="margin-bottom:4px;"><strong>${date}</strong> - ${author}<br>${hours}h - ${comment}</div>`;
+                    return `<div style="margin-bottom:4px;"><strong>${escapeHTML(date)}</strong> - ${escapeHTML(author)}<br>${escapeHTML(hours)}h - ${escapeHTML(comment)}</div>`;
                 }).join('');
                 tooltip.innerHTML = recentLogs || 'No recent worklogs';
             } catch (_) { tooltip.innerHTML = 'Error loading worklogs'; }
@@ -986,9 +987,8 @@ function getStartedTime(dateString) {
     return formattedDate;
 }
 
-function pad(num) {
-    const norm = Math.abs(Math.floor(num));
-    return (norm < 10 ? '0' : '') + norm;
+function pad(num, width = 2) {
+    return String(Math.abs(Math.floor(num))).padStart(width, '0');
 }
 
 function insertFrequentWorklogDescription(options) {
