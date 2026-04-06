@@ -200,7 +200,6 @@
           username: '',
           apiToken: '',
           baseUrl: '',
-          jql: '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)',
           experimentalFeatures: false,
           issueDetectionEnabled: true,
           frequentWorklogDescription1: '',

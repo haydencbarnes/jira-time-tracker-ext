@@ -187,6 +187,9 @@ function closeGearModal() {
 }
 
 function initGearPanel(options) {
+    if (window._gearPanelInitialized) return;
+    window._gearPanelInitialized = true;
+
     const backdrop = document.getElementById('gear-modal-backdrop');
     const closeBtn = document.getElementById('gear-modal-close');
     const saveBtn = document.getElementById('gear-save-btn');
@@ -221,7 +224,7 @@ function initGearPanel(options) {
         if (jqlChanged) {
             // Refetch with new JQL
             try {
-                const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                const JIRA = await getSharedJira(options);
                 const issuesResponse = await JIRA.getIssues(0, options.jql);
                 const cacheKey = `issuesCache:${options.baseUrl}:${options.jql}`;
                 chrome.storage.local.set({ [cacheKey]: { data: issuesResponse, ts: Date.now() } });
@@ -345,12 +348,34 @@ function buildHTML(tag, html, attrs) {
     return element;
 }
 
+async function getSharedJira(options) {
+    const jiraConfig = {
+        jiraType: options.jiraType,
+        baseUrl: options.baseUrl,
+        username: options.username,
+        apiToken: options.apiToken
+    };
+    const configKey = JSON.stringify(jiraConfig);
+
+    if (window._ttJiraConfigKey !== configKey || !window._ttJiraPromise) {
+        window._ttJiraConfigKey = configKey;
+        window._ttJiraPromise = JiraAPI(
+            jiraConfig.jiraType,
+            jiraConfig.baseUrl,
+            jiraConfig.username,
+            jiraConfig.apiToken
+        );
+    }
+
+    return window._ttJiraPromise;
+}
+
 async function init(options) {
     console.log("Options received:", options);
 
     try {
         // Initialize the JIRA API with the provided options
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const JIRA = await getSharedJira(options);
         console.log("JIRA API Object:", JIRA);
 
         if (!JIRA || typeof JIRA.getIssues !== 'function') {
@@ -508,7 +533,7 @@ async function logTimeClick(evt) {
             })
         );
 
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const JIRA = await getSharedJira(options);
 
         const commentValue = commentInput ? commentInput.value : '';
         console.log(`Update worklog details: issueId=${issueId}, timeSpentSeconds=${timeSpentSeconds}, startedTime=${startedTime}, comment=${commentValue}`);
@@ -671,7 +696,7 @@ const cellBuilders = {
                 ? `${rect.bottom + 5}px` : `${rect.top - 155}px`;
             document.body.appendChild(tooltip);
             try {
-                const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                const JIRA = await getSharedJira(options);
                 const worklogResponse = await JIRA.getIssueWorklog(id);
                 const recentLogs = worklogResponse.worklogs.slice(-5).reverse().map(log => {
                     const date = new Date(log.started).toLocaleDateString();
@@ -696,7 +721,9 @@ const cellBuilders = {
     },
 
     summary(issue) {
-        return buildHTML('td', issue.fields.summary, { class: 'issue-summary truncate', 'data-col': 'summary' });
+        const td = buildHTML('td', null, { class: 'issue-summary truncate', 'data-col': 'summary' });
+        td.textContent = issue.fields.summary;
+        return td;
     },
 
     status(issue, options) {
@@ -736,7 +763,7 @@ const cellBuilders = {
                 const query = input.value.trim();
                 if (!query) { dropdown.style.display = 'none'; return; }
                 try {
-                    const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                    const JIRA = await getSharedJira(options);
                     const users = await JIRA.searchAssignableUsers(issue.key, query, 5);
                     dropdown.innerHTML = '';
                     if (users.length === 0) { dropdown.style.display = 'none'; return; }
@@ -746,7 +773,7 @@ const cellBuilders = {
                         li.addEventListener('mousedown', async (e) => {
                             e.preventDefault();
                             try {
-                                const J = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                                const J = await getSharedJira(options);
                                 const assigneeField = options.jiraType === 'cloud'
                                     ? { accountId: user.accountId }
                                     : { name: user.name };
@@ -788,7 +815,7 @@ const cellBuilders = {
         td.appendChild(totalTimeDiv);
         (async () => {
             try {
-                const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                const JIRA = await getSharedJira(options);
                 const resp = await JIRA.getIssueWorklog(id);
                 const secs = resp.worklogs.reduce((acc, wl) => acc + wl.timeSpentSeconds, 0);
                 totalTimeDiv.textContent = (secs / 3600).toFixed(1) + ' hrs';
@@ -844,7 +871,7 @@ const cellBuilders = {
 
 async function loadTransitions(issueKey, select, currentStatusName, options) {
     try {
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const JIRA = await getSharedJira(options);
         const resp = await JIRA.getTransitions(issueKey);
         (resp.transitions || []).forEach(t => {
             const opt = document.createElement('option');
@@ -857,7 +884,7 @@ async function loadTransitions(issueKey, select, currentStatusName, options) {
             if (!transitionId) return;
             try {
                 select.disabled = true;
-                const J = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+                const J = await getSharedJira(options);
                 await J.transitionIssue(issueKey, transitionId);
                 const newName = select.options[select.selectedIndex].textContent.replace('\u2192 ', '');
                 select.options[0].textContent = newName;
@@ -872,7 +899,11 @@ async function loadTransitions(issueKey, select, currentStatusName, options) {
                 select.disabled = false;
             }
         };
-    } catch (_) {}
+    } catch (err) {
+        console.warn(`Failed to load transitions for ${issueKey}:`, err);
+        select.disabled = true;
+        select.title = 'Could not load transitions — you may lack permission for this issue';
+    }
 }
 
 function generateLogTableRow(issue, options, visibleCols) {
@@ -1056,7 +1087,7 @@ async function toggleStar(issueId, options) {
     });
 
     try {
-        const JIRA = await JiraAPI(options.jiraType, options.baseUrl, options.username, options.apiToken);
+        const JIRA = await getSharedJira(options);
         const issuesResponse = await JIRA.getIssues(0, options.jql);
         
         // Redraw table so starred item jumps to top
