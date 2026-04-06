@@ -4,7 +4,7 @@ const COLUMN_DEFS = {
     summary:  { label: 'Summary', baseWidth: 25 },
     status:   { label: 'Status', baseWidth: 10, optional: true },
     assignee: { label: 'Assignee', baseWidth: 10, optional: true },
-    total:    { label: 'Total', baseWidth: 8 },
+    total:    { label: 'Total', baseWidth: 8, optional: true },
     log:      { label: 'Log', baseWidth: 7 },
     comment:  { label: 'Comment', baseWidth: 15, optional: true },
     date:     { label: 'Date', baseWidth: 10 },
@@ -12,7 +12,7 @@ const COLUMN_DEFS = {
 };
 const DEFAULT_COLUMN_ORDER = ['issueId', 'summary', 'total', 'log', 'comment', 'date', 'actions'];
 const DEFAULT_JQL = '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)';
-const DEFAULT_TIME_TABLE_COLUMNS = { showStatus: false, showAssignee: false, showComment: true };
+const DEFAULT_TIME_TABLE_COLUMNS = { showStatus: false, showAssignee: false, showTotal: true, showComment: true };
 
 function getVisibleColumns(columnOrder, colSettings) {
     return columnOrder.filter(colId => {
@@ -21,6 +21,7 @@ function getVisibleColumns(columnOrder, colSettings) {
         if (!def.optional) return true;
         if (colId === 'status') return colSettings.showStatus;
         if (colId === 'assignee') return colSettings.showAssignee;
+        if (colId === 'total') return colSettings.showTotal;
         if (colId === 'comment') return colSettings.showComment;
         return true;
     });
@@ -173,6 +174,9 @@ function syncGearPanelState(options) {
     const assigneeToggle = document.getElementById('gear-show-assignee');
     if (assigneeToggle) assigneeToggle.checked = !!options.timeTableColumns.showAssignee;
 
+    const totalToggle = document.getElementById('gear-show-total');
+    if (totalToggle) totalToggle.checked = options.timeTableColumns.showTotal !== false;
+
     const commentToggle = document.getElementById('gear-show-comment');
     if (commentToggle) commentToggle.checked = !!options.timeTableColumns.showComment;
 
@@ -213,6 +217,7 @@ function initGearPanel(options) {
         const newCols = {
             showStatus: document.getElementById('gear-show-status').checked,
             showAssignee: document.getElementById('gear-show-assignee').checked,
+            showTotal: document.getElementById('gear-show-total').checked,
             showComment: document.getElementById('gear-show-comment').checked,
         };
         const newOrder = readGearColumnOrder();
