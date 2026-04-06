@@ -14,16 +14,16 @@ const DEFAULT_COLUMN_ORDER = ['issueId', 'summary', 'total', 'log', 'comment', '
 const DEFAULT_JQL = '(assignee=currentUser() OR worklogAuthor=currentUser()) AND status NOT IN (Closed, Done)';
 const DEFAULT_TIME_TABLE_COLUMNS = { showStatus: false, showAssignee: false, showTotal: true, showComment: true };
 
+function visibilityKey(colId) {
+    return 'show' + colId.charAt(0).toUpperCase() + colId.slice(1);
+}
+
 function getVisibleColumns(columnOrder, colSettings) {
     return columnOrder.filter(colId => {
         const def = COLUMN_DEFS[colId];
         if (!def) return false;
         if (!def.optional) return true;
-        if (colId === 'status') return colSettings.showStatus;
-        if (colId === 'assignee') return colSettings.showAssignee;
-        if (colId === 'total') return colSettings.showTotal;
-        if (colId === 'comment') return colSettings.showComment;
-        return true;
+        return !!colSettings[visibilityKey(colId)];
     });
 }
 
@@ -277,12 +277,9 @@ function renderGearColumnOrder(order, colSettings) {
 }
 
 function isColumnEnabled(colId, colSettings) {
-    if (!colSettings) return COLUMN_DEFS[colId].optional ? false : true;
-    if (colId === 'status') return !!colSettings.showStatus;
-    if (colId === 'assignee') return !!colSettings.showAssignee;
-    if (colId === 'total') return colSettings.showTotal !== false;
-    if (colId === 'comment') return !!colSettings.showComment;
-    return true;
+    if (!colSettings) return !COLUMN_DEFS[colId].optional;
+    if (!COLUMN_DEFS[colId].optional) return true;
+    return !!colSettings[visibilityKey(colId)];
 }
 
 function initDragAndDrop(ul) {
@@ -334,8 +331,7 @@ function readGearColumnVisibility() {
     const cols = {};
     toggles.forEach(cb => {
         const id = cb.getAttribute('data-col-toggle');
-        const key = 'show' + id.charAt(0).toUpperCase() + id.slice(1);
-        cols[key] = cb.checked;
+        cols[visibilityKey(id)] = cb.checked;
     });
     return Object.assign({}, DEFAULT_TIME_TABLE_COLUMNS, cols);
 }
