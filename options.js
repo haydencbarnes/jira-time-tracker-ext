@@ -16,6 +16,8 @@
     const systemThemeToggle = document.getElementById('systemThemeToggle');
     const sidePanelToggle = document.getElementById('sidePanelToggle');
     const sidePanelRow = document.getElementById('sidePanelRow');
+    const floatingTimerWidgetToggle = document.getElementById('floatingTimerWidgetToggle');
+    const floatingTimerWidgetRow = document.getElementById('floatingTimerWidgetRow');
 
     // Add proper theme toggle functionality
     document.addEventListener('DOMContentLoaded', function() {
@@ -130,9 +132,14 @@
             });
         }
         sidePanelRow.style.display = this.checked ? 'table-row' : 'none';
+        floatingTimerWidgetRow.style.display = this.checked ? 'table-row' : 'none';
         if (!this.checked) {
             sidePanelToggle.checked = false;
-            chrome.storage.sync.set({ sidePanelEnabled: false });
+            floatingTimerWidgetToggle.checked = false;
+            chrome.storage.sync.set({
+                sidePanelEnabled: false,
+                floatingTimerWidgetEnabled: false
+            });
         }
     });
 
@@ -156,7 +163,8 @@
         const frequentWorklogDescription1 = document.getElementById('frequentWorklogDescription1').value;
         const frequentWorklogDescription2 = document.getElementById('frequentWorklogDescription2').value;
         const defaultPage = document.getElementById('defaultPage').value;
-        const sidePanelEnabled = sidePanelToggle.checked;
+        const sidePanelEnabled = experimentalFeatures && sidePanelToggle.checked;
+        const floatingTimerWidgetEnabled = experimentalFeatures && floatingTimerWidgetToggle.checked;
 
         chrome.storage.sync.set({
             jiraType,
@@ -168,7 +176,8 @@
             frequentWorklogDescription1,
             frequentWorklogDescription2,
             defaultPage: defaultPage,
-            sidePanelEnabled
+            sidePanelEnabled,
+            floatingTimerWidgetEnabled
         }, function () {
             // Notify all content scripts about experimental features change
             chrome.tabs.query({}, function(tabs) {
@@ -176,7 +185,8 @@
                     chrome.tabs.sendMessage(tab.id, {
                         type: 'SETTINGS_CHANGED',
                         experimentalFeatures: experimentalFeatures,
-                        issueDetectionEnabled: issueDetectionEnabled
+                        issueDetectionEnabled: issueDetectionEnabled,
+                        floatingTimerWidgetEnabled: floatingTimerWidgetEnabled
                     }, function(response) {
                         // Ignore errors for tabs that don't have content scripts
                         if (chrome.runtime.lastError) {
@@ -206,7 +216,8 @@
           frequentWorklogDescription2: '',
           defaultPage: 'popup.html',
           followSystemTheme: true,
-          sidePanelEnabled: false
+          sidePanelEnabled: false,
+          floatingTimerWidgetEnabled: false
         }, async function (items) {
           jiraTypeSelect.value = items.jiraType;
           document.getElementById('username').value = items.username;
@@ -222,6 +233,8 @@
 
           sidePanelRow.style.display = items.experimentalFeatures ? 'table-row' : 'none';
           sidePanelToggle.checked = items.experimentalFeatures && items.sidePanelEnabled;
+          floatingTimerWidgetRow.style.display = items.experimentalFeatures ? 'table-row' : 'none';
+          floatingTimerWidgetToggle.checked = items.experimentalFeatures && items.floatingTimerWidgetEnabled;
 
           jiraTypeSelect.dispatchEvent(new Event('change'));
         });

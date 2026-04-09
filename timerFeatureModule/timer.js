@@ -106,7 +106,6 @@ async function onDOMContentLoaded() {
     insertFrequentWorklogDescription(options);
 
     restoreTimerState();
-    syncTimeWithBackground();
 
     const themeToggle = document.getElementById('themeToggle');
     
@@ -160,6 +159,9 @@ async function onDOMContentLoaded() {
                 const manualDark = result.darkMode === true;
                 applyTheme(followSystem, manualDark);
             });
+        }
+        if (namespace === 'sync' && ('timerSeconds' in changes || 'timerIsRunning' in changes || 'timerLastUpdated' in changes)) {
+            applyTimerStateFromChanges(changes);
         }
         // no-op for experimentalFeatures; suggestions always enabled now
     });
@@ -537,32 +539,21 @@ function setupInputFocus(input) {
 }
 
 function toggleTimer() {
-  const startStopButton = document.getElementById('startStop');
-  const startStopIcon = document.getElementById('startStopIcon');
-  const timerAnimation = document.getElementById('timer-animation');
-
   if (isRunning) {
-    clearInterval(timer);
-    startStopIcon.textContent = 'play_arrow';
-    timerAnimation.style.display = 'none';
-    timerAnimation.classList.remove('active');
     chrome.runtime.sendMessage({ action: 'stopTimer' });
   } else {
-    timer = setInterval(updateTimer, 1000);
-    startStopIcon.textContent = 'pause';
-    timerAnimation.style.display = 'block';
-    timerAnimation.classList.add('active');
     chrome.runtime.sendMessage({ action: 'startTimer', seconds: seconds });
   }
 
   isRunning = !isRunning;
+  applyTimerRunningUi();
   saveTimerState();
 }
 
 function updateTimer() {
+  if (!isRunning) return;
   seconds++;
   updateTimerDisplay();
-  chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
   if (seconds % 5 === 0) {  // Save every 5 seconds
     saveTimerState();
   }
@@ -579,21 +570,82 @@ function updateTimerDisplay() {
 }
 
 function resetTimer() {
-  clearInterval(timer);
   isRunning = false;
   seconds = 0;
   updateTimerDisplay();
-  const startStopIcon = document.getElementById('startStopIcon');
-  const timerAnimation = document.getElementById('timer-animation');
-  startStopIcon.textContent = 'play_arrow';
-  timerAnimation.style.display = 'none';
-  timerAnimation.classList.remove('active');
+  applyTimerRunningUi();
   chrome.runtime.sendMessage({ action: 'resetTimer' });
   chrome.storage.sync.remove(['timerSeconds', 'timerIsRunning', 'timerLastUpdated']);
 }
 
 function pad(num) {
   return num.toString().padStart(2, '0');
+}
+
+function applyTimerRunningUi() {
+  const startStopIcon = document.getElementById('startStopIcon');
+  const timerAnimation = document.getElementById('timer-animation');
+  if (!startStopIcon || !timerAnimation) return;
+
+  if (isRunning) {
+    startStopIcon.textContent = 'pause';
+    timerAnimation.style.display = 'block';
+    timerAnimation.classList.add('active');
+    if (!timer) {
+      timer = setInterval(updateTimer, 1000);
+    }
+  } else {
+    clearInterval(timer);
+    timer = null;
+    startStopIcon.textContent = 'play_arrow';
+    timerAnimation.style.display = 'none';
+    timerAnimation.classList.remove('active');
+  }
+}
+
+function applyStoredTimerState(items) {
+  seconds = items.timerSeconds;
+  isRunning = items.timerIsRunning;
+
+  if (isRunning && items.timerLastUpdated) {
+    const elapsedSeconds = Math.floor((new Date().getTime() - items.timerLastUpdated) / 1000);
+    seconds += elapsedSeconds;
+  }
+
+  updateTimerDisplay();
+  applyTimerRunningUi();
+}
+
+function getTimerChangeValue(changes, key, defaultValue, fallbackValue) {
+  if (!(key in changes)) return fallbackValue;
+  return Object.prototype.hasOwnProperty.call(changes[key], 'newValue')
+    ? changes[key].newValue
+    : defaultValue;
+}
+
+function applyTimerStateFromChanges(changes) {
+  applyStoredTimerState({
+    timerSeconds: getTimerChangeValue(changes, 'timerSeconds', 0, seconds),
+    timerIsRunning: getTimerChangeValue(changes, 'timerIsRunning', false, isRunning),
+    timerLastUpdated: getTimerChangeValue(changes, 'timerLastUpdated', null, Date.now())
+  });
+}
+
+function loadTimerState(syncBackground = false) {
+  chrome.storage.sync.get({
+    timerSeconds: 0,
+    timerIsRunning: false,
+    timerLastUpdated: null
+  }, function(items) {
+    applyStoredTimerState(items);
+
+    if (!syncBackground) return;
+
+    chrome.runtime.sendMessage({ action: 'updateBadge', seconds: seconds, isRunning: isRunning });
+    if (isRunning) {
+      chrome.runtime.sendMessage({ action: 'startTimer', seconds: seconds });
+    }
+  });
 }
 
 // Handle editable time
@@ -841,42 +893,8 @@ function saveTimerState() {
 }
 
 function restoreTimerState() {
-  chrome.storage.sync.get({
-    timerSeconds: 0,
-    timerIsRunning: false,
-    timerLastUpdated: null
-  }, function(items) {
-    seconds = items.timerSeconds;
-    isRunning = items.timerIsRunning;
-
-    if (isRunning && items.timerLastUpdated) {
-      const elapsedSeconds = Math.floor((new Date().getTime() - items.timerLastUpdated) / 1000);
-      seconds += elapsedSeconds;
-    }
-
-    updateTimerDisplay();
-    chrome.runtime.sendMessage({ action: 'updateBadge', seconds: seconds, isRunning: isRunning });
-    const startStopIcon = document.getElementById('startStopIcon');
-    const timerAnimation = document.getElementById('timer-animation');
-    if (isRunning) {
-      timer = setInterval(updateTimer, 1000);
-      startStopIcon.textContent = 'pause';
-      timerAnimation.style.display = 'block';
-      timerAnimation.classList.add('active');
-      chrome.runtime.sendMessage({ action: 'startTimer', seconds: seconds });
-    } else {
-      startStopIcon.textContent = 'play_arrow';
-      timerAnimation.style.display = 'none';
-      timerAnimation.classList.remove('active');
-    }
-  });
+  loadTimerState(true);
 }
-
-
-function syncTimeWithBackground() {
-  chrome.runtime.sendMessage({ action: 'syncTime', seconds: seconds, isRunning: isRunning });
-}
-
 function restartTimerAnimation() {
   const timerAnimation = document.getElementById('timer-animation');
   if (timerAnimation.style.display === 'block') {

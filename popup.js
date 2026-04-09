@@ -226,11 +226,11 @@ function initGearPanel(options) {
             try {
                 const JIRA = await getSharedJira(options);
                 const issuesResponse = await JIRA.getIssues(0, options.jql);
-                const cacheKey = `issuesCache:${options.baseUrl}:${options.jql}`;
+                const cacheKey = getIssuesCacheKey(options);
                 chrome.storage.local.set({ [cacheKey]: { data: issuesResponse, ts: Date.now() } });
                 onFetchSuccess(issuesResponse, options);
             } catch (err) {
-                window.JiraErrorHandler.handleJiraError(err, 'Failed to fetch issues with new JQL', 'popup');
+                await handleTimeTableFetchError(err, options, 'Failed to fetch issues with new JQL');
             }
         } else {
             // Just redraw table with new column settings
@@ -241,7 +241,7 @@ function initGearPanel(options) {
 }
 
 function redrawCurrentTable(options) {
-    const cacheKey = `issuesCache:${options.baseUrl}:${options.jql}`;
+    const cacheKey = getIssuesCacheKey(options);
     chrome.storage.local.get([cacheKey], (items) => {
         const cached = items[cacheKey];
         if (cached && cached.data) {
@@ -376,6 +376,71 @@ async function getSharedJira(options) {
     return window._ttJiraPromise;
 }
 
+function getJiraErrorStatusCode(error) {
+    const statusMatch = error?.message?.match(/Error (\d+):/);
+    return statusMatch ? parseInt(statusMatch[1], 10) : null;
+}
+
+function isJiraAuthError(error) {
+    const statusCode = getJiraErrorStatusCode(error);
+    return statusCode === 401 || statusCode === 403;
+}
+
+function getIssuesCacheKey(options) {
+    return `issuesCache:${options.baseUrl}:${options.jql}`;
+}
+
+function removeTimeTableCacheEntries(baseUrl) {
+    return new Promise((resolve) => {
+        try {
+            chrome.storage.local.get(null, (items) => {
+                const prefix = baseUrl ? `issuesCache:${baseUrl}:` : 'issuesCache:';
+                const keys = Object.keys(items || {}).filter((key) => key.startsWith(prefix));
+
+                if (keys.length === 0) {
+                    resolve();
+                    return;
+                }
+
+                chrome.storage.local.remove(keys, () => resolve());
+            });
+        } catch (_) {
+            resolve();
+        }
+    });
+}
+
+function clearTimeTableRows(options) {
+    clearMessages();
+    drawIssuesTable({ data: [] }, options);
+}
+
+async function clearCachedTimeTableData(options) {
+    await removeTimeTableCacheEntries(options.baseUrl);
+    clearTimeTableRows(options);
+}
+
+function shouldShowPopupFetchError(error, showedCached) {
+    if (!showedCached) return true;
+
+    if (isJiraAuthError(error)) {
+        return true;
+    }
+
+    const message = (error?.message || '').toLowerCase();
+    return message.includes('fetch') || message.includes('network') || message.includes('cors');
+}
+
+async function handleTimeTableFetchError(error, options, defaultMessage, showedCached = false) {
+    if (isJiraAuthError(error)) {
+        await clearCachedTimeTableData(options);
+    }
+
+    if (shouldShowPopupFetchError(error, showedCached)) {
+        window.JiraErrorHandler.handleJiraError(error, defaultMessage, 'popup');
+    }
+}
+
 async function init(options) {
     console.log("Options received:", options);
 
@@ -391,7 +456,7 @@ async function init(options) {
         }
 
         // Try to show cached data immediately for instant popup
-        const cacheKey = `issuesCache:${options.baseUrl}:${options.jql}`;
+        const cacheKey = getIssuesCacheKey(options);
         let showedCached = false;
         
         try {
@@ -429,10 +494,7 @@ async function init(options) {
             onFetchSuccess(issuesResponse, options);
         } catch (error) {
             console.error('Error fetching issues:', error);
-            // Only show error if we didn't show cached data
-            if (!showedCached) {
-                window.JiraErrorHandler.handleJiraError(error, 'Failed to fetch issues from JIRA', 'popup');
-            }
+            await handleTimeTableFetchError(error, options, 'Failed to fetch issues from JIRA', showedCached);
         } finally {
             if (!showedCached) {
                 toggleVisibility('div[id=loader-container]');
@@ -445,6 +507,7 @@ async function init(options) {
 }
 
 function onFetchSuccess(issuesResponse, options) {
+    clearMessages();
     console.log("Fetched issues:", issuesResponse);
     drawIssuesTable(issuesResponse, options); // Pass options to the function
 }
@@ -1097,6 +1160,7 @@ async function toggleStar(issueId, options) {
 
     } catch (err) {
         console.error('Error fetching issues after star update:', err);
+        await handleTimeTableFetchError(err, options, 'Failed to refresh issues after updating star');
     }
 }
 

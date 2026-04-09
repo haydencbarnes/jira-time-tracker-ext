@@ -341,3 +341,140 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   }
 }
+
+/* Floating timer widget */
+.jira-floating-timer-widget {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid #dfe1e6;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #172b4d;
+  box-shadow: 0 4px 14px rgba(9, 30, 66, 0.18);
+  z-index: 2147483000;
+  font-family: Arial, sans-serif;
+}
+
+.jira-floating-timer-widget.dark {
+  background: #141414;
+  border-color: #333333;
+  color: #e0e0e0;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.jira-floating-timer-widget-badge {
+  flex-shrink: 0;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #ff6b35;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(255, 107, 53, 0.3);
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-badge {
+  background: #ff8c42;
+  box-shadow: 0 1px 3px rgba(255, 140, 66, 0.4);
+}
+
+.jira-floating-timer-widget-issue,
+.jira-floating-timer-widget-value,
+.jira-floating-timer-widget-icon {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.jira-floating-timer-widget-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.jira-floating-timer-widget-issue {
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.78;
+  letter-spacing: 0.02em;
+}
+
+.jira-floating-timer-widget-value {
+  padding: 0;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.jira-floating-timer-widget-separator {
+  opacity: 0.45;
+}
+
+.jira-floating-timer-widget-issue:hover,
+.jira-floating-timer-widget-value:hover {
+  color: #0052cc;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-issue:hover,
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-value:hover {
+  color: #4690dd;
+}
+
+.jira-floating-timer-widget-icon {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  background: #0052cc;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.jira-floating-timer-widget-icon svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+  fill: currentColor;
+}
+
+.jira-floating-timer-widget-icon:hover {
+  background: #0065ff;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-icon {
+  background: #4690dd;
+  color: #141414;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-icon:hover {
+  background: #5e9fe3;
+}
