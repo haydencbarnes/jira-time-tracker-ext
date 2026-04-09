@@ -34,11 +34,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     syncTime(request.seconds, request.isRunning);
   } else if (request.action === 'openSidePanel') {
     chrome.sidePanel.open({ windowId: sender.tab.windowId });
+  } else if (request.action === 'openUrl') {
+    openUrlInTab(request.url, sender);
   } else if (request.action === 'logWorklog') {
     handleWorklogRequest(request, sendResponse);
     return true; // Keep the message channel open for async response
   }
 });
+
+function openUrlInTab(url, sender) {
+  if (!url || typeof url !== 'string') return;
+
+  const createProperties = { url };
+  if (sender?.tab?.windowId) {
+    createProperties.windowId = sender.tab.windowId;
+    if (typeof sender.tab.index === 'number') {
+      createProperties.index = sender.tab.index + 1;
+    }
+  }
+
+  chrome.tabs.create(createProperties, () => {
+    if (chrome.runtime.lastError) {
+      console.error('Failed to open URL from background:', chrome.runtime.lastError.message);
+    }
+  });
+}
 
 async function handleWorklogRequest(request, sendResponse) {
   try {
