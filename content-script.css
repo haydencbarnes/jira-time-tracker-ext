@@ -414,6 +414,7 @@
 
 .jira-floating-timer-widget-issue {
   padding: 0;
+  color: inherit;
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
@@ -449,14 +450,17 @@
   height: 22px;
   padding: 0;
   border-radius: 999px;
-  background: #0052cc;
-  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
+}
+
+.jira-floating-timer-widget-icon:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .jira-floating-timer-widget-icon svg {
@@ -466,15 +470,40 @@
   fill: currentColor;
 }
 
-.jira-floating-timer-widget-icon:hover {
+.jira-floating-timer-widget-reset {
+  background: rgba(9, 30, 66, 0.08);
+  color: #42526e;
+}
+
+.jira-floating-timer-widget-reset:hover:not(:disabled) {
+  background: rgba(222, 53, 11, 0.12);
+  color: #de350b;
+}
+
+.jira-floating-timer-widget-toggle {
+  background: #0052cc;
+  color: #ffffff;
+}
+
+.jira-floating-timer-widget-toggle:hover:not(:disabled) {
   background: #0065ff;
 }
 
-.jira-floating-timer-widget.dark .jira-floating-timer-widget-icon {
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-reset {
+  background: rgba(255, 255, 255, 0.12);
+  color: #c1c7d0;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-reset:hover:not(:disabled) {
+  background: rgba(255, 86, 48, 0.18);
+  color: #ff8f73;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-toggle {
   background: #4690dd;
   color: #141414;
 }
 
-.jira-floating-timer-widget.dark .jira-floating-timer-widget-icon:hover {
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-toggle:hover:not(:disabled) {
   background: #5e9fe3;
 }

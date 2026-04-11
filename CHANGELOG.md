@@ -1,3 +1,7 @@
+## 1.4.20 (Apr 11, 2026)
+- Feature (experimental / Beta): **Floating Timer Widget** — reset control on the pill clears stored timer fields and syncs the extension badge via the existing `resetTimer` path (see [#29](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/29)).
+- Fix: Work item ID text on the floating timer pill inherits the pill foreground color so it stays visible in light mode.
+
 ## 1.4.19 (Apr 9, 2026)
 - Fix: Time Table now surfaces fetch errors when the Jira API key is invalid or expired (including when cached issues were shown first). `401`/`403` responses clear all cached Time Table data for that Jira base URL so stale rows are not left on screen after auth fails (see [#27](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/27)).
 - Feature (experimental / Beta): **Floating Timer Widget** — optional bottom-right pill on web pages (enable under Experimental Features in Options). Shows issue key, elapsed time, play/pause, and a Beta badge; click the issue key to open the Jira issue or the time to open the full timer page (opens via the background script to avoid extension-page blocking) (see [#16](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/16)).
