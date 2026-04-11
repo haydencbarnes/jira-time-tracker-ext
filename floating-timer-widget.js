@@ -9,6 +9,7 @@
       this.issueText = null;
       this.issueSeparator = null;
       this.timerValue = null;
+      this.resetButton = null;
       this.toggleButton = null;
       this.interval = null;
       this.settings = null;
@@ -84,7 +85,12 @@
           <span class="jira-floating-timer-widget-separator" aria-hidden="true">&middot;</span>
           <button type="button" class="jira-floating-timer-widget-value" title="Open full timer">0:00</button>
         </div>
-        <button type="button" class="jira-floating-timer-widget-icon" data-action="toggle" title="Start timer" aria-label="Start timer"></button>
+        <button type="button" class="jira-floating-timer-widget-icon jira-floating-timer-widget-reset" data-action="reset" title="Reset timer" aria-label="Reset timer">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"></path>
+          </svg>
+        </button>
+        <button type="button" class="jira-floating-timer-widget-icon jira-floating-timer-widget-toggle" data-action="toggle" title="Start timer" aria-label="Start timer"></button>
       `;
 
       widget.querySelector('[data-action="toggle"]').addEventListener('click', () => {
@@ -93,6 +99,10 @@
         } else {
           this.startTimer();
         }
+      });
+
+      widget.querySelector('[data-action="reset"]').addEventListener('click', () => {
+        this.resetTimer();
       });
 
       widget.querySelector('.jira-floating-timer-widget-issue').addEventListener('click', () => {
@@ -110,6 +120,7 @@
       this.issueText = widget.querySelector('.jira-floating-timer-widget-issue');
       this.issueSeparator = widget.querySelector('.jira-floating-timer-widget-separator');
       this.timerValue = widget.querySelector('.jira-floating-timer-widget-value');
+      this.resetButton = widget.querySelector('[data-action="reset"]');
       this.toggleButton = widget.querySelector('[data-action="toggle"]');
 
       this.applyTheme();
@@ -126,6 +137,7 @@
         this.issueText = null;
         this.issueSeparator = null;
         this.timerValue = null;
+        this.resetButton = null;
         this.toggleButton = null;
       }
     }
@@ -258,14 +270,18 @@
     }
 
     render() {
-      if (!this.widget || !this.issueText || !this.issueSeparator || !this.timerValue || !this.toggleButton) return;
+      if (!this.widget || !this.issueText || !this.issueSeparator || !this.timerValue || !this.resetButton || !this.toggleButton) return;
 
       const currentSeconds = this.getCurrentSeconds();
+      const canReset = this.isRunning || currentSeconds > 0;
       this.issueText.textContent = this.issueKey;
       this.issueText.hidden = !this.issueKey;
       this.issueSeparator.hidden = !this.issueKey;
       this.timerValue.textContent = this.formatTimer(currentSeconds);
       this.issueText.disabled = !this.issueKey;
+      this.resetButton.disabled = !canReset;
+      this.resetButton.title = canReset ? 'Reset timer' : 'Timer already reset';
+      this.resetButton.setAttribute('aria-label', canReset ? 'Reset timer' : 'Timer already reset');
       this.toggleButton.innerHTML = this.getToggleIconMarkup();
       const toggleTitle = this.isRunning
         ? 'Pause timer'
