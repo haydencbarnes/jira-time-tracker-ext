@@ -62,7 +62,7 @@ After `npm run build` (or rely on the script to build first), run:
 npm run package
 ```
 
-This runs the build, removes any existing `jira-time-tracker-ext.zip` in the repo root or parent folder, then writes a new **`../jira-time-tracker-ext.zip`** (one directory above the project root) containing `manifest.json`, `dist/`, `src/icons`, and `src/content-script.css`. Load that zip in Chrome via **Extensions → Load unpacked** only after unzipping, or distribute the zip for sideloading per your org’s policy.
+This runs the build, removes any existing `jira-time-tracker-ext.zip` in the repo root or parent folder, then writes a new **`../jira-time-tracker-ext.zip`** (one directory above the project root) containing `manifest.json`, `dist/`, `src/icons`, and `src/content-script.css`. To try it locally, unzip the archive and use **Extensions → Load unpacked** with the folder that contains `manifest.json` (or share the zip per your org’s sideloading policy).
 
 ## Settings/Preferences
 
