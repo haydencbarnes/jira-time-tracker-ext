@@ -1,0 +1,802 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Jira Issue Search</title>
+    <style>
+      body {
+        width: 750px;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      a {
+        color: #0052cc;
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:active,
+      a:focus {
+        text-decoration: underline;
+      }
+      /* Ko-fi button, aligned with theme controls */
+      .kofi-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        height: 24px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.05);
+        color: #0052cc !important;
+        font-weight: 400;
+        text-decoration: none !important;
+        line-height: 1;
+        border: 1px solid transparent;
+        vertical-align: middle;
+      }
+      .kofi-btn:hover {
+        background-color: rgba(0, 0, 0, 0.12);
+      }
+      body.dark-mode .kofi-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: #4690dd !important;
+        font-weight: 400;
+      }
+      body.dark-mode .kofi-btn:hover {
+        background-color: rgba(255, 255, 255, 0.18);
+      }
+      .kofi-cup {
+        display: inline-block;
+        will-change: transform;
+      }
+      .kofi-btn:hover .kofi-cup {
+        animation: kofi-pop 0.4s ease-out;
+      }
+      @keyframes kofi-pop {
+        0% {
+          transform: translateY(0) scale(1);
+        }
+        50% {
+          transform: translateY(-2px) scale(1.15);
+        }
+        100% {
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        padding-bottom: 60px; /* Add space for footer */
+      }
+
+      table {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+
+      td {
+        padding: 5px 0;
+        vertical-align: middle;
+      }
+
+      td:first-child {
+        width: 20%;
+      }
+
+      label {
+        font-size: 11px;
+        font-weight: bold;
+      }
+
+      input[type='text'],
+      textarea,
+      input[type='date'] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+        font-size: 11px;
+        font-family: Arial, sans-serif;
+      }
+
+      .input-wrapper {
+        position: relative;
+        width: 100%;
+      }
+
+      .input-container {
+        position: relative;
+        width: 100%;
+        display: flex;
+      }
+
+      .suggestion-container {
+        position: relative;
+        flex: 1;
+        width: 100%;
+      }
+
+      body.dark-mode .suggestion-container {
+        background-color: #1a1a1a;
+        border-radius: 4px;
+      }
+
+      body.dark-mode .suggestion-container textarea {
+        background: transparent;
+        border: none;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .suggestion-container textarea:focus {
+        outline: none;
+        box-shadow: none;
+      }
+
+      body.dark-mode .suggestion-container:focus-within {
+        border-color: #4a90e2;
+      }
+
+      .date-picker {
+        position: relative;
+        width: 100%;
+        display: flex;
+      }
+
+      .date-picker input[type='date'] {
+        flex: 1;
+        width: auto;
+      }
+
+      .autocomplete-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding-right: 30px;
+        padding-left: 10px;
+      }
+
+      .dropdown-arrow {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 12px;
+        color: #666;
+      }
+
+      .autocomplete-list {
+        width: 100%;
+        box-sizing: border-box;
+        position: absolute;
+        border-top: none;
+        z-index: 1000;
+        top: 100%;
+        left: 0;
+        right: 0;
+        padding: 0;
+        margin: 0;
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: #fff;
+        list-style-type: none;
+      }
+
+      .autocomplete-list li {
+        padding: 10px;
+        cursor: pointer;
+        background-color: #fff;
+        border-bottom: 1px solid #d4d4d4;
+      }
+
+      #description {
+        position: relative;
+        z-index: 1;
+        background: transparent;
+        border: 1px solid #767676;
+        border-radius: 4px;
+      }
+
+      body.dark-mode #description {
+        border: 1px solid #333;
+      }
+
+      body.dark-mode #description:focus {
+        border: 1px solid #4a90e2;
+      }
+
+      .autocomplete-list li:hover {
+        background-color: #e9e9e9;
+      }
+
+      .autocomplete-active {
+        background-color: #e9e9e9 !important;
+      }
+
+      button {
+        width: 100%;
+        background: #0052cc;
+        color: #fff;
+        border-radius: 8px;
+        border: none;
+        padding: 10px;
+        font-size: 13px;
+
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #0041a8;
+      }
+
+      #frequentWorklogDescription1 {
+        position: absolute;
+        top: 50%;
+        right: 70px;
+        transform: translateY(-50%);
+        background-color: #0052cc;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 5px 10px;
+        z-index: 2;
+        width: 10%;
+        display: none;
+      }
+
+      #frequentWorklogDescription1:hover {
+        background-color: #0041a8;
+      }
+
+      #frequentWorklogDescription2 {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        transform: translateY(-50%);
+        background-color: #0052cc;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 5px 10px;
+        z-index: 2;
+        width: 10%;
+        display: none;
+      }
+
+      #frequentWorklogDescription2:hover {
+        background-color: #0041a8;
+      }
+
+      #error {
+        padding: 10px;
+        color: #cc0000;
+        background-color: #ffdddd;
+        font-weight: bold;
+        display: none;
+        word-wrap: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      #error::before {
+        color: #000000;
+        content: '!!';
+        margin-right: 5px;
+      }
+
+      #success {
+        padding: 10px;
+        color: #4f8a10;
+        background-color: #dff2bf;
+        font-weight: bold;
+        display: none;
+      }
+
+      #success::before {
+        color: #000000;
+        font-weight: bold;
+        content: '\2714';
+        margin-right: 10px;
+      }
+
+      #brand {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        z-index: 9999;
+        height: 50px;
+        background: #f3f3f3;
+        margin: 0;
+        border-top: 1px solid #e5e5e5;
+      }
+
+      #info {
+        padding: 12px 0 0 10px;
+        width: 50%;
+        display: inline-block;
+        vertical-align: top;
+      }
+
+      #nav {
+        font-size: 12px;
+        color: #cccccc;
+        width: 44%;
+        display: inline-block;
+        text-align: right;
+        vertical-align: top;
+        padding: 12px 5px 0 0;
+      }
+
+      #nav > * {
+        display: inline-block;
+        vertical-align: middle;
+        margin: 0 3px;
+      }
+
+      #nav a img {
+        display: block;
+      }
+
+      .theme-toggle {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        margin: 0 2px;
+        vertical-align: middle;
+      }
+
+      .theme-toggle input {
+        display: none;
+      }
+
+      .theme-toggle-track {
+        width: 48px;
+        height: 24px;
+        background-color: #e2e8f0;
+        border-radius: 12px;
+        position: relative;
+        transition: background-color 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 4px;
+      }
+
+      .theme-toggle input:checked + .theme-toggle-track {
+        background-color: #1a1a1a;
+      }
+
+      .theme-toggle-thumb {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: white;
+        border-radius: 50%;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.3s;
+        z-index: 2;
+      }
+
+      .theme-toggle input:checked + .theme-toggle-track .theme-toggle-thumb {
+        transform: translateX(24px);
+        background-color: #1a1a1a;
+      }
+
+      .theme-toggle-icon {
+        font-size: 16px;
+        z-index: 1;
+        transition: opacity 0.3s;
+        height: 24px;
+        width: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family:
+          'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+          'Noto Color Emoji';
+        line-height: 1;
+        position: relative;
+        top: 0;
+      }
+
+      .theme-toggle-icon.sun {
+        opacity: 0;
+        padding-left: 2px;
+        font-size: 14px;
+      }
+
+      .theme-toggle-icon.moon {
+        opacity: 1;
+        padding-right: 2px;
+        font-size: 14px;
+      }
+
+      .theme-toggle input:checked + .theme-toggle-track .theme-toggle-icon.sun {
+        opacity: 1;
+      }
+
+      .theme-toggle
+        input:checked
+        + .theme-toggle-track
+        .theme-toggle-icon.moon {
+        opacity: 0;
+      }
+
+      body.dark-mode .theme-toggle-thumb {
+        background-color: #1a1a1a;
+      }
+
+      /* ---------------- Dark Mode Styles ---------------- */
+      body.dark-mode {
+        background-color: #141414;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode input,
+      body.dark-mode textarea,
+      body.dark-mode select {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        border: 1px solid #333;
+        border-radius: 4px;
+      }
+
+      body.dark-mode input:focus,
+      body.dark-mode textarea:focus,
+      body.dark-mode select:focus,
+      body.dark-mode .autocomplete-input:focus {
+        outline: none;
+        border-color: #4a90e2;
+        box-shadow: none;
+      }
+
+      body.dark-mode button {
+        background: #4690dd;
+        color: #1a1a1a;
+      }
+
+      body.dark-mode button:hover {
+        background: #5e9fe3;
+      }
+
+      body.dark-mode #brand {
+        background: #141414;
+        border-top: 1px solid #333;
+      }
+
+      body.dark-mode a {
+        color: #4690dd !important;
+        font-weight: lighter;
+      }
+
+      body.dark-mode .autocomplete-list {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .autocomplete-list li {
+        background-color: #141414;
+        color: #e0e0e0;
+        border-bottom: 1px solid #333;
+      }
+
+      body.dark-mode .autocomplete-list li:hover {
+        background-color: #333;
+      }
+
+      body.dark-mode .autocomplete-active {
+        background-color: #333 !important;
+      }
+
+      body.dark-mode .dropdown-arrow {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode #frequentWorklogDescription1,
+      body.dark-mode #frequentWorklogDescription2 {
+        background-color: #4690dd;
+        color: #1a1a1a;
+      }
+
+      body.dark-mode #frequentWorklogDescription1:hover,
+      body.dark-mode #frequentWorklogDescription2:hover {
+        background-color: #5e9fe3;
+      }
+
+      body.dark-mode #error {
+        color: #ff6b6b;
+        background-color: #2a1a1a;
+        border: 1px solid #4a1a1a;
+      }
+
+      body.dark-mode #success {
+        color: #4f8a10;
+        background-color: #1a2a1a;
+        border: 1px solid #1a4a1a;
+      }
+
+      body.dark-mode .input-wrapper {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .input-wrapper:focus {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .autocomplete-active:focus {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .autocomplete-list li:focus {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .autocomplete-list li:hover {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      /* Simple, minimal theme button with just the emoji - rounded square */
+      .theme-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 24px;
+        border-radius: 4px; /* Rounded square */
+        cursor: pointer;
+        border: none;
+        vertical-align: middle;
+        transition: background-color 0.3s;
+        margin: 0 2px;
+        padding: 0;
+        font-size: 16px;
+        background: rgba(0, 0, 0, 0.05); /* Subtle background */
+      }
+
+      .theme-button:hover {
+        background-color: rgba(0, 0, 0, 0.15);
+      }
+
+      /* Fun gradient focus/hover state for caret button */
+      .caret-button:hover,
+      .caret-button:focus,
+      .caret-button:focus-visible {
+        outline: none;
+        background: linear-gradient(
+          135deg,
+          #4fd1ff 0%,
+          #7a5cff 50%,
+          #ff4fd1 100%
+        );
+        color: #ffffff;
+        box-shadow: 0 0 0 2px rgba(122, 92, 255, 0.35);
+      }
+
+      body.dark-mode .theme-button {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      body.dark-mode .theme-button:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+
+      body.dark-mode .caret-button:hover,
+      body.dark-mode .caret-button:focus,
+      body.dark-mode .caret-button:focus-visible {
+        outline: none;
+        background: linear-gradient(
+          135deg,
+          #4690dd 0%,
+          #7a5cff 50%,
+          #ff4fd1 100%
+        );
+        color: #1a1a1a;
+        box-shadow: 0 0 0 2px rgba(70, 144, 221, 0.35);
+      }
+
+      /* Emoji font support and perfect centering */
+      .theme-button .icon {
+        font-family:
+          'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+          'Noto Color Emoji';
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        line-height: 1;
+      }
+
+      /* Fine-tune caret button centering */
+      .caret-button .icon {
+        font-size: 18px;
+        transform: translateY(-1px);
+      }
+
+      /* Worklog suggestions styles */
+      .suggestion-completion {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        color: rgba(0, 0, 0, 0.35);
+        padding: 5px;
+        box-sizing: border-box;
+        font-size: 11px;
+        font-family: Arial, sans-serif;
+        background: transparent;
+        border: 1px solid transparent;
+        z-index: 0;
+        resize: none;
+        white-space: pre-wrap;
+        overflow: hidden;
+        line-height: inherit;
+        margin: 0;
+        text-shadow: none;
+      }
+
+      body.dark-mode .suggestion-completion {
+        color: rgba(138, 180, 255, 0.85);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="error"></div>
+    <div id="success"></div>
+    <div class="container">
+      <table>
+        <tr>
+          <td><label for="projectId">Project ID</label></td>
+          <td>
+            <div class="input-wrapper">
+              <input
+                type="text"
+                id="projectId"
+                class="autocomplete-input"
+                placeholder="Type to search projects"
+              />
+              <span class="dropdown-arrow">&#9662;</span>
+              <ul class="autocomplete-list" id="projectList"></ul>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="issueKey">Work Item ID</label></td>
+          <td>
+            <div class="input-wrapper">
+              <input
+                type="text"
+                id="issueKey"
+                class="autocomplete-input"
+                placeholder="Type to search issues"
+              />
+              <span class="dropdown-arrow">&#9662;</span>
+              <ul class="autocomplete-list" id="issueList"></ul>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="datePicker">Date</label></td>
+          <td>
+            <div class="date-picker">
+              <input type="date" id="datePicker" />
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="timeSpent">Time (e.g., 2h 15m 30s)</label></td>
+          <td>
+            <input
+              type="text"
+              id="timeSpent"
+              placeholder="Enter time as 'Xh Ym Zs'"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td><label for="description">Comment</label></td>
+          <td>
+            <div class="input-container">
+              <div
+                class="suggestion-container"
+                style="position: relative; flex: 1"
+              >
+                <textarea
+                  id="description"
+                  placeholder="Describe your work, magic, or craft"
+                ></textarea>
+              </div>
+              <button id="frequentWorklogDescription1">1</button>
+              <button id="frequentWorklogDescription2">2</button>
+            </div>
+          </td>
+        </tr>
+      </table>
+      <button id="search">Submit</button>
+    </div>
+
+    <div id="brand">
+      <div id="info">
+        <div style="text-align: left; padding-left: 4px">
+          <a
+            class="kofi-btn"
+            href="https://ko-fi.com/haydenbarnesos"
+            target="_blank"
+            tabindex="1"
+            title="Buy me a coffee"
+            ><span class="kofi-cup" aria-hidden="true">☕</span
+            ><span class="kofi-text"> Buy me a coffee</span></a
+          >
+        </div>
+      </div>
+      <div id="nav">
+        <a
+          href="popup.html?source=navigation"
+          tabindex="1"
+          style="color: #0052cc"
+          ><img
+            src="src/icons/cells.png"
+            alt="Time Table"
+            style="vertical-align: middle; width: 20px; height: 20px"
+        /></a>
+        |
+        <a
+          href="timerFeatureModule/timer.html"
+          tabindex="1"
+          style="color: #0052cc"
+          ><img
+            src="src/icons/timer.png"
+            alt="Timer"
+            style="vertical-align: middle; width: 20px; height: 20px"
+        /></a>
+        |
+        <a
+          href="cli.html"
+          tabindex="1"
+          class="theme-button caret-button"
+          title="Open CLI"
+          ><span class="icon">»</span></a
+        >
+        |
+        <a href="options.html" tabindex="1" style="color: #0052cc"
+          ><img
+            src="src/icons/settings.png"
+            alt="Settings"
+            style="vertical-align: middle; width: 20px; height: 20px"
+        /></a>
+        |
+        <button id="themeToggle" class="theme-button" title="Toggle dark mode">
+          <span class="icon">🌙</span>
+        </button>
+        |
+        <a
+          href="https://github.com/haydencbarnes/jira-time-tracker-ext"
+          target="_blank"
+          tabindex="1"
+          style="color: #0052cc"
+          >Learn More</a
+        >
+      </div>
+    </div>
+
+    <script src="dist/search.js"></script>
+  </body>
+</html>

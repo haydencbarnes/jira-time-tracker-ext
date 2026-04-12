@@ -1,12 +1,46 @@
+import { getErrorMessage } from './shared/jira-error-handler';
+import type {
+  BackgroundWorklogResponse,
+  ExtensionSettings,
+  SettingsChangedMessage,
+  TextEntryElement,
+} from './shared/types';
+
+type DetectorSettings = Required<
+  Pick<ExtensionSettings, 'baseUrl' | 'username' | 'apiToken' | 'jiraType'>
+> &
+  Pick<
+    ExtensionSettings,
+    'issueDetectionEnabled' | 'followSystemTheme' | 'darkMode'
+  >;
+
+const JIRA_ISSUE_KEY_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/;
+const JIRA_ISSUE_KEY_GLOBAL_PATTERN_SOURCE = '\\b[A-Z][A-Z0-9]+-\\d+\\b';
+
+function isTextEntryElement(
+  element: Element | null
+): element is TextEntryElement {
+  return (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement
+  );
+}
+
 // JIRA Issue ID Detection and Time Tracking Content Script (stable)
 // Detects JIRA issue IDs on any page and provides a quick log-time popup
 
 class JiraIssueDetector {
+  private isEnabled: boolean;
+  private highlightedIssues: Set<string>;
+  private currentPopup: HTMLDivElement | null;
+  private observer: MutationObserver | null;
+  private debounceTimeout: number | null;
+
   constructor() {
     this.isEnabled = false;
     this.highlightedIssues = new Set();
     this.currentPopup = null;
-    this.JIRA_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/g;
+    this.observer = null;
     this.debounceTimeout = null;
 
     this.init();
@@ -33,8 +67,12 @@ class JiraIssueDetector {
 
     // Listen for settings changes
     chrome.runtime.onMessage.addListener((message) => {
-      if (message.type === 'SETTINGS_CHANGED' && typeof message.issueDetectionEnabled === 'boolean') {
-        const nextEnabled = message.issueDetectionEnabled;
+      const settingsMessage = message as Partial<SettingsChangedMessage> | null;
+      if (
+        settingsMessage?.type === 'SETTINGS_CHANGED' &&
+        typeof settingsMessage.issueDetectionEnabled === 'boolean'
+      ) {
+        const nextEnabled = settingsMessage.issueDetectionEnabled;
         if (nextEnabled !== this.isEnabled) {
           this.isEnabled = nextEnabled;
           if (this.isEnabled) {
@@ -51,21 +89,26 @@ class JiraIssueDetector {
   // Use requestIdleCallback to avoid blocking the main thread
   scheduleIdleScan() {
     if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => this.scanAndHighlightIssues(), { timeout: 2000 });
+      requestIdleCallback(() => this.scanAndHighlightIssues(), {
+        timeout: 2000,
+      });
     } else {
       setTimeout(() => this.scanAndHighlightIssues(), 100);
     }
   }
 
-  async getExtensionSettings() {
+  async getExtensionSettings(): Promise<DetectorSettings> {
     return new Promise((resolve) => {
-      chrome.storage.sync.get({
-        issueDetectionEnabled: true,
-        baseUrl: '',
-        username: '',
-        apiToken: '',
-        jiraType: 'cloud'
-      }, resolve);
+      chrome.storage.sync.get(
+        {
+          issueDetectionEnabled: true,
+          baseUrl: '',
+          username: '',
+          apiToken: '',
+          jiraType: 'cloud',
+        },
+        (items) => resolve(items as DetectorSettings)
+      );
     });
   }
 
@@ -76,7 +119,7 @@ class JiraIssueDetector {
     const bodyText = document.body?.innerText || '';
     if (bodyText.length > 500000) {
       // Very large page - only scan if we find a potential match in first 50k chars
-      if (!this.JIRA_PATTERN.test(bodyText.slice(0, 50000))) {
+      if (!JIRA_ISSUE_KEY_PATTERN.test(bodyText.slice(0, 50000))) {
         return;
       }
     }
@@ -84,13 +127,17 @@ class JiraIssueDetector {
     // Store current selection to restore later
     const selection = window.getSelection();
     const activeElement = document.activeElement;
-    let selectionStart, selectionEnd;
+    const activeTextEntry = isTextEntryElement(activeElement)
+      ? activeElement
+      : null;
+    let selectionStart: number | null | undefined;
+    let selectionEnd: number | null | undefined;
     let selectionRange = null;
 
     // Store cursor position for input elements
-    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-      selectionStart = activeElement.selectionStart;
-      selectionEnd = activeElement.selectionEnd;
+    if (activeTextEntry) {
+      selectionStart = activeTextEntry.selectionStart;
+      selectionEnd = activeTextEntry.selectionEnd;
     }
 
     // Store selection for contenteditable elements
@@ -106,67 +153,104 @@ class JiraIssueDetector {
     const roots = [document.body];
 
     const filterFn = {
-      acceptNode: (node)=>{
-        const parent=node.parentElement;
-        if(!parent) return NodeFilter.FILTER_REJECT;
-        const tag=parent.tagName?parent.tagName.toLowerCase():'';
-        if(['script','style','noscript'].includes(tag)) return NodeFilter.FILTER_REJECT;
-        if(parent.classList.contains('jira-log-time-icon')||parent.classList.contains('jira-issue-id-highlight')||parent.closest('.jira-issue-popup')) return NodeFilter.FILTER_REJECT;
+      acceptNode: (node: Node): number => {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        const tag = parent.tagName ? parent.tagName.toLowerCase() : '';
+        if (['script', 'style', 'noscript'].includes(tag))
+          return NodeFilter.FILTER_REJECT;
+        if (
+          parent.classList.contains('jira-log-time-icon') ||
+          parent.classList.contains('jira-issue-id-highlight') ||
+          parent.closest('.jira-issue-popup')
+        )
+          return NodeFilter.FILTER_REJECT;
         // Only skip highlighting in the currently active input field to avoid cursor interference
-        if (activeElement && (parent === activeElement || parent.closest('input, textarea, [contenteditable="true"]') === activeElement)) return NodeFilter.FILTER_REJECT;
+        if (
+          activeElement &&
+          (parent === activeElement ||
+            parent.closest('input, textarea, [contenteditable="true"]') ===
+              activeElement)
+        )
+          return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
-      }
+      },
     };
 
-    const processRoot = root=>{
+    const processRoot = (root: Node | null) => {
       if (!root) return;
-      const walker = document.createTreeWalker(root,NodeFilter.SHOW_TEXT,filterFn,false);
-      const list=[];let n;while(n=walker.nextNode()){if(n.textContent.trim().match(this.JIRA_PATTERN)) list.push(n);}list.forEach(t=>this.highlightIssuesInTextNode(t));
+      const walker = document.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT,
+        filterFn
+      );
+      const list = [];
+      let n;
+      while ((n = walker.nextNode())) {
+        if (JIRA_ISSUE_KEY_PATTERN.test((n.textContent ?? '').trim())) {
+          list.push(n);
+        }
+      }
+      list.forEach((t) => this.highlightIssuesInTextNode(t as Text));
     };
 
     roots.forEach(processRoot);
 
     // Restore cursor position
-    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+    if (activeTextEntry) {
       try {
         // Restore focus and cursor position for input elements
-        activeElement.focus();
+        activeTextEntry.focus();
         if (selectionStart !== undefined && selectionEnd !== undefined) {
-          activeElement.setSelectionRange(selectionStart, selectionEnd);
+          activeTextEntry.setSelectionRange(selectionStart, selectionEnd);
         }
-      } catch (e) {
+      } catch {
         // Silently handle any errors during restoration
       }
-    } else if (selectionRange && activeElement && activeElement.isContentEditable) {
+    } else if (
+      selectionRange &&
+      activeElement instanceof HTMLElement &&
+      activeElement.isContentEditable
+    ) {
       try {
         // Restore selection for contenteditable elements
         activeElement.focus();
         const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(selectionRange);
-      } catch (e) {
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(selectionRange);
+        }
+      } catch {
         // Silently handle any errors during restoration
       }
     }
   }
 
-  highlightIssuesInTextNode(textNode) {
-    const text = textNode.textContent;
-    const matches = [...text.matchAll(this.JIRA_PATTERN)];
+  highlightIssuesInTextNode(textNode: Text): void {
+    const text = textNode.textContent ?? '';
+    const matches = [
+      ...text.matchAll(new RegExp(JIRA_ISSUE_KEY_GLOBAL_PATTERN_SOURCE, 'g')),
+    ];
 
     if (matches.length === 0) return;
 
-    const parent = textNode.parentNode;
+    const parentNode = textNode.parentNode;
+    if (!parentNode || !(parentNode instanceof Element)) return;
+    const parent = parentNode;
     const fragment = document.createDocumentFragment();
     let lastIndex = 0;
 
-    matches.forEach(match => {
+    matches.forEach((match) => {
       const issueId = match[0];
       const startIndex = match.index;
 
       // If inside a link, simply append icon after the link once and continue
       if (parent.tagName === 'A') {
-        if (!parent.nextSibling || !parent.nextSibling.classList || !parent.nextSibling.classList.contains('jira-log-time-icon')) {
+        const nextSibling = parent.nextSibling;
+        const hasLogIcon =
+          nextSibling instanceof Element &&
+          nextSibling.classList.contains('jira-log-time-icon');
+        if (!hasLogIcon) {
           const logIcon = document.createElement('span');
           logIcon.className = 'jira-log-time-icon';
           logIcon.dataset.issueId = issueId;
@@ -185,7 +269,11 @@ class JiraIssueDetector {
       // If inside a contenteditable element
       if (parent.closest('[contenteditable="true"]')) {
         const refEl = parent; // element containing text
-        if (!refEl.nextSibling || !refEl.nextSibling.classList || !refEl.nextSibling.classList.contains('jira-log-time-icon')) {
+        const nextAfterRef = refEl.nextSibling;
+        const hasLogIconAfterRef =
+          nextAfterRef instanceof Element &&
+          nextAfterRef.classList.contains('jira-log-time-icon');
+        if (!hasLogIconAfterRef) {
           const logIcon = document.createElement('span');
           logIcon.className = 'jira-log-time-icon';
           logIcon.dataset.issueId = issueId;
@@ -252,16 +340,14 @@ class JiraIssueDetector {
 
     // Add remaining text
     if (lastIndex < text.length) {
-      fragment.appendChild(
-        document.createTextNode(text.slice(lastIndex))
-      );
+      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
     }
 
     // Replace the original text node
     parent.replaceChild(fragment, textNode);
   }
 
-  isActiveInputField(element) {
+  isActiveInputField(element: Element | null): boolean {
     if (!element) return false;
 
     const tagName = element.tagName?.toLowerCase();
@@ -272,26 +358,28 @@ class JiraIssueDetector {
     }
 
     // Check for contenteditable elements
-    if (element.isContentEditable) {
+    if (element instanceof HTMLElement && element.isContentEditable) {
       return true;
     }
 
     // Check if element is part of a rich text editor (common selectors)
-    if (element.closest('[contenteditable="true"]') ||
-        element.closest('.ProseMirror') ||
-        element.closest('.CodeMirror') ||
-        element.closest('[role="textbox"]') ||
-        element.closest('.editor') ||
-        element.closest('.text-editor') ||
-        element.closest('.compose') ||
-        element.closest('.email-compose')) {
+    if (
+      element.closest('[contenteditable="true"]') ||
+      element.closest('.ProseMirror') ||
+      element.closest('.CodeMirror') ||
+      element.closest('[role="textbox"]') ||
+      element.closest('.editor') ||
+      element.closest('.text-editor') ||
+      element.closest('.compose') ||
+      element.closest('.email-compose')
+    ) {
       return true;
     }
 
     return false;
   }
 
-  setupObserver() {
+  setupObserver(): void {
     if (!this.isEnabled) return;
 
     // Disconnect any existing observer
@@ -305,10 +393,13 @@ class JiraIssueDetector {
       for (const mutation of mutations) {
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
           // Check if any added node might contain JIRA patterns
-          for (const node of mutation.addedNodes) {
-            if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
+          for (const node of Array.from(mutation.addedNodes)) {
+            if (
+              node.nodeType === Node.ELEMENT_NODE ||
+              node.nodeType === Node.TEXT_NODE
+            ) {
               const text = node.textContent || '';
-              if (text.length > 3 && this.JIRA_PATTERN.test(text)) {
+              if (text.length > 3 && JIRA_ISSUE_KEY_PATTERN.test(text)) {
                 hasSignificantChange = true;
                 break;
               }
@@ -320,7 +411,9 @@ class JiraIssueDetector {
 
       if (hasSignificantChange) {
         // Debounce scanning to avoid excessive calls
-        clearTimeout(this.debounceTimeout);
+        if (this.debounceTimeout !== null) {
+          clearTimeout(this.debounceTimeout);
+        }
         this.debounceTimeout = setTimeout(() => {
           this.scheduleIdleScan();
         }, 1000); // Increased debounce for better performance
@@ -331,14 +424,14 @@ class JiraIssueDetector {
     this.observer.observe(document.body, {
       childList: true,
       subtree: true,
-      characterData: false
+      characterData: false,
     });
 
     // Remove the global input listener - it's too aggressive
     // Users can refresh page or use the popup if needed
   }
 
-  async showPopup(issueId, targetElement) {
+  async showPopup(issueId: string, targetElement: HTMLElement): Promise<void> {
     // Close existing popup
     this.closePopup();
 
@@ -356,15 +449,19 @@ class JiraIssueDetector {
     this.positionPopup(this.currentPopup, targetElement);
 
     // Show popup
+    const popupEl = this.currentPopup;
     setTimeout(() => {
-      this.currentPopup.classList.add('show');
+      popupEl.classList.add('show');
     }, 10);
 
     // Set up form handlers
     this.setupPopupHandlers(issueId, settings);
   }
 
-  async createPopup(issueId, settings) {
+  async createPopup(
+    issueId: string,
+    settings: DetectorSettings
+  ): Promise<HTMLDivElement> {
     const popup = document.createElement('div');
     popup.className = 'jira-issue-popup';
 
@@ -375,9 +472,7 @@ class JiraIssueDetector {
     const baseUrl = settings.baseUrl.startsWith('http')
       ? settings.baseUrl
       : `https://${settings.baseUrl}`;
-    const normalizedBaseUrl = baseUrl.endsWith('/')
-      ? baseUrl
-      : `${baseUrl}/`;
+    const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
     const issueUrl = `${normalizedBaseUrl}browse/${issueId}`;
 
     popup.innerHTML = `
@@ -440,10 +535,15 @@ class JiraIssueDetector {
     return popup;
   }
 
-  async applyThemeToPopup(popup) {
+  async applyThemeToPopup(popup: HTMLDivElement): Promise<void> {
     try {
-      const result = await new Promise((resolve) => {
-        chrome.storage.sync.get(['followSystemTheme', 'darkMode'], resolve);
+      const result = await new Promise<{
+        followSystemTheme?: boolean;
+        darkMode?: boolean;
+      }>((resolve) => {
+        chrome.storage.sync.get(['followSystemTheme', 'darkMode'], (items) => {
+          resolve(items as { followSystemTheme?: boolean; darkMode?: boolean });
+        });
       });
 
       const followSystem = result.followSystemTheme !== false; // default true
@@ -452,7 +552,9 @@ class JiraIssueDetector {
       let shouldUseDarkTheme = false;
 
       if (followSystem) {
-        shouldUseDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        shouldUseDarkTheme = window.matchMedia(
+          '(prefers-color-scheme: dark)'
+        ).matches;
       } else {
         shouldUseDarkTheme = manualDark;
       }
@@ -461,7 +563,10 @@ class JiraIssueDetector {
         popup.classList.add('dark');
       }
     } catch (error) {
-      console.warn('Failed to read theme settings, falling back to system preference:', error);
+      console.warn(
+        'Failed to read theme settings, falling back to system preference:',
+        error
+      );
       // Fallback to system preference if storage read fails
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         popup.classList.add('dark');
@@ -469,12 +574,12 @@ class JiraIssueDetector {
     }
   }
 
-  positionPopup(popup, targetElement) {
+  positionPopup(popup: HTMLDivElement, targetElement: HTMLElement): void {
     const rect = targetElement.getBoundingClientRect();
     const popupRect = popup.getBoundingClientRect();
     const viewport = {
       width: window.innerWidth,
-      height: window.innerHeight
+      height: window.innerHeight,
     };
 
     let top = rect.bottom + window.scrollY + 5;
@@ -484,7 +589,7 @@ class JiraIssueDetector {
     if (left + popupRect.width > viewport.width) {
       left = viewport.width - popupRect.width - 10;
     }
-    
+
     if (left < 10) {
       left = 10;
     }
@@ -498,14 +603,29 @@ class JiraIssueDetector {
     popup.style.top = `${top}px`;
   }
 
-  setupPopupHandlers(issueId, settings) {
+  setupPopupHandlers(issueId: string, settings: DetectorSettings): void {
     const popup = this.currentPopup;
-    const form = popup.querySelector('.jira-issue-popup-form');
-    const closeBtn = popup.querySelector('.jira-issue-popup-close');
-    const cancelBtn = popup.querySelector('.jira-popup-cancel');
-    const timeInput = popup.querySelector('#jira-time-input');
-    const dateInput = popup.querySelector('#jira-date-input');
-    const commentInput = popup.querySelector('#jira-comment-input');
+    if (!popup) return;
+    const form = popup.querySelector<HTMLFormElement>('.jira-issue-popup-form');
+    const closeBtn = popup.querySelector<HTMLButtonElement>(
+      '.jira-issue-popup-close'
+    );
+    const cancelBtn =
+      popup.querySelector<HTMLButtonElement>('.jira-popup-cancel');
+    const timeInput = popup.querySelector<HTMLInputElement>('#jira-time-input');
+    const dateInput = popup.querySelector<HTMLInputElement>('#jira-date-input');
+    const commentInput = popup.querySelector<HTMLTextAreaElement>(
+      '#jira-comment-input'
+    );
+    if (
+      !form ||
+      !closeBtn ||
+      !cancelBtn ||
+      !timeInput ||
+      !dateInput ||
+      !commentInput
+    )
+      return;
 
     // Close handlers
     const closePopup = () => this.closePopup();
@@ -513,23 +633,35 @@ class JiraIssueDetector {
     cancelBtn.addEventListener('click', closePopup);
 
     // Click outside to close
-    document.addEventListener('click', (e) => {
-      if (this.currentPopup && !this.currentPopup.contains(e.target)) {
-        closePopup();
-      }
-    }, { once: true });
+    document.addEventListener(
+      'click',
+      (e) => {
+        if (
+          this.currentPopup &&
+          e.target instanceof Node &&
+          !this.currentPopup.contains(e.target)
+        ) {
+          closePopup();
+        }
+      },
+      { once: true }
+    );
 
     // Escape key to close
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.currentPopup) {
-        closePopup();
-      }
-    }, { once: true });
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key === 'Escape' && this.currentPopup) {
+          closePopup();
+        }
+      },
+      { once: true }
+    );
 
     // Form submission
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       const timeValue = timeInput.value.trim();
       if (!timeValue) {
         this.showPopupError('Time field is required');
@@ -537,25 +669,33 @@ class JiraIssueDetector {
       }
 
       if (!this.validateTimeFormat(timeValue)) {
-        this.showPopupError('Invalid time format. Use: 2h, 30m, 1d, or combinations like "2h 30m"');
+        this.showPopupError(
+          'Invalid time format. Use: 2h, 30m, 1d, or combinations like "2h 30m"'
+        );
         return;
       }
 
-      await this.logTime(issueId, timeValue, dateInput.value, commentInput.value, settings);
+      await this.logTime(
+        issueId,
+        timeValue,
+        dateInput.value,
+        commentInput.value,
+        settings
+      );
     });
 
     // Focus time input
     timeInput.focus();
   }
 
-  validateTimeFormat(timeStr) {
+  validateTimeFormat(timeStr: string): boolean {
     // Check if time format is valid (e.g., 2h, 30m, 1d, 2h 30m)
     const timePattern = /^(\d+[dhm]\s*)+$/i;
     return timePattern.test(timeStr.trim());
   }
 
-  convertTimeToSeconds(timeStr) {
-    const timeUnits = {
+  convertTimeToSeconds(timeStr: string): number {
+    const timeUnits: Record<'d' | 'h' | 'm', number> = {
       d: 60 * 60 * 24,
       h: 60 * 60,
       m: 60,
@@ -567,18 +707,32 @@ class JiraIssueDetector {
 
     while ((match = regex.exec(timeStr)) !== null) {
       const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
-      totalSeconds += value * timeUnits[unit];
+      const unit = match[2].toLowerCase() as keyof typeof timeUnits;
+      const multiplier = timeUnits[unit];
+      if (multiplier !== undefined) {
+        totalSeconds += value * multiplier;
+      }
     }
 
     return totalSeconds;
   }
 
-  async logTime(issueId, timeStr, dateStr, comment, settings) {
+  async logTime(
+    issueId: string,
+    timeStr: string,
+    dateStr: string,
+    comment: string,
+    settings: DetectorSettings
+  ): Promise<void> {
     const popup = this.currentPopup;
-    const form = popup.querySelector('.jira-issue-popup-form');
-    const loading = popup.querySelector('.jira-issue-popup-loading');
-    const submitBtn = popup.querySelector('.jira-popup-submit');
+    if (!popup) return;
+    const form = popup.querySelector<HTMLFormElement>('.jira-issue-popup-form');
+    const loading = popup.querySelector<HTMLDivElement>(
+      '.jira-issue-popup-loading'
+    );
+    const submitBtn =
+      popup.querySelector<HTMLButtonElement>('.jira-popup-submit');
+    if (!form || !loading || !submitBtn) return;
 
     // Show loading state
     form.style.display = 'none';
@@ -590,50 +744,61 @@ class JiraIssueDetector {
       const startedTime = this.getStartedTime(dateStr);
 
       // Send message to background script to handle the API call
-      const response = await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({
-          action: 'logWorklog',
-          issueId: issueId,
-          timeInSeconds: timeInSeconds,
-          startedTime: startedTime,
-          comment: comment,
-          settings: settings
-        }, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve(response);
-          }
-        });
-      });
+      const response = await new Promise<BackgroundWorklogResponse>(
+        (resolve, reject) => {
+          chrome.runtime.sendMessage(
+            {
+              action: 'logWorklog',
+              issueId: issueId,
+              timeInSeconds: timeInSeconds,
+              startedTime: startedTime,
+              comment: comment,
+              settings: settings,
+            },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(
+                  (response || {
+                    success: false,
+                    error: { message: 'Empty response', status: 0 },
+                  }) as BackgroundWorklogResponse
+                );
+              }
+            }
+          );
+        }
+      );
 
       if (response.success) {
         this.showPopupSuccess('Time logged successfully!');
-        
+
         setTimeout(() => {
           this.closePopup();
         }, 2000);
       } else {
         throw response.error;
       }
-
     } catch (error) {
       console.error('Error logging time:', error);
-      
+
       let errorMessage = 'Failed to log time. ';
-      
-      if (error.status === 401) {
-        errorMessage += 'Please check your JIRA credentials in the extension settings.';
-      } else if (error.status === 403) {
-        errorMessage += 'You don\'t have permission to log time on this issue.';
-      } else if (error.status === 404) {
+      const status = (error as { status?: number }).status;
+
+      if (status === 401) {
+        errorMessage +=
+          'Please check your JIRA credentials in the extension settings.';
+      } else if (status === 403) {
+        errorMessage += "You don't have permission to log time on this issue.";
+      } else if (status === 404) {
         errorMessage += 'Issue not found. Please check the issue ID.';
       } else {
-        errorMessage += error.message || 'Please try again.';
+        errorMessage += getErrorMessage(error) || 'Please try again.';
       }
-      
+
       this.showPopupError(errorMessage);
-      
+
       // Restore form
       form.style.display = 'flex';
       loading.classList.remove('show');
@@ -641,49 +806,60 @@ class JiraIssueDetector {
     }
   }
 
-  getStartedTime(dateString) {
+  getStartedTime(dateString: string): string {
     if (!dateString) {
       return new Date().toISOString();
     }
-    
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       return new Date().toISOString();
     }
-    
+
     // Set to 12:00 PM of the selected date
     date.setHours(12, 0, 0, 0);
     return date.toISOString();
   }
 
-  showPopupSuccess(message) {
+  showPopupSuccess(message: string): void {
     if (!this.currentPopup) return;
-    
-    const success = this.currentPopup.querySelector('.jira-issue-popup-success');
-    const form = this.currentPopup.querySelector('.jira-issue-popup-form');
-    const loading = this.currentPopup.querySelector('.jira-issue-popup-loading');
-    
+
+    const success = this.currentPopup.querySelector<HTMLDivElement>(
+      '.jira-issue-popup-success'
+    );
+    const form = this.currentPopup.querySelector<HTMLFormElement>(
+      '.jira-issue-popup-form'
+    );
+    const loading = this.currentPopup.querySelector<HTMLDivElement>(
+      '.jira-issue-popup-loading'
+    );
+    if (!success || !form || !loading) return;
+
     success.textContent = message;
     success.classList.add('show');
     form.style.display = 'none';
     loading.classList.remove('show');
   }
 
-  showPopupError(message) {
+  showPopupError(message: string): void {
     if (!this.currentPopup) return;
-    
-    const error = this.currentPopup.querySelector('.jira-issue-popup-error');
+
+    const error = this.currentPopup.querySelector<HTMLDivElement>(
+      '.jira-issue-popup-error'
+    );
+    if (!error) return;
     error.textContent = message;
     error.classList.add('show');
-    
+
     setTimeout(() => {
       error.classList.remove('show');
     }, 5000);
   }
 
-  showConfigurationError() {
-    const message = 'JIRA configuration required. Please set up your JIRA connection in the extension settings.';
-    
+  showConfigurationError(): void {
+    const message =
+      'JIRA configuration required. Please set up your JIRA connection in the extension settings.';
+
     // Create a simple notification
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -707,7 +883,7 @@ class JiraIssueDetector {
     }, 5000);
   }
 
-  closePopup() {
+  closePopup(): void {
     if (this.currentPopup) {
       this.currentPopup.classList.remove('show');
       setTimeout(() => {
@@ -717,39 +893,58 @@ class JiraIssueDetector {
     }
   }
 
-  clearHighlights() {
+  clearHighlights(): void {
     // Store current selection to restore later
     const selection = window.getSelection();
     const activeElement = document.activeElement;
-    let selectionStart, selectionEnd;
+    const activeTextEntry = isTextEntryElement(activeElement)
+      ? activeElement
+      : null;
+    let selectionStart: number | null | undefined;
+    let selectionEnd: number | null | undefined;
     let selectionRange = null;
-    
+
     // Store cursor position for input elements
-    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-      selectionStart = activeElement.selectionStart;
-      selectionEnd = activeElement.selectionEnd;
+    if (activeTextEntry) {
+      selectionStart = activeTextEntry.selectionStart;
+      selectionEnd = activeTextEntry.selectionEnd;
     }
-    
+
     // Store selection for contenteditable elements
     if (selection && selection.rangeCount > 0) {
       selectionRange = selection.getRangeAt(0).cloneRange();
     }
 
-    document.querySelectorAll('.jira-issue-id-highlight').forEach(highlight => {
-      const container = highlight.parentNode;
-      const parent = container?.parentNode;
-      if (parent) {
-        // Only skip if this is inside the currently active input field
-        if (activeElement && (parent === activeElement || parent.closest('input, textarea, [contenteditable="true"]') === activeElement)) {
-          return;
+    document
+      .querySelectorAll('.jira-issue-id-highlight')
+      .forEach((highlight) => {
+        const container = highlight.parentElement;
+        const parent = container?.parentElement;
+        if (parent) {
+          // Only skip if this is inside the currently active input field
+          if (
+            activeElement &&
+            (parent === activeElement ||
+              parent.closest('input, textarea, [contenteditable="true"]') ===
+                activeElement)
+          ) {
+            return;
+          }
+          parent.replaceChild(
+            document.createTextNode(highlight.textContent),
+            container
+          );
+          parent.normalize();
         }
-        parent.replaceChild(document.createTextNode(highlight.textContent), container);
-        parent.normalize();
-      }
-    });
-    document.querySelectorAll('.jira-log-time-icon').forEach(icon => {
+      });
+    document.querySelectorAll('.jira-log-time-icon').forEach((icon) => {
       // Only skip if this is inside the currently active input field
-      if (activeElement && (icon.parentNode === activeElement || icon.closest('input, textarea, [contenteditable="true"]') === activeElement)) {
+      if (
+        activeElement &&
+        (icon.parentNode === activeElement ||
+          icon.closest('input, textarea, [contenteditable="true"]') ===
+            activeElement)
+      ) {
         return;
       }
       icon.remove();
@@ -757,30 +952,36 @@ class JiraIssueDetector {
     this.highlightedIssues.clear();
 
     // Restore cursor position
-    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+    if (activeTextEntry) {
       try {
         // Restore focus and cursor position for input elements
-        activeElement.focus();
+        activeTextEntry.focus();
         if (selectionStart !== undefined && selectionEnd !== undefined) {
-          activeElement.setSelectionRange(selectionStart, selectionEnd);
+          activeTextEntry.setSelectionRange(selectionStart, selectionEnd);
         }
-      } catch (e) {
+      } catch {
         // Silently handle any errors during restoration
       }
-    } else if (selectionRange && activeElement && activeElement.isContentEditable) {
+    } else if (
+      selectionRange &&
+      activeElement instanceof HTMLElement &&
+      activeElement.isContentEditable
+    ) {
       try {
         // Restore selection for contenteditable elements
         activeElement.focus();
         const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(selectionRange);
-      } catch (e) {
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(selectionRange);
+        }
+      } catch {
         // Silently handle any errors during restoration
       }
     }
   }
 
-  cleanup() {
+  cleanup(): void {
     this.clearHighlights();
     this.closePopup();
     this.observer?.disconnect();
@@ -790,9 +991,8 @@ class JiraIssueDetector {
 
 // Boot
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded',()=> new JiraIssueDetector());
+  document.addEventListener('DOMContentLoaded', () => new JiraIssueDetector());
 } else {
   new JiraIssueDetector();
 }
-
-
+export {};
