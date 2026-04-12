@@ -1,0 +1,906 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Jira Issue Timer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        width: 750px;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        padding-bottom: 60px; /* Add space for footer */
+        position: relative;
+        box-sizing: border-box;
+      }
+
+      a {
+        color: #0052cc;
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:active,
+      a:focus {
+        text-decoration: underline;
+      }
+      /* Ko-fi button, aligned with theme controls */
+      .kofi-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        height: 24px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.05);
+        color: #0052cc !important;
+        font-weight: 400;
+        text-decoration: none !important;
+        line-height: 1;
+        border: 1px solid transparent;
+        vertical-align: middle;
+      }
+      .kofi-btn:hover {
+        background-color: rgba(0, 0, 0, 0.12);
+      }
+      body.dark-mode .kofi-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: #4690dd !important;
+        font-weight: 400;
+      }
+      body.dark-mode .kofi-btn:hover {
+        background-color: rgba(255, 255, 255, 0.18);
+      }
+      .kofi-cup {
+        display: inline-block;
+        will-change: transform;
+      }
+      .kofi-btn:hover .kofi-cup {
+        animation: kofi-pop 0.4s ease-out;
+      }
+      @keyframes kofi-pop {
+        0% {
+          transform: translateY(0) scale(1);
+        }
+        50% {
+          transform: translateY(-2px) scale(1.15);
+        }
+        100% {
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      table {
+        width: 100%;
+        margin-bottom: 0px;
+      }
+
+      td {
+        padding: 5px 0;
+        vertical-align: middle;
+      }
+
+      td:first-child {
+        width: 20%;
+      }
+
+      label {
+        font-size: 11px;
+        font-weight: bold;
+      }
+
+      input[type='text'],
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+        border: 1px solid #767676;
+        border-radius: 4px;
+      }
+
+      #description {
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        line-height: 1.4;
+        position: relative;
+        z-index: 1;
+        background: transparent !important;
+      }
+
+      .input-wrapper {
+        position: relative;
+        width: 100%;
+        border: none;
+      }
+
+      .input-container {
+        position: relative;
+        width: 100%;
+        display: flex;
+        border: none;
+      }
+
+      .autocomplete-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding-right: 30px;
+        padding-left: 10px;
+      }
+
+      .dropdown-arrow {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        font-size: 12px;
+        color: #666;
+      }
+
+      .autocomplete-list {
+        width: 100%;
+        box-sizing: border-box;
+        position: absolute;
+        border-top: none;
+        z-index: 1000;
+        top: 100%;
+        left: 0;
+        right: 0;
+        padding: 0;
+        margin: 0;
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: #fff;
+        list-style-type: none;
+        border: none;
+      }
+
+      .autocomplete-list li {
+        padding: 10px;
+        cursor: pointer;
+        background-color: #fff;
+        border-bottom: 1px solid #d4d4d4;
+      }
+
+      .autocomplete-list li:hover {
+        background-color: #e9e9e9;
+      }
+
+      .autocomplete-active {
+        background-color: #e9e9e9 !important;
+      }
+
+      .button-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .time-button {
+        background: #0052cc;
+        color: #fff;
+        border-radius: 8px;
+        border: none;
+        padding: 10px 20px;
+        font-size: 12px;
+        cursor: pointer;
+        margin: 0;
+        flex-grow: 1;
+        margin-left: 5px;
+        margin-right: 5px;
+      }
+
+      .time-button:first-child {
+        margin-left: 0;
+      }
+
+      .time-button:last-child {
+        margin-right: 0;
+      }
+
+      .time-button:hover {
+        background: #0041a8;
+      }
+
+      button {
+        width: 100%;
+        background: #0052cc;
+        color: #fff;
+        border-radius: 8px;
+        border: none;
+        padding: 10px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #0041a8;
+      }
+
+      #frequentWorklogDescription1,
+      #frequentWorklogDescription2 {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: #0052cc;
+        color: white;
+        border: none;
+        cursor: pointer;
+        padding: 5px 10px;
+        z-index: 2;
+        width: 10%;
+        display: none;
+      }
+
+      #frequentWorklogDescription1 {
+        right: 90px;
+      }
+
+      #frequentWorklogDescription2 {
+        right: 10px;
+      }
+
+      #frequentWorklogDescription1:hover,
+      #frequentWorklogDescription2:hover {
+        background-color: #0041a8;
+      }
+
+      #startStop,
+      #reset {
+        width: calc(50% - 5px);
+        padding: 10px;
+        font-size: 11px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      #startStop-reset-container {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      #timer {
+        font-size: 24px;
+        text-align: center;
+        margin: 8px 0;
+      }
+
+      #timer-animation {
+        width: 100%;
+        height: 4px;
+        margin-bottom: 0;
+        display: none;
+        background-size: 200% auto;
+        animation: slide 2s linear infinite;
+        background-image: linear-gradient(
+          to right,
+          #0052cc 0%,
+          #0052cc 20%,
+          #e0e0e0 20%,
+          #e0e0e0 100%
+        );
+      }
+
+      #timer-animation.active {
+        margin-bottom: 8px;
+      }
+
+      @keyframes slide {
+        0% {
+          background-position: 0% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      #error {
+        padding: 10px;
+        color: #cc0000;
+        background-color: #ffdddd;
+        font-weight: bold;
+        display: none;
+        word-wrap: break-word;
+        white-space: normal;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      #error::before {
+        color: #000000;
+        content: '!!';
+        margin-right: 5px;
+      }
+
+      #success {
+        padding: 10px;
+        color: #4f8a10;
+        background-color: #dff2bf;
+        font-weight: bold;
+        display: none;
+      }
+
+      #success::before {
+        color: #000000;
+        font-weight: bold;
+        content: '\2714';
+        margin-right: 10px;
+      }
+
+      #brand {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        z-index: 9999;
+        height: 50px;
+        background: #f3f3f3;
+        margin: 0;
+        border-top: 1px solid #e5e5e5;
+      }
+
+      #info {
+        padding: 12px 0 0 10px;
+        width: 50%;
+        display: inline-block;
+        vertical-align: top;
+      }
+
+      #nav {
+        font-size: 12px;
+        color: #cccccc;
+        width: 44%;
+        display: inline-block;
+        text-align: right;
+        vertical-align: top;
+        padding: 12px 5px 0 0;
+      }
+
+      #nav > * {
+        display: inline-block;
+        vertical-align: middle;
+        margin: 0 3px;
+      }
+
+      #nav a img {
+        display: block;
+      }
+
+      /* Simple, minimal theme button with just the emoji - now a rounded square */
+      .theme-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 24px;
+        border-radius: 4px; /* Rounded square instead of circle */
+        cursor: pointer;
+        border: none;
+        vertical-align: middle;
+        transition: background-color 0.3s;
+        margin: 0 2px;
+        padding: 0;
+        font-size: 16px;
+        background: rgba(0, 0, 0, 0.05); /* Subtle background */
+      }
+
+      .theme-button:hover {
+        background-color: rgba(0, 0, 0, 0.15);
+      }
+
+      body.dark-mode .theme-button {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      body.dark-mode .theme-button:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+      /* Fun gradient focus/hover state for caret button */
+      .caret-button:hover,
+      .caret-button:focus,
+      .caret-button:focus-visible {
+        outline: none;
+        background: linear-gradient(
+          135deg,
+          #4fd1ff 0%,
+          #7a5cff 50%,
+          #ff4fd1 100%
+        );
+        color: #ffffff;
+        box-shadow: 0 0 0 2px rgba(122, 92, 255, 0.35);
+      }
+      body.dark-mode .caret-button:hover,
+      body.dark-mode .caret-button:focus,
+      body.dark-mode .caret-button:focus-visible {
+        outline: none;
+        background: linear-gradient(
+          135deg,
+          #4690dd 0%,
+          #7a5cff 50%,
+          #ff4fd1 100%
+        );
+        color: #1a1a1a;
+        box-shadow: 0 0 0 2px rgba(70, 144, 221, 0.35);
+      }
+
+      /* Emoji font support and perfect centering */
+      .theme-button .icon {
+        font-family:
+          'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+          'Noto Color Emoji';
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        line-height: 1;
+      }
+
+      /* Fine-tune caret button centering */
+      .caret-button .icon {
+        font-size: 18px;
+        transform: translateY(-1px);
+      }
+
+      body.dark-mode {
+        background-color: #141414;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode input,
+      body.dark-mode textarea,
+      body.dark-mode select {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        border: 1px solid #333;
+      }
+
+      body.dark-mode .input-wrapper:focus {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .btn {
+        background: #4690dd;
+      }
+
+      body.dark-mode #brand {
+        background: #141414;
+        border-top: 1px solid #333;
+      }
+
+      body.dark-mode a {
+        color: #4690dd !important;
+        font-weight: lighter;
+      }
+
+      body.dark-mode .autocomplete-list li {
+        background-color: #1e1e1e;
+      }
+
+      body.dark-mode .time-button,
+      body.dark-mode button {
+        background: #4690dd;
+        color: #1a1a1a;
+      }
+
+      body.dark-mode .time-button:hover,
+      body.dark-mode button:hover {
+        background: #5e9fe3;
+      }
+
+      body.dark-mode .autocomplete-list {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .autocomplete-list li {
+        background-color: #141414;
+        color: #e0e0e0;
+        border-bottom: 1px solid #333;
+      }
+
+      body.dark-mode .autocomplete-list li:hover {
+        background-color: #333;
+      }
+
+      body.dark-mode .autocomplete-active {
+        background-color: #333 !important;
+      }
+
+      body.dark-mode .dropdown-arrow {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode #frequentWorklogDescription1,
+      body.dark-mode #frequentWorklogDescription2 {
+        background-color: #4690dd;
+        color: #1a1a1a;
+      }
+
+      body.dark-mode #frequentWorklogDescription1:hover,
+      body.dark-mode #frequentWorklogDescription2:hover {
+        background-color: #5e9fe3;
+      }
+
+      body.dark-mode #timer-animation {
+        background-image: linear-gradient(
+          to right,
+          #4690dd 0%,
+          #4690dd 20%,
+          #333 20%,
+          #333 100%
+        );
+      }
+
+      body.dark-mode #error {
+        color: #ff6b6b;
+        background-color: #2a1a1a;
+        border: 1px solid #4a1a1a;
+      }
+
+      body.dark-mode #success {
+        color: #4f8a10;
+        background-color: #1a2a1a;
+        border: 1px solid #1a4a1a;
+      }
+
+      body.dark-mode #projectId,
+      body.dark-mode #issueKey {
+        outline: none;
+      }
+
+      body.dark-mode #projectId:focus,
+      body.dark-mode #issueKey:focus {
+        border-color: #4a90e2;
+        outline: none;
+      }
+
+      body.dark-mode .input-wrapper {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .input-wrapper:focus {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode #description:focus {
+        background-color: #1a1a1a;
+        border-color: #4a90e2;
+        outline: none;
+      }
+
+      body.dark-mode .autocomplete-active:focus {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .autocomplete-list li:focus {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      body.dark-mode .autocomplete-list li:hover {
+        background-color: #1a1a1a;
+        border: none;
+      }
+
+      /* Consistent font sizing for all inputs */
+      input[type='text'],
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+        font-size: 11px;
+        font-family: Arial, sans-serif;
+      }
+
+      /* Worklog suggestions styles */
+      .suggestion-completion {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        color: #999;
+        padding: 5px;
+        box-sizing: border-box;
+        font-size: 11px;
+        font-family: Arial, sans-serif;
+        background: transparent;
+        border: 1px solid transparent;
+        z-index: 0;
+        resize: none;
+        white-space: pre-wrap;
+        overflow: hidden;
+        line-height: inherit;
+        margin: 0;
+      }
+
+      body.dark-mode .suggestion-completion {
+        color: #666;
+      }
+
+      /* New controls layout */
+      #controls {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        height: 48px;
+      }
+
+      #controls > * {
+        height: 48px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 0;
+      }
+
+      #timer {
+        flex: 3;
+        font-size: 18px;
+        text-align: center;
+        border: 1px solid #ddd;
+        background: #fff;
+        font-weight: bold;
+        padding: 0 12px;
+      }
+
+      #startStop {
+        flex: 0 0 40px;
+        width: 40px;
+        background: #0052cc;
+        color: #fff;
+        font-size: 16px;
+      }
+
+      #editTime,
+      #reset,
+      #toggleComment {
+        flex: 0 0 40px;
+        width: 40px;
+        background: #e0e0e0;
+        color: #333;
+        font-size: 16px;
+      }
+
+      #startStop .material-icons,
+      #editTime .material-icons,
+      #reset .material-icons,
+      #toggleComment .material-icons {
+        font-size: 16px;
+        font-weight: 400;
+      }
+
+      #startStop:hover {
+        background: #0041a8;
+      }
+
+      #editTime:hover,
+      #reset:hover,
+      #toggleComment:hover {
+        background: #d4d4d4;
+      }
+
+      #toggleComment.active {
+        background: #0052cc;
+        color: #fff;
+      }
+
+      #logTime {
+        flex: 1;
+        background: #0052cc;
+        color: #fff;
+        font-weight: bold;
+        font-size: 25px;
+      }
+
+      #logTime:hover {
+        background: #0041a8;
+      }
+
+      body.dark-mode #timer {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        border: 1px solid #333;
+      }
+
+      body.dark-mode #startStop,
+      body.dark-mode #logTime {
+        background: #4690dd;
+        color: #1a1a1a;
+      }
+
+      body.dark-mode #editTime,
+      body.dark-mode #reset,
+      body.dark-mode #toggleComment {
+        background: #333;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode #startStop:hover,
+      body.dark-mode #logTime:hover {
+        background: #5e9fe3;
+      }
+
+      body.dark-mode #editTime:hover,
+      body.dark-mode #reset:hover,
+      body.dark-mode #toggleComment:hover {
+        background: #444;
+      }
+
+      body.dark-mode #toggleComment.active {
+        background: #4690dd;
+        color: #1a1a1a;
+      }
+
+      body.dark-mode #commentContainer {
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+      }
+
+      /* Comment container static under controls */
+      #commentContainer {
+        display: none;
+        margin-top: 8px;
+        width: 100%;
+        background: #fff;
+        border: 1px solid #ddd;
+        padding: 10px;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        box-sizing: border-box;
+      }
+      #commentContainer.show {
+        display: flex;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="error"></div>
+    <div id="success"></div>
+    <div id="timer-animation"></div>
+    <table>
+      <tr>
+        <td><label for="projectId">Project ID</label></td>
+        <td>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="projectId"
+              class="autocomplete-input"
+              placeholder="Type to search projects"
+            />
+            <span class="dropdown-arrow">&#9662;</span>
+            <ul class="autocomplete-list" id="projectList"></ul>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td><label for="issueKey">Work Item ID</label></td>
+        <td>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="issueKey"
+              class="autocomplete-input"
+              placeholder="Type to search issues"
+            />
+            <span class="dropdown-arrow">&#9662;</span>
+            <ul class="autocomplete-list" id="issueList"></ul>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div id="controls">
+      <input id="timer" type="text" value="0h 00m 00s" readonly />
+      <button id="startStop">
+        <span class="material-icons" id="startStopIcon">play_arrow</span>
+      </button>
+      <button id="editTime" class="icon-button">
+        <span class="material-icons">edit</span>
+      </button>
+      <button id="reset">
+        <span class="material-icons">delete</span>
+      </button>
+      <button id="toggleComment" class="icon-button">
+        <span class="material-icons">chat_bubble</span>
+      </button>
+      <button id="logTime" class="log-button">⇡</button>
+    </div>
+
+    <div id="commentContainer" class="input-container">
+      <div class="suggestion-container" style="position: relative; flex: 1">
+        <textarea
+          id="description"
+          placeholder="Describe your work, magic, or craft"
+        ></textarea>
+      </div>
+      <button id="frequentWorklogDescription1">1</button>
+      <button id="frequentWorklogDescription2">2</button>
+    </div>
+
+    <div id="brand">
+      <div id="info">
+        <div style="text-align: left; padding-left: 4px">
+          <a
+            class="kofi-btn"
+            href="https://ko-fi.com/haydenbarnesos"
+            target="_blank"
+            tabindex="1"
+            title="Buy me a coffee"
+            ><span class="kofi-cup" aria-hidden="true">☕</span
+            ><span class="kofi-text"> Buy me a coffee</span></a
+          >
+        </div>
+      </div>
+      <div id="nav">
+        <a href="../popup.html" tabindex="1" style="color: #0052cc"
+          ><img
+            src="../../src/icons/cells.png"
+            alt="Time Table"
+            style="vertical-align: middle; width: 20px; height: 20px"
+        /></a>
+        |
+        <a href="../search.html" tabindex="1" style="color: #0052cc"
+          ><img
+            src="../../src/icons/magnifying-glass.png"
+            alt="Search"
+            style="vertical-align: middle; width: 19px; height: 19px"
+        /></a>
+        |
+        <a
+          href="../cli.html"
+          tabindex="1"
+          class="theme-button caret-button"
+          title="Open CLI"
+          ><span class="icon">»</span></a
+        >
+        |
+        <a href="../options.html" tabindex="1" style="color: #0052cc"
+          ><img
+            src="../../src/icons/settings.png"
+            alt="Settings"
+            style="vertical-align: middle; width: 20px; height: 20px"
+        /></a>
+        |
+        <button id="themeToggle" class="theme-button" title="Toggle dark mode">
+          <span class="icon">🌙</span>
+        </button>
+        |
+        <a
+          href="https://github.com/haydencbarnes/jira-time-tracker-ext"
+          target="_blank"
+          tabindex="1"
+          style="color: #0052cc"
+          >Learn More</a
+        >
+      </div>
+    </div>
+
+    <script src="timer.js"></script>
+  </body>
+</html>

@@ -1,40 +1,29 @@
 {
   "manifest_version": 3,
   "name": "Jira Log Time",
-  "version": "1.4.20",
+  "version": "1.5.0",
   "description": "Log/Track your time in Jira in seconds!",
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "permissions": [
-    "storage",
-    "sidePanel"
-  ],
+  "host_permissions": ["<all_urls>"],
+  "permissions": ["storage", "sidePanel"],
   "background": {
-    "service_worker": "/timerFeatureModule/background.js"
+    "service_worker": "dist/timerFeatureModule/background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["jira-issue-detection.js", "floating-timer-widget.js"],
-      "css": ["content-script.css"],
+      "js": ["dist/jira-issue-detection.js", "dist/floating-timer-widget.js"],
+      "css": ["src/content-script.css"],
       "run_at": "document_idle"
     }
   ],
   "action": {
     "default_icon": "src/icons/jira_logo.png",
-    "default_popup": "popup.html"
+    "default_popup": "dist/popup.html"
   },
   "side_panel": {
-    "default_path": "popup.html"
+    "default_path": "dist/popup.html"
   },
-  "options_page": "options.html",
-  "web_accessible_resources": [
-    {
-      "resources": ["jira-api.js"],
-      "matches": ["<all_urls>"]
-    }
-  ],
+  "options_page": "dist/options.html",
   "icons": {
     "16": "src/icons/jira_logo16.png",
     "48": "src/icons/jira_logo48.png",

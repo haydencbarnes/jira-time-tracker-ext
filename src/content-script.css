@@ -31,10 +31,9 @@
   }
 }
 
-
 .jira-issue-popup.dark {
   background: #141414;
-  border-color: #1A1A1A;
+  border-color: #1a1a1a;
   color: #e0e0e0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
@@ -48,7 +47,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-header {
-  border-bottom-color: #1A1A1A;
+  border-bottom-color: #1a1a1a;
 }
 
 .jira-issue-popup-title {
@@ -75,12 +74,12 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-title {
-  color: #4690DD;
+  color: #4690dd;
 }
 
 .jira-issue-popup.dark .jira-issue-popup-title a:hover {
   background: rgba(70, 144, 221, 0.15);
-  color: #5E9FE3;
+  color: #5e9fe3;
 }
 
 .jira-issue-popup-close {
@@ -104,7 +103,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-close:hover {
-  background: #1A1A1A;
+  background: #1a1a1a;
   color: #e0e0e0;
 }
 
@@ -144,7 +143,7 @@
 }
 
 .jira-issue-popup.dark .jira-issue-popup-input {
-  background: #1A1A1A;
+  background: #1a1a1a;
   border-color: #333;
   color: #e0e0e0;
 }
@@ -160,7 +159,7 @@
 .jira-issue-popup.dark .jira-issue-popup-input:focus {
   border-color: #4a90e2;
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
-  background: #1A1A1A;
+  background: #1a1a1a;
 }
 
 .jira-issue-popup-textarea {
@@ -253,8 +252,8 @@
 
 .jira-issue-popup.dark .jira-issue-popup-success {
   background: #1a2a1a;
-  border-color: #4F8A10;
-  color: #4F8A10;
+  border-color: #4f8a10;
+  color: #4f8a10;
 }
 
 .jira-issue-popup-error {
@@ -291,7 +290,7 @@
   width: 18px;
   height: 18px;
   margin-left: 6px;
-  background: #0052CC;
+  background: #0052cc;
   border-radius: 50%;
   cursor: pointer;
   position: relative;
@@ -303,7 +302,7 @@
 }
 
 .jira-log-time-icon:hover {
-  background: #0065FF;
+  background: #0065ff;
   transform: scale(1.15);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
@@ -314,7 +313,7 @@
 }
 
 .jira-log-time-icon:before {
-  content: "⏱";
+  content: '⏱';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -330,14 +329,14 @@
   .jira-issue-id-highlight {
     background: rgba(70, 144, 221, 0.12);
   }
-  
+
   .jira-log-time-icon {
-    background: #4690DD;
+    background: #4690dd;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
-  
+
   .jira-log-time-icon:hover {
-    background: #5E9FE3;
+    background: #5e9fe3;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   }
 }
@@ -397,7 +396,9 @@
   background: transparent;
   font-family: inherit;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .jira-floating-timer-widget-time {
@@ -494,7 +495,8 @@
   color: #c1c7d0;
 }
 
-.jira-floating-timer-widget.dark .jira-floating-timer-widget-reset:hover:not(:disabled) {
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-reset:hover:not(:disabled) {
   background: rgba(255, 86, 48, 0.18);
   color: #ff8f73;
 }
@@ -504,6 +506,7 @@
   color: #141414;
 }
 
-.jira-floating-timer-widget.dark .jira-floating-timer-widget-toggle:hover:not(:disabled) {
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-toggle:hover:not(:disabled) {
   background: #5e9fe3;
 }

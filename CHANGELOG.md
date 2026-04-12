@@ -1,12 +1,20 @@
+## 1.5.0 (Apr 12, 2026)
+
+- Development: Migrated extension source to TypeScript (`src/ts`) and HTML templates (`src/html`); bundled JavaScript is emitted to `dist/` with esbuild. Legacy root-level script copies were removed; the manifest now references the built assets under `dist/`.
+- Tooling: Added `package.json` with npm scripts for build, typecheck, oxlint, Prettier, and `ci:check`; added TypeScript, esbuild, and shared lint/format configuration.
+
 ## 1.4.20 (Apr 11, 2026)
+
 - Feature (experimental / Beta): **Floating Timer Widget** — reset control on the pill clears stored timer fields and syncs the extension badge via the existing `resetTimer` path (see [#29](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/29)).
 - Fix: Work item ID text on the floating timer pill inherits the pill foreground color so it stays visible in light mode.
 
 ## 1.4.19 (Apr 9, 2026)
+
 - Fix: Time Table now surfaces fetch errors when the Jira API key is invalid or expired (including when cached issues were shown first). `401`/`403` responses clear all cached Time Table data for that Jira base URL so stale rows are not left on screen after auth fails (see [#27](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/27)).
 - Feature (experimental / Beta): **Floating Timer Widget** — optional bottom-right pill on web pages (enable under Experimental Features in Options). Shows issue key, elapsed time, play/pause, and a Beta badge; click the issue key to open the Jira issue or the time to open the full timer page (opens via the background script to avoid extension-page blocking) (see [#16](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/16)).
 
 ## 1.4.18 (Apr 3, 2026)
+
 - Feature: Time Table column optionality and settings (see [#22](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/22)).
   - Gear control in the table header (last column) opens **Time Table settings**: Custom JQL, optional **Status**, **Assignee**, **Total**, and **Comment** columns, and drag-and-drop column reorder (Jira ID and submit stay first/last).
   - **Custom JQL** for the Time Table moved out of global Options into this panel; Options no longer includes the JQL row.
@@ -17,27 +25,34 @@
 - UX: Time Table help text for Custom JQL; Log/Date column spacing and time input `box-sizing`; assignee input aligned with other fields; dark-mode focus ring on status select and assignee input (`#4a90e2`).
 
 ## 1.4.17 (Apr 3, 2026)
+
 - Fix: CLI slash command palette now opens when typing `/` (not only after ArrowDown). See [#23](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/23).
 - UX: CLI command palette uses light and dark styles consistent with the terminal theme.
 - Feature: `clear`, `cls`, and `/clear` to clear terminal output. See [#24](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/24).
 - Fix: CLI command palette scrolls to keep the keyboard-highlighted item visible.
 
 ## 1.4.16 (Mar 23, 2026)
+
 - UX: Timer tab: Entering or pasting a work item key (with or without a project selected) now resolves the summary via Jira and fills the field like the Search tab; `issueTitle` is saved in sync storage when available.
 
 ## 1.4.15 (Mar 12, 2026)
+
 - UX: CLI: Auto-scroll to last message unless user has scrolled up; input bar pinned to bottom of terminal; viewport scrolls to keep terminal line visible after commands.
 
 ## 1.4.14 (Dec 15, 2025)
+
 - Fix: CLI: Batch totals stay in hours unless over 24h; day conversion now only applies above 24h.
 
 ## 1.4.13 (Dec 08, 2025)
+
 - Feature: CLI: Batch header now includes total parsed time across entries.
 
 ## 1.4.12 (Dec 01, 2025)
+
 - Fix: Long issue summaries now wrap within the column instead of overflowing into adjacent columns.
 
 ## 1.4.11 (Nov 25, 2025)
+
 - Performance: Optimized popup load time with local caching; shows cached issues instantly while refreshing in background.
 - Performance: Changed content script to run at `document_idle` to avoid blocking page load.
 - Performance: Optimized Work Item ID Detection with idle scheduling and smarter DOM scanning.
@@ -45,31 +60,38 @@
 - Fix: Reduced MutationObserver overhead by only triggering rescans when relevant content is added.
 
 ## 1.4.10 (Oct 27, 2025)
+
 - UX: Small UI fixes: Adjusted timer and search input field styling to be more consistent with the rest of the extension.
 
 ## 1.4.9 (Sep 26, 2025)
+
 - Fix: Dark mode autosuggestions now remain visible on search, timer, and popup comment fields.
 - UX: Adjusted suggestion styling to provide subtle yet readable completions in both light and dark themes.
 
 ## 1.4.8 (Sep 20, 2025)
+
 - Feature: Jira Work Item ID Detection graduated from BETA; now toggleable from Options.
 - Options: Added Issue Detection toggle; persists as `issueDetectionEnabled`.
 - Chore: Renamed content script to `jira-issue-detection.js` and updated manifest.
 - UX: Removed BETA labels/badges and experimental toast for detector.
 
 ## 1.4.7 (Sep 19, 2025)
+
 - Chore: Changed issue key to work item ID in all frontend tabs and error messages to match Jira's terminology.
 - UX: Made small tweaks to the settings page to make it more user-friendly.
 
 ## 1.4.6 (Sep 19, 2025)
+
 - Fix: Timer project/issue linkage is now strict. Changing the project clears the work item field and saved selection if mismatched; saved mismatched issues are auto-cleared on load.
 - UX: Pasting or typing a full issue key (e.g., ABC-123) is accepted instantly with summary fetched asynchronously; avoids slow suggestions round-trips. Shared helpers added to Jira API and used by Timer and Search.
 
 ## 1.4.5 (Sep 04, 2025)
+
 - Fix: Migrated Jira Cloud search to POST `/rest/api/3/search/jql` with `nextPageToken` pagination (up to 10k issues) after GET `/search` endpoint was permanently removed (410 error). This restores issue fetching on Cloud per Atlassian's CHANGE-2046.
 - Chore: Hardened issue parsing to support both legacy and new JQL service response shapes.
 
 ## 1.4.4 (Aug 23, 2025)
+
 - Feature: Timer redesign with enhanced controls and time editing functionality
   - Redesigned timer controls layout with improved visual hierarchy
   - Added inline time editing capability - click edit icon to modify time directly
@@ -81,17 +103,21 @@
   - Streamlined UI with better space utilization and modern design
 
 ## 1.4.3 (Aug 23, 2025)
+
 - Bug fix: Fixed Jira search URL construction in Settings; corrected JQL and pagination parameters to remove 400 errors on Settings page. See [#14](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/14).
 
 ## 1.4.2 (Aug 21, 2025)
+
 - UX: Adjusted the width of the Jira ID column in the popup table to be better aligned with the other columns.
 
 ## 1.4.1 (Aug 14, 2025)
+
 - Options: Added a top-right "Report bug" button and ensured it uses the extension blue. Moved it outside the settings table to preserve layout.
 - Options: Made the branding bar sticky (fixed to bottom) and allowed the options content to scroll behind with proper bottom padding.
 - UX: Worklog autosuggestions are now always enabled across Popup, Search, and Timer (no longer gated by Experimental Features).
 
 ## 1.4.0 (Aug 08, 2025)
+
 - NEW! Feature: Added a CLI tab for natural language time entry.
   - Batch logging (semicolon or new lines)
   - Slash commands with a picker (/time, /me, /help)
@@ -105,75 +131,94 @@
 - Options: Added CLI as a default tab option.
 
 ## 1.3.9 (Aug 07, 2025)
+
 - UI: Added Ko‑fi support button to brand section, moved to bottom-left; removed GitHub profile link and relocated “Designed by” to Settings.
 - UI: Standardized brand/footer spacing and icon spacing across tabs; reduced popup header Jira logo to 16px.
 - UX: Added new caching mechanism to the extension to improve performance and reduce API calls.
 
 ## 1.3.8 (Jul 13, 2025)
+
 - Bug fix: Fixed an issue where editing text that included a Jira issue ID that the BETA Jira Issue ID Detection feature detected would cause the extension to make the text unusable and move the cursor to the incorrect position.
 
 ## 1.3.7 (Jul 04, 2025)
+
 - Bug fix: Fixed an issue where the experimental side panel feature was not working as expected. https://github.com/haydencbarnes/jira-time-tracker-ext/issues/6
 
 ## 1.3.6 (Jul 04, 2025)
+
 - Feature: Added Jira Issue ID Detection as an experimental feature. The extension scans any web-page for Jira issue IDs (e.g. ABC-123, PROJECT-456). A subtle highlight is applied and a small blue ⏱ "log-time" icon is injected to the right of the ID. Clicking the icon opens the instant Log-Time popup while the ID itself remains a normal link.
 - UX: Blue "Jira detection" badge now appears bottom-right when the detector first runs. Also sped up some other animations in the extension.
 
 ## 1.3.5 (Jun 28, 2025)
+
 - Feature: Added new error handling feature to the extension. Users can now see a more detailed error message when an error occurs.
 
 ## 1.3.4 (Jun 09, 2025)
+
 - Bug fix: Fixed an issue where the worklog tooltip was not being displayed correctly when the user had a large number of Jira work items.
 
 ## 1.3.3 (May 31, 2025)
+
 - Feature: Added new worklog autosuggestions feature to the Timer tab. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Timer tab worklog descriptions/comments if they have experimental features enabled.
 - Chore: Refactored the worklog autosuggestions feature to be more consistent across all tabs.
 
 ## 1.3.2 (May 31, 2025)
+
 - Feature: Added new worklog autosuggestions feature to the Search tab. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Search tab worklog descriptions/comments if they have experimental features enabled.
 
 ## 1.3.1 (May 03, 2025)
+
 - Feature: Added new error and success animations to the Time Table tab.
 
 ## 1.3.0 (Apr 16, 2025)
+
 - NEW! Feature: Added dark mode to the extension. Users can now toggle dark mode on and off from the bottom nav bar. You can also toggle dark mode system scheme following on and off from the options page.
 
 ## 1.2.16 (Apr 14, 2025)
+
 - Feature: Added new experimental side panel feature to the extension. Users can now use Chrome's side panel view to log time, search for issues, and view the time table.
 
 ## 1.2.15 (Apr 08, 2025)
+
 - Feature: Refined dark mode styling for all tabs.
 
 ## 1.2.14 (Apr 07, 2025)
+
 - Feature: Added new worklog autosuggestions feature as an experimental feature. Users can now use the worklog autosuggestions feature to quickly insert autosuggestions into the Time Table tabs worklog descriptions/comments. Feature coming soon to the Search and Timer tabs.
 - Bug fix: Fixed an issue where the frequent worklog description buttons were not showing up as expected when the user had only filled in one of the two buttons on the Time Table tab. Fix coming soon to the Search and Timer tabs.
 - Bug fix: Fixed an issue where the Jira ID link was not working as expected when the user had a custom base URL.
 
 ## 1.2.13 (Apr 05, 2025)
+
 - Feature: Added dark mode toggle to the options page as an experimental feature. Users can now toggle dark mode on and off from the options page if experimental features are enabled.
 
 ## 1.2.12 (Jan 29, 2025)
+
 - Bug fix: UI/UX improvements to all tabs
 - Docs: Updated README.md with new features and settings
 
 ## 1.2.11 (Jan 25, 2025)
+
 - Bug fix: snippet buttons now properly render on the search and timer tabs
 - Bug fix: default tab setting now properly allows you to go back to non-default tab after changing the setting
 
 ## 1.2.10 (Jan 21, 2025)
+
 - Bug fix: Fixed an issue where snippets/frequentworklogdescriptions were not following the time table layouts header on scroll.
 
 ## 1.2.9 (Jan 20, 2025)
+
 - Feature: Added a worklog history display to the Time Table tab. Users can now see a history of the last 5 worklogs by hovering over the issue Jira ID.
 - Chore: rename frequent worklog description fields to worklog snippets to more align with feature terminology
 - Fix: total hours on time table digit overflow fixes
 
-
 ## 1.2.8 (Jan 18, 2025)
+
 - Feature: Added new ability to set a default open tab for the extension. Users can now choose between the Time Table, Timer, or Search tab to open by default.
 - Bug fix: Fixed and aligned frontend error messages.
 
 ## 1.2.7 (Jan 10, 2025)
+
 - Feature: Added starring functionality to prioritize issues in the pop-up table.
 - Enhancement: Starred issues now appear at the top of the table, sorted dynamically.
 - Bug Fix: Frequent worklog description buttons now properly reinitialize after table redraws.
@@ -181,47 +226,61 @@
 - UX Improvement: Improved table re-rendering logic to ensure all features and buttons remain functional after updates.
 
 ## 1.2.6 (Oct 29, 2024)
+
 - Bug fix: Fixed frequent worklog description buttons feature that was not working as expected
 
 ## 1.2.5 (Oct 16, 2024)
+
 - Fixed issue with timer badge not updating when timer is stopped
 
 ## 1.2.4 (Oct 15, 2024)
+
 - Feature: added new timer badge feature that will continously show the current time spent on a task from wherever you have the extension placed when timer is running.
 
 ## 1.2.3 (Oct 14, 2024)
+
 - Feature: added new frequent worklog description button fill feature to all features
 - UX: Minor copy changes to improve clarity
 
 ## 1.2.2 (Oct 11, 2024)
+
 - Fix: added version to options/settings page for 🐛 tracking
 - Feature: added new frequent worklog description search button fill feature
 
 ## 1.2.1 (Oct 07, 2024)
+
 - New feature: Added timer feature to the extension. Users can now start and stop a timer to track time spent on Jira tasks. The feature alsp includes quick add functionality to add time in 15min, 30min, and 1hr increments.
 
 ## 1.2.0 (Sep 11, 2024)
+
 - NEW! The extension now supports Jira Cloud users! Atlassian Jira API V2 and V3 are both now supported. All features, including experimental features, are now available for Jira Cloud users.
 
 ## 1.1.5 (Aug 28, 2024)
+
 - Updated API path requests structure for Jira versions above 7.4.0 (correcting basic auth issues)
 
 ## 1.1.4 (Jul 09, 2024)
+
 - Added experimental timer feature
 
 ## 1.1.3 (Jul 03, 2024)
+
 - Minor UX cleanup/standardization across the extension
 
 ## 1.1.2 (Jun 28, 2024)
+
 - Fixed error messages and other UI/UX issues
 - Added autocomplete for search feature
 
 ## 1.1.1 (Jun 19, 2024)
+
 - Removed unnecessary permission for activeTab, will re-add if needed in future versions
 
 ## 1.1.0 (Jun 19, 2024)
+
 - Added new functionality to allow users to search for issues by project
 - Updated UI/UX in many places
 
 ## 0.0.1 (Jun 12, 2024)
+
 - Initial release for JIRA API 2

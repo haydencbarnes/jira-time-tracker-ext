@@ -1,8 +1,52 @@
+import type {
+  ExtensionSettings,
+  SettingsChangedMessage,
+  TimerState,
+} from './shared/types';
+
 (function () {
   if (window.__jiraFloatingTimerWidgetInitialized) return;
   window.__jiraFloatingTimerWidgetInitialized = true;
 
+  type FloatingWidgetSettings = Required<
+    Pick<
+      ExtensionSettings,
+      | 'baseUrl'
+      | 'experimentalFeatures'
+      | 'floatingTimerWidgetEnabled'
+      | 'followSystemTheme'
+      | 'darkMode'
+    >
+  >;
+
+  type FloatingWidgetTimerState = Required<
+    Pick<TimerState, 'timerSeconds' | 'timerIsRunning' | 'timerLastUpdated'>
+  > & {
+    issueKey: string;
+  };
+
   class FloatingTimerWidget {
+    private widget: HTMLDivElement | null;
+    private timerText: HTMLDivElement | null;
+    private issueText: HTMLButtonElement | null;
+    private issueSeparator: HTMLSpanElement | null;
+    private timerValue: HTMLButtonElement | null;
+    private resetButton: HTMLButtonElement | null;
+    private toggleButton: HTMLButtonElement | null;
+    private interval: number | null;
+    private settings: FloatingWidgetSettings | null;
+    private issueKey: string;
+    private seconds: number;
+    private isRunning: boolean;
+    private lastUpdated: number | null;
+    private themeMediaQuery: MediaQueryList | null;
+    private boundSystemThemeListener: () => void;
+    private boundStorageListener: (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      namespace: string
+    ) => void;
+    private boundMessageListener: (message: unknown) => void;
+
     constructor() {
       this.widget = null;
       this.timerText = null;
@@ -25,7 +69,7 @@
       this.init();
     }
 
-    async init() {
+    async init(): Promise<void> {
       this.settings = await this.readSettings();
       await this.syncTimerState();
       this.updateVisibility();
@@ -34,46 +78,60 @@
       chrome.runtime.onMessage.addListener(this.boundMessageListener);
     }
 
-    readSettings() {
+    readSettings(): Promise<FloatingWidgetSettings> {
       return new Promise((resolve) => {
-        chrome.storage.sync.get({
-          baseUrl: '',
-          experimentalFeatures: false,
-          floatingTimerWidgetEnabled: false,
-          followSystemTheme: true,
-          darkMode: false
-        }, resolve);
+        chrome.storage.sync.get(
+          {
+            baseUrl: '',
+            experimentalFeatures: false,
+            floatingTimerWidgetEnabled: false,
+            followSystemTheme: true,
+            darkMode: false,
+          },
+          (items) => resolve(items as FloatingWidgetSettings)
+        );
       });
     }
 
-    readTimerState() {
+    readTimerState(): Promise<FloatingWidgetTimerState> {
       return new Promise((resolve) => {
-        chrome.storage.sync.get({
-          issueKey: '',
-          timerSeconds: 0,
-          timerIsRunning: false,
-          timerLastUpdated: null
-        }, resolve);
+        chrome.storage.sync.get(
+          {
+            issueKey: '',
+            timerSeconds: 0,
+            timerIsRunning: false,
+            timerLastUpdated: null,
+          },
+          (items) => resolve(items as FloatingWidgetTimerState)
+        );
       });
     }
 
-    writeTimerState(nextState) {
-      return new Promise((resolve) => {
+    writeTimerState(
+      nextState: Partial<FloatingWidgetTimerState>
+    ): Promise<void> {
+      return new Promise<void>((resolve) => {
         chrome.storage.sync.set(nextState, () => resolve());
       });
     }
 
-    clearTimerState() {
-      return new Promise((resolve) => {
-        chrome.storage.sync.remove(['timerSeconds', 'timerIsRunning', 'timerLastUpdated'], () => resolve());
+    clearTimerState(): Promise<void> {
+      return new Promise<void>((resolve) => {
+        chrome.storage.sync.remove(
+          ['timerSeconds', 'timerIsRunning', 'timerLastUpdated'],
+          () => resolve()
+        );
       });
     }
 
-    shouldShow() {
-      return !!(this.settings?.experimentalFeatures && this.settings?.floatingTimerWidgetEnabled);
+    shouldShow(): boolean {
+      return !!(
+        this.settings?.experimentalFeatures &&
+        this.settings?.floatingTimerWidgetEnabled
+      );
     }
 
-    ensureWidget() {
+    ensureWidget(): void {
       if (this.widget) return;
 
       const widget = document.createElement('div');
@@ -93,41 +151,61 @@
         <button type="button" class="jira-floating-timer-widget-icon jira-floating-timer-widget-toggle" data-action="toggle" title="Start timer" aria-label="Start timer"></button>
       `;
 
-      widget.querySelector('[data-action="toggle"]').addEventListener('click', () => {
-        if (this.isRunning) {
-          this.pauseTimer();
-        } else {
-          this.startTimer();
-        }
-      });
+      widget
+        .querySelector<HTMLButtonElement>('[data-action="toggle"]')
+        ?.addEventListener('click', () => {
+          if (this.isRunning) {
+            void this.pauseTimer();
+          } else {
+            void this.startTimer();
+          }
+        });
 
-      widget.querySelector('[data-action="reset"]').addEventListener('click', () => {
-        this.resetTimer();
-      });
+      widget
+        .querySelector<HTMLButtonElement>('[data-action="reset"]')
+        ?.addEventListener('click', () => {
+          void this.resetTimer();
+        });
 
-      widget.querySelector('.jira-floating-timer-widget-issue').addEventListener('click', () => {
-        this.openIssue();
-      });
+      widget
+        .querySelector<HTMLButtonElement>('.jira-floating-timer-widget-issue')
+        ?.addEventListener('click', () => {
+          this.openIssue();
+        });
 
-      widget.querySelector('.jira-floating-timer-widget-value').addEventListener('click', () => {
-        this.openFullTimer();
-      });
+      widget
+        .querySelector<HTMLButtonElement>('.jira-floating-timer-widget-value')
+        ?.addEventListener('click', () => {
+          this.openFullTimer();
+        });
 
       document.body.appendChild(widget);
 
       this.widget = widget;
-      this.timerText = widget.querySelector('.jira-floating-timer-widget-time');
-      this.issueText = widget.querySelector('.jira-floating-timer-widget-issue');
-      this.issueSeparator = widget.querySelector('.jira-floating-timer-widget-separator');
-      this.timerValue = widget.querySelector('.jira-floating-timer-widget-value');
-      this.resetButton = widget.querySelector('[data-action="reset"]');
-      this.toggleButton = widget.querySelector('[data-action="toggle"]');
+      this.timerText = widget.querySelector<HTMLDivElement>(
+        '.jira-floating-timer-widget-time'
+      );
+      this.issueText = widget.querySelector<HTMLButtonElement>(
+        '.jira-floating-timer-widget-issue'
+      );
+      this.issueSeparator = widget.querySelector<HTMLSpanElement>(
+        '.jira-floating-timer-widget-separator'
+      );
+      this.timerValue = widget.querySelector<HTMLButtonElement>(
+        '.jira-floating-timer-widget-value'
+      );
+      this.resetButton = widget.querySelector<HTMLButtonElement>(
+        '[data-action="reset"]'
+      );
+      this.toggleButton = widget.querySelector<HTMLButtonElement>(
+        '[data-action="toggle"]'
+      );
 
       this.applyTheme();
       this.render();
     }
 
-    removeWidget() {
+    removeWidget(): void {
       this.stopDisplayInterval();
       this.detachThemeListener();
       if (this.widget) {
@@ -142,7 +220,7 @@
       }
     }
 
-    updateVisibility() {
+    updateVisibility(): void {
       if (!this.shouldShow()) {
         this.removeWidget();
         return;
@@ -154,20 +232,29 @@
       this.syncDisplayInterval();
     }
 
-    handleMessage(message) {
-      if (!message || message.type !== 'SETTINGS_CHANGED') return;
+    handleMessage(message: unknown): void {
+      const settingsMessage = message as Partial<SettingsChangedMessage> | null;
+      if (!settingsMessage || settingsMessage.type !== 'SETTINGS_CHANGED')
+        return;
 
-      if (typeof message.experimentalFeatures === 'boolean') {
-        this.settings.experimentalFeatures = message.experimentalFeatures;
+      if (!this.settings) return;
+
+      if (typeof settingsMessage.experimentalFeatures === 'boolean') {
+        this.settings.experimentalFeatures =
+          settingsMessage.experimentalFeatures;
       }
-      if (typeof message.floatingTimerWidgetEnabled === 'boolean') {
-        this.settings.floatingTimerWidgetEnabled = message.floatingTimerWidgetEnabled;
+      if (typeof settingsMessage.floatingTimerWidgetEnabled === 'boolean') {
+        this.settings.floatingTimerWidgetEnabled =
+          settingsMessage.floatingTimerWidgetEnabled;
       }
 
       this.updateVisibility();
     }
 
-    async handleStorageChange(changes, namespace) {
+    async handleStorageChange(
+      changes: { [key: string]: chrome.storage.StorageChange },
+      namespace: string
+    ): Promise<void> {
       if (namespace !== 'sync') return;
 
       if (
@@ -181,16 +268,25 @@
         this.updateVisibility();
       }
 
-      if (changes.issueKey || changes.timerSeconds || changes.timerIsRunning || changes.timerLastUpdated) {
+      if (
+        changes.issueKey ||
+        changes.timerSeconds ||
+        changes.timerIsRunning ||
+        changes.timerLastUpdated
+      ) {
         this.applyTimerStateFromChanges(changes);
         this.render();
         this.syncDisplayInterval();
       }
     }
 
-    applyStoredTimerState(state) {
-      this.issueKey = state.issueKey ? String(state.issueKey).trim().toUpperCase() : '';
-      this.seconds = Number.isFinite(state.timerSeconds) ? state.timerSeconds : 0;
+    applyStoredTimerState(state: FloatingWidgetTimerState): void {
+      this.issueKey = state.issueKey
+        ? String(state.issueKey).trim().toUpperCase()
+        : '';
+      this.seconds = Number.isFinite(state.timerSeconds)
+        ? state.timerSeconds
+        : 0;
       this.isRunning = state.timerIsRunning === true;
       this.lastUpdated = state.timerLastUpdated || null;
 
@@ -200,12 +296,12 @@
       }
     }
 
-    async syncTimerState() {
+    async syncTimerState(): Promise<void> {
       const state = await this.readTimerState();
       this.applyStoredTimerState(state);
     }
 
-    getCurrentSeconds() {
+    getCurrentSeconds(): number {
       if (!this.isRunning || !this.lastUpdated) {
         return Math.max(0, this.seconds || 0);
       }
@@ -214,7 +310,7 @@
       return Math.max(0, (this.seconds || 0) + Math.max(0, elapsedSeconds));
     }
 
-    formatTimer(totalSeconds) {
+    formatTimer(totalSeconds: number): string {
       const safeSeconds = Math.max(0, totalSeconds || 0);
       const hours = Math.floor(safeSeconds / 3600);
       const minutes = Math.floor((safeSeconds % 3600) / 60);
@@ -225,7 +321,7 @@
       return `${minutes}:${String(seconds).padStart(2, '0')}`;
     }
 
-    getToggleIconMarkup() {
+    getToggleIconMarkup(): string {
       if (this.isRunning) {
         return `
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -242,7 +338,7 @@
       `;
     }
 
-    getIssueUrl() {
+    getIssueUrl(): string {
       if (!this.issueKey || !this.settings?.baseUrl) return '';
 
       const hasProtocol = /^https?:\/\//i.test(this.settings.baseUrl);
@@ -253,24 +349,61 @@
       return `${normalizedBaseUrl.replace(/\/+$/, '')}/browse/${encodeURIComponent(this.issueKey)}`;
     }
 
-    getTimerChangeValue(changes, key, defaultValue, fallbackValue) {
+    getTimerChangeValue<T>(
+      changes: { [key: string]: chrome.storage.StorageChange },
+      key: string,
+      defaultValue: T,
+      fallbackValue: T
+    ): T {
       if (!(key in changes)) return fallbackValue;
-      return Object.prototype.hasOwnProperty.call(changes[key], 'newValue')
-        ? changes[key].newValue
+      const change = changes[key];
+      if (!change) return fallbackValue;
+      return Object.prototype.hasOwnProperty.call(change, 'newValue')
+        ? (change.newValue as T)
         : defaultValue;
     }
 
-    applyTimerStateFromChanges(changes) {
+    applyTimerStateFromChanges(changes: {
+      [key: string]: chrome.storage.StorageChange;
+    }): void {
       this.applyStoredTimerState({
-        issueKey: this.getTimerChangeValue(changes, 'issueKey', '', this.issueKey),
-        timerSeconds: this.getTimerChangeValue(changes, 'timerSeconds', 0, this.seconds),
-        timerIsRunning: this.getTimerChangeValue(changes, 'timerIsRunning', false, this.isRunning),
-        timerLastUpdated: this.getTimerChangeValue(changes, 'timerLastUpdated', null, this.lastUpdated)
+        issueKey: this.getTimerChangeValue(
+          changes,
+          'issueKey',
+          '',
+          this.issueKey
+        ),
+        timerSeconds: this.getTimerChangeValue(
+          changes,
+          'timerSeconds',
+          0,
+          this.seconds
+        ),
+        timerIsRunning: this.getTimerChangeValue(
+          changes,
+          'timerIsRunning',
+          false,
+          this.isRunning
+        ),
+        timerLastUpdated: this.getTimerChangeValue(
+          changes,
+          'timerLastUpdated',
+          null,
+          this.lastUpdated
+        ),
       });
     }
 
-    render() {
-      if (!this.widget || !this.issueText || !this.issueSeparator || !this.timerValue || !this.resetButton || !this.toggleButton) return;
+    render(): void {
+      if (
+        !this.widget ||
+        !this.issueText ||
+        !this.issueSeparator ||
+        !this.timerValue ||
+        !this.resetButton ||
+        !this.toggleButton
+      )
+        return;
 
       const currentSeconds = this.getCurrentSeconds();
       const canReset = this.isRunning || currentSeconds > 0;
@@ -281,16 +414,21 @@
       this.issueText.disabled = !this.issueKey;
       this.resetButton.disabled = !canReset;
       this.resetButton.title = canReset ? 'Reset timer' : 'Timer already reset';
-      this.resetButton.setAttribute('aria-label', canReset ? 'Reset timer' : 'Timer already reset');
+      this.resetButton.setAttribute(
+        'aria-label',
+        canReset ? 'Reset timer' : 'Timer already reset'
+      );
       this.toggleButton.innerHTML = this.getToggleIconMarkup();
       const toggleTitle = this.isRunning
         ? 'Pause timer'
-        : (currentSeconds > 0 ? 'Resume timer' : 'Start timer');
+        : currentSeconds > 0
+          ? 'Resume timer'
+          : 'Start timer';
       this.toggleButton.title = toggleTitle;
       this.toggleButton.setAttribute('aria-label', toggleTitle);
     }
 
-    syncDisplayInterval() {
+    syncDisplayInterval(): void {
       if (!this.widget) {
         this.stopDisplayInterval();
         return;
@@ -305,29 +443,32 @@
       if (this.interval) return;
 
       this.render();
-      this.interval = setInterval(() => {
+      this.interval = window.setInterval(() => {
         this.render();
       }, 1000);
     }
 
-    stopDisplayInterval() {
+    stopDisplayInterval(): void {
       if (this.interval) {
-        clearInterval(this.interval);
+        window.clearInterval(this.interval);
         this.interval = null;
       }
     }
 
-    async startTimer() {
+    async startTimer(): Promise<void> {
       const currentSeconds = this.getCurrentSeconds();
       const now = Date.now();
 
       await this.writeTimerState({
         timerSeconds: currentSeconds,
         timerIsRunning: true,
-        timerLastUpdated: now
+        timerLastUpdated: now,
       });
 
-      chrome.runtime.sendMessage({ action: 'startTimer', seconds: currentSeconds });
+      chrome.runtime.sendMessage({
+        action: 'startTimer',
+        seconds: currentSeconds,
+      });
 
       this.seconds = currentSeconds;
       this.isRunning = true;
@@ -336,14 +477,14 @@
       this.syncDisplayInterval();
     }
 
-    async pauseTimer() {
+    async pauseTimer(): Promise<void> {
       const currentSeconds = this.getCurrentSeconds();
       const now = Date.now();
 
       await this.writeTimerState({
         timerSeconds: currentSeconds,
         timerIsRunning: false,
-        timerLastUpdated: now
+        timerLastUpdated: now,
       });
 
       chrome.runtime.sendMessage({ action: 'stopTimer' });
@@ -355,7 +496,7 @@
       this.syncDisplayInterval();
     }
 
-    async resetTimer() {
+    async resetTimer(): Promise<void> {
       await this.clearTimerState();
       chrome.runtime.sendMessage({ action: 'resetTimer' });
 
@@ -366,54 +507,63 @@
       this.syncDisplayInterval();
     }
 
-    openFullTimer() {
-      this.openUrl(chrome.runtime.getURL('timerFeatureModule/timer.html'));
+    openFullTimer(): void {
+      this.openUrl(chrome.runtime.getURL('dist/timerFeatureModule/timer.html'));
     }
 
-    openIssue() {
+    openIssue(): void {
       const issueUrl = this.getIssueUrl();
       if (!issueUrl) return;
       this.openUrl(issueUrl);
     }
 
-    openUrl(url) {
+    openUrl(url: string): void {
       if (!url) return;
       chrome.runtime.sendMessage({ action: 'openUrl', url });
     }
 
-    applyTheme() {
+    applyTheme(): void {
       if (!this.widget) return;
 
       this.attachThemeListener();
 
-      const shouldUseDarkTheme = this.settings?.followSystemTheme !== false
-        ? window.matchMedia('(prefers-color-scheme: dark)').matches
-        : this.settings?.darkMode === true;
+      const shouldUseDarkTheme =
+        this.settings?.followSystemTheme !== false
+          ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          : this.settings?.darkMode === true;
 
       this.widget.classList.toggle('dark', shouldUseDarkTheme);
     }
 
-    attachThemeListener() {
+    attachThemeListener(): void {
       if (this.settings?.followSystemTheme === false) {
         this.detachThemeListener();
         return;
       }
 
       if (!this.themeMediaQuery) {
-        this.themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        this.themeMediaQuery = window.matchMedia(
+          '(prefers-color-scheme: dark)'
+        );
         if (typeof this.themeMediaQuery.addEventListener === 'function') {
-          this.themeMediaQuery.addEventListener('change', this.boundSystemThemeListener);
+          this.themeMediaQuery.addEventListener(
+            'change',
+            this.boundSystemThemeListener
+          );
         } else if (typeof this.themeMediaQuery.addListener === 'function') {
           this.themeMediaQuery.addListener(this.boundSystemThemeListener);
         }
       }
     }
 
-    detachThemeListener() {
+    detachThemeListener(): void {
       if (!this.themeMediaQuery) return;
 
       if (typeof this.themeMediaQuery.removeEventListener === 'function') {
-        this.themeMediaQuery.removeEventListener('change', this.boundSystemThemeListener);
+        this.themeMediaQuery.removeEventListener(
+          'change',
+          this.boundSystemThemeListener
+        );
       } else if (typeof this.themeMediaQuery.removeListener === 'function') {
         this.themeMediaQuery.removeListener(this.boundSystemThemeListener);
       }
@@ -424,3 +574,4 @@
 
   new FloatingTimerWidget();
 })();
+export {};
