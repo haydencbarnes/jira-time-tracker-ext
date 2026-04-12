@@ -14,6 +14,9 @@ type DetectorSettings = Required<
     'issueDetectionEnabled' | 'followSystemTheme' | 'darkMode'
   >;
 
+const JIRA_ISSUE_KEY_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/;
+const JIRA_ISSUE_KEY_GLOBAL_PATTERN_SOURCE = '\\b[A-Z][A-Z0-9]+-\\d+\\b';
+
 function isTextEntryElement(
   element: Element | null
 ): element is TextEntryElement {
@@ -31,7 +34,6 @@ class JiraIssueDetector {
   private highlightedIssues: Set<string>;
   private currentPopup: HTMLDivElement | null;
   private observer: MutationObserver | null;
-  private readonly JIRA_PATTERN: RegExp;
   private debounceTimeout: number | null;
 
   constructor() {
@@ -39,7 +41,6 @@ class JiraIssueDetector {
     this.highlightedIssues = new Set();
     this.currentPopup = null;
     this.observer = null;
-    this.JIRA_PATTERN = /\b[A-Z][A-Z0-9]+-\d+\b/g;
     this.debounceTimeout = null;
 
     this.init();
@@ -118,7 +119,7 @@ class JiraIssueDetector {
     const bodyText = document.body?.innerText || '';
     if (bodyText.length > 500000) {
       // Very large page - only scan if we find a potential match in first 50k chars
-      if (!this.JIRA_PATTERN.test(bodyText.slice(0, 50000))) {
+      if (!JIRA_ISSUE_KEY_PATTERN.test(bodyText.slice(0, 50000))) {
         return;
       }
     }
@@ -186,7 +187,9 @@ class JiraIssueDetector {
       const list = [];
       let n;
       while ((n = walker.nextNode())) {
-        if ((n.textContent ?? '').trim().match(this.JIRA_PATTERN)) list.push(n);
+        if (JIRA_ISSUE_KEY_PATTERN.test((n.textContent ?? '').trim())) {
+          list.push(n);
+        }
       }
       list.forEach((t) => this.highlightIssuesInTextNode(t as Text));
     };
@@ -225,7 +228,9 @@ class JiraIssueDetector {
 
   highlightIssuesInTextNode(textNode: Text): void {
     const text = textNode.textContent ?? '';
-    const matches = [...text.matchAll(this.JIRA_PATTERN)];
+    const matches = [
+      ...text.matchAll(new RegExp(JIRA_ISSUE_KEY_GLOBAL_PATTERN_SOURCE, 'g')),
+    ];
 
     if (matches.length === 0) return;
 
@@ -394,7 +399,7 @@ class JiraIssueDetector {
               node.nodeType === Node.TEXT_NODE
             ) {
               const text = node.textContent || '';
-              if (text.length > 3 && this.JIRA_PATTERN.test(text)) {
+              if (text.length > 3 && JIRA_ISSUE_KEY_PATTERN.test(text)) {
                 hasSignificantChange = true;
                 break;
               }

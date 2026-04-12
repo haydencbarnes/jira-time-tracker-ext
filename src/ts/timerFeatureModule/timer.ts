@@ -479,7 +479,6 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
   });
 }
 
-
 function toggleTimer() {
   if (isRunning) {
     chrome.runtime.sendMessage({ action: 'stopTimer' });

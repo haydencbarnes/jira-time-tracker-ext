@@ -174,8 +174,7 @@ async function init(options: SearchOptions): Promise<void> {
         },
       },
       onProjectSelectedFromDropdown: async ({ selectedProject, ctx }) => {
-        const { JIRA: jira, replaceIssueInput, issueInputRef, issueList } =
-          ctx;
+        const { JIRA: jira, replaceIssueInput, issueInputRef, issueList } = ctx;
         const jql = `project = ${selectedProject.key}`;
         replaceIssueInput();
         const page = await jira.getIssuesPage(jql, null, 100);

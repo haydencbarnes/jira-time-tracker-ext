@@ -1,14 +1,9 @@
 import { getRequiredElement } from './dom-utils';
-import type {
-  JiraApiClient,
-  JiraIssue,
-  JiraProjectsResponse,
-} from './types';
+import type { JiraApiClient, JiraIssue, JiraProjectsResponse } from './types';
 
 function displayErrorGlobal(message: string): void {
-  const fn = (
-    globalThis as unknown as { displayError?: (msg: string) => void }
-  ).displayError;
+  const fn = (globalThis as unknown as { displayError?: (msg: string) => void })
+    .displayError;
   if (typeof fn === 'function') {
     fn(message);
   }
@@ -79,12 +74,7 @@ export function autocomplete(
     }
 
     const jira = options?.getJiraForSuggestions?.() ?? null;
-    if (
-      val &&
-      matches.length < 5 &&
-      jira != null &&
-      inp.id === 'issueKey'
-    ) {
+    if (val && matches.length < 5 && jira != null && inp.id === 'issueKey') {
       try {
         const projectInput = document.getElementById(
           'projectId'
