@@ -54,6 +54,16 @@ The extension source now lives in `src/ts` and `src/html`. Generated runtime Jav
 7. Run the full CI gate locally with `npm run ci:check`.
 8. Reload the unpacked extension in Chrome after rebuilding so it picks up the updated `dist/` assets.
 
+### Packaging a release zip
+
+After `npm run build` (or rely on the script to build first), run:
+
+```bash
+npm run package
+```
+
+This runs the build, removes any existing `jira-time-tracker-ext.zip` in the repo root or parent folder, then writes a new **`../jira-time-tracker-ext.zip`** (one directory above the project root) containing `manifest.json`, `dist/`, `src/icons`, and `src/content-script.css`. Load that zip in Chrome via **Extensions → Load unpacked** only after unzipping, or distribute the zip for sideloading per your org’s policy.
+
 ## Settings/Preferences
 
 The below settings must be set for this extension to work properly.
