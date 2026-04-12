@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src/ts --deny-warnings",
     "lint:warn": "oxlint src/ts",
-    "lint:strict": "oxlint src/ts --deny-warnings",
     "lint:fix": "oxlint src/ts --fix",
     "format": "prettier . --write",
     "format:check": "prettier --check .",
