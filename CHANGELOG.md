@@ -2,6 +2,7 @@
 
 - Development: Migrated extension source to TypeScript (`src/ts`) and HTML templates (`src/html`); bundled JavaScript is emitted to `dist/` with esbuild. Legacy root-level script copies were removed; the manifest now references the built assets under `dist/`.
 - Tooling: Added `package.json` with npm scripts for build, typecheck, oxlint, Prettier, and `ci:check`; added TypeScript, esbuild, and shared lint/format configuration.
+- Chore: `dist/` is gitignored and not committed; run `npm run build` before loading the unpacked extension or running `npm run package`.
 
 ## 1.4.20 (Apr 11, 2026)
 

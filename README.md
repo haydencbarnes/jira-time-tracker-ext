@@ -43,7 +43,7 @@ Open the gear button in the table header (top right) to configure the Time Table
 
 ## Development
 
-The extension source now lives in `src/ts` and `src/html`. Generated runtime JavaScript and extension HTML copies are written to `dist/`.
+The extension source now lives in `src/ts` and `src/html`. Generated runtime JavaScript and extension HTML copies are written to `dist/`, which is not checked in to git; run `npm run build` before loading the unpacked extension or creating a release zip.
 
 1. Install dependencies with `npm install`.
 2. Rebuild the extension scripts with `npm run build`.
