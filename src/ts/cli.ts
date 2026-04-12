@@ -333,6 +333,8 @@ function isNearBottom(outputEl: HTMLDivElement): boolean {
 
 function syncScrollToBottom(outputEl: HTMLDivElement): void {
   outputEl.scrollTop = outputEl.scrollHeight;
+  // Keep the input + footer in view when the popup page is taller than the viewport.
+  // Welcome stays visible: `.cli-terminal-header` is `position: sticky; top: 0` in cli.html.
   document
     .getElementById('cli-bottom-anchor')
     ?.scrollIntoView({ block: 'end', inline: 'nearest' });

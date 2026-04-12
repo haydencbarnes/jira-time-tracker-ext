@@ -32,13 +32,22 @@
       }
 
       /* Inline banner inside terminal output */
+      /* Pinned above scrollable output; sticky so page scroll to bottom does not hide it */
+      .cli-terminal-header {
+        flex-shrink: 0;
+        margin-bottom: 8px;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f3f3f3;
+        padding-bottom: 2px;
+      }
       .cli-welcome {
         color: #0052cc;
         border: 1px solid #0052cc;
         border-radius: 6px;
         padding: 6px 8px;
         display: inline-block;
-        margin-bottom: 8px;
         font-weight: 600;
       }
 
@@ -286,6 +295,9 @@
         color: #e6e6e6;
         border-color: #333;
       }
+      body.dark-mode .cli-terminal-header {
+        background: #0b0b0b;
+      }
       body.dark-mode .prompt {
         color: #4690dd;
       }
@@ -333,12 +345,13 @@
     <div id="success"></div>
     <div class="container">
       <div class="terminal" role="group" aria-label="Jira time entry terminal">
-        <div id="cli-output" class="terminal-output" aria-live="polite">
+        <div class="cli-terminal-header">
           <span class="cli-welcome"
             >Welcome to Jira Time Log CLI
             <span class="jira-popup-beta-badge">BETA</span></span
           >
         </div>
+        <div id="cli-output" class="terminal-output" aria-live="polite"></div>
         <div class="terminal-line">
           <span class="prompt">➜</span>
           <input
