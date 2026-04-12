@@ -276,8 +276,18 @@ export function bindInfiniteIssuesScroll(
 ): void {
   let loadingMore = false;
   let nextCursor = initialNextCursor;
+  const boundIssueList = issueList as HTMLUListElement & {
+    _ttInfiniteIssuesScrollHandler?: EventListener;
+  };
 
-  issueList.addEventListener('scroll', () => {
+  if (boundIssueList._ttInfiniteIssuesScrollHandler) {
+    issueList.removeEventListener(
+      'scroll',
+      boundIssueList._ttInfiniteIssuesScrollHandler
+    );
+  }
+
+  const handleScroll: EventListener = () => {
     void (async () => {
       if (loadingMore || !nextCursor) return;
       const nearBottom =
@@ -293,7 +303,55 @@ export function bindInfiniteIssuesScroll(
       issueInput.dispatchEvent(evt);
       loadingMore = false;
     })();
-  });
+  };
+
+  boundIssueList._ttInfiniteIssuesScrollHandler = handleScroll;
+  issueList.addEventListener('scroll', handleScroll);
+}
+
+export interface IssueAutocompleteProjectLoadArgs {
+  ctx: ProjectIssueAutocompleteContext;
+  selectedProject: JiraProjectsResponse['data'][number];
+  formatIssueRow: (issue: JiraIssue) => string;
+  getJiraForSuggestions: () => JiraApiClient | null;
+  onIssueSelected?: (selectedIssue: string) => void;
+}
+
+export async function loadProjectIssuesIntoAutocomplete(
+  args: IssueAutocompleteProjectLoadArgs
+): Promise<void> {
+  const {
+    ctx,
+    selectedProject,
+    formatIssueRow,
+    getJiraForSuggestions,
+    onIssueSelected,
+  } = args;
+  const { JIRA, replaceIssueInput, issueInputRef, issueList } = ctx;
+  const jql = `project = ${selectedProject.key}`;
+
+  replaceIssueInput();
+  const page = await JIRA.getIssuesPage(jql, null, 100);
+  const issueItems = page.data.map((issue) => formatIssueRow(issue));
+
+  autocomplete(
+    issueInputRef.current,
+    issueItems,
+    issueList,
+    onIssueSelected ?? null,
+    {
+      getJiraForSuggestions,
+    }
+  );
+  bindInfiniteIssuesScroll(
+    issueList,
+    issueItems,
+    jql,
+    JIRA,
+    issueInputRef.current,
+    formatIssueRow,
+    page.nextCursor
+  );
 }
 
 export interface ProjectIssueAutocompleteBehavior {

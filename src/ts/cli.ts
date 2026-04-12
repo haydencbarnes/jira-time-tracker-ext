@@ -1,6 +1,8 @@
 import './shared/jira-api';
 import { getErrorMessage } from './shared/jira-error-handler';
 import { getRequiredElement } from './shared/dom-utils';
+import { initializeStoredThemeControls } from './shared/theme-sync';
+import { buildWorklogStartedTimestamp } from './shared/worklog-time';
 import type {
   CliOptions,
   JiraApiClient,
@@ -29,85 +31,13 @@ interface CommandContext {
   meIdentifiers: MeIdentifiers;
 }
 
-interface ThemeStorageResult {
-  followSystemTheme?: boolean;
-  darkMode?: boolean;
-}
-
 // Theme init shared with other pages
 document.addEventListener('DOMContentLoaded', function () {
   const themeToggleElement = document.getElementById(
     'themeToggle'
   ) as HTMLButtonElement | null;
   if (!themeToggleElement) return;
-  const themeToggle = themeToggleElement;
-
-  function updateThemeButton(isDark: boolean): void {
-    const iconSpan = themeToggle.querySelector<HTMLElement>('.icon');
-    if (!iconSpan) return;
-    if (isDark) {
-      iconSpan.textContent = '☀️';
-      themeToggle.title = 'Switch to light mode';
-    } else {
-      iconSpan.textContent = '🌙';
-      themeToggle.title = 'Switch to dark mode';
-    }
-  }
-
-  function setTheme(isDark: boolean): void {
-    updateThemeButton(isDark);
-    if (isDark) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
-  }
-
-  function applyTheme(followSystem: boolean, manualDark: boolean): void {
-    if (followSystem) {
-      const mql = window.matchMedia('(prefers-color-scheme: dark)');
-      setTheme(mql.matches);
-      mql.onchange = (e) => setTheme(e.matches);
-      window._systemThemeListener = mql;
-    } else {
-      if (window._systemThemeListener) {
-        window._systemThemeListener.onchange = null;
-        window._systemThemeListener = null;
-      }
-      setTheme(manualDark);
-    }
-  }
-
-  chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function (result) {
-    const theme = result as ThemeStorageResult;
-    const followSystem = theme.followSystemTheme !== false;
-    const manualDark = theme.darkMode === true;
-    applyTheme(followSystem, manualDark);
-  });
-
-  themeToggle?.addEventListener('click', function () {
-    const isDark = !document.body.classList.contains('dark-mode');
-    updateThemeButton(isDark);
-    setTheme(isDark);
-    chrome.storage.sync.set({ darkMode: isDark, followSystemTheme: false });
-  });
-
-  chrome.storage.onChanged.addListener(function (changes, namespace) {
-    if (
-      namespace === 'sync' &&
-      ('followSystemTheme' in changes || 'darkMode' in changes)
-    ) {
-      chrome.storage.sync.get(
-        ['followSystemTheme', 'darkMode'],
-        function (result) {
-          const theme = result as ThemeStorageResult;
-          const followSystem = theme.followSystemTheme !== false;
-          const manualDark = theme.darkMode === true;
-          applyTheme(followSystem, manualDark);
-        }
-      );
-    }
-  });
+  initializeStoredThemeControls({ toggle: themeToggleElement });
 });
 
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
@@ -650,10 +580,7 @@ async function handleCommand(raw: string, ctx: CommandContext): Promise<void> {
       return;
     }
 
-    const startedTime =
-      typeof JIRA.buildStartedTimestamp === 'function'
-        ? JIRA.buildStartedTimestamp(parsed.date)
-        : new Date(parsed.date || Date.now()).toISOString();
+    const startedTime = buildWorklogStartedTimestamp(parsed.date);
     await JIRA.updateWorklog(
       parsed.issueKey,
       parsed.seconds,

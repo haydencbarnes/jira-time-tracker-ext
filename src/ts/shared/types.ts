@@ -120,7 +120,6 @@ export interface JiraApiClient {
   isIssueKeyLike(key: string): boolean;
   extractIssueKey(raw: string): string;
   validateIssueMatchesProject(issueKey: string, projectKey: string): boolean;
-  buildStartedTimestamp(dateInput?: string | Date | null): string;
 }
 
 export interface ThemeSettings {
