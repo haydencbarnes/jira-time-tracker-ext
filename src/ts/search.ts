@@ -3,10 +3,16 @@ import './shared/jira-error-handler';
 import './shared/worklog-suggestions';
 import { getRequiredElement } from './shared/dom-utils';
 import {
-  autocomplete,
-  bindInfiniteIssuesScroll,
+  loadProjectIssuesIntoAutocomplete,
   setupProjectIssueAutocomplete,
 } from './shared/jira-project-issue-autocomplete';
+import { initializeStoredThemeControls } from './shared/theme-sync';
+import {
+  buildWorklogStartedTimestamp,
+  getWorklogDurationValidationMessage,
+  isValidWorklogDuration,
+  parseWorklogDurationToSeconds,
+} from './shared/worklog-time';
 import type {
   JiraApiClient,
   SearchOptions,
@@ -18,82 +24,8 @@ document.addEventListener('DOMContentLoaded', function () {
     'themeToggle'
   ) as HTMLButtonElement | null;
   if (!themeToggleElement) return;
-  const themeToggle = themeToggleElement;
-
-  // Unified theme logic
-  function applyTheme(followSystem: boolean, manualDark: boolean): void {
-    if (followSystem) {
-      const mql = window.matchMedia('(prefers-color-scheme: dark)');
-      setTheme(mql.matches);
-      mql.onchange = (e) => setTheme(e.matches);
-      window._systemThemeListener = mql;
-    } else {
-      if (window._systemThemeListener) {
-        window._systemThemeListener.onchange = null;
-        window._systemThemeListener = null;
-      }
-      setTheme(manualDark);
-    }
-  }
-  function setTheme(isDark: boolean): void {
-    updateThemeButton(isDark);
-    if (isDark) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
-  }
-  // Load settings and apply theme
-  chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function (result) {
-    const theme = result as { followSystemTheme?: boolean; darkMode?: boolean };
-    const followSystem = theme.followSystemTheme !== false; // default true
-    const manualDark = theme.darkMode === true;
-    applyTheme(followSystem, manualDark);
-  });
-  // Theme button disables system-following and sets manual override
-  themeToggle.addEventListener('click', function () {
-    const isDark = !document.body.classList.contains('dark-mode');
-    updateThemeButton(isDark);
-    setTheme(isDark);
-    chrome.storage.sync.set({ darkMode: isDark, followSystemTheme: false });
-  });
-  // Listen for changes from other tabs/options
-  chrome.storage.onChanged.addListener(function (changes, namespace) {
-    if (
-      namespace === 'sync' &&
-      ('followSystemTheme' in changes || 'darkMode' in changes)
-    ) {
-      chrome.storage.sync.get(
-        ['followSystemTheme', 'darkMode'],
-        function (result) {
-          const theme = result as {
-            followSystemTheme?: boolean;
-            darkMode?: boolean;
-          };
-          const followSystem = theme.followSystemTheme !== false;
-          const manualDark = theme.darkMode === true;
-          applyTheme(followSystem, manualDark);
-        }
-      );
-    }
-  });
+  initializeStoredThemeControls({ toggle: themeToggleElement });
 });
-
-// Function to update the theme button icon
-function updateThemeButton(isDark: boolean): void {
-  const themeToggle = document.getElementById(
-    'themeToggle'
-  ) as HTMLButtonElement | null;
-  const iconSpan = themeToggle?.querySelector<HTMLElement>('.icon');
-  if (!themeToggle || !iconSpan) return;
-  if (isDark) {
-    iconSpan.textContent = '☀️';
-    themeToggle.title = 'Switch to light mode';
-  } else {
-    iconSpan.textContent = '🌙';
-    themeToggle.title = 'Switch to dark mode';
-  }
-}
 
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
@@ -174,25 +106,12 @@ async function init(options: SearchOptions): Promise<void> {
         },
       },
       onProjectSelectedFromDropdown: async ({ selectedProject, ctx }) => {
-        const { JIRA: jira, replaceIssueInput, issueInputRef, issueList } = ctx;
-        const jql = `project = ${selectedProject.key}`;
-        replaceIssueInput();
-        const page = await jira.getIssuesPage(jql, null, 100);
-        const issueItems = page.data.map(
-          (i) => `${i.key}: ${i.fields.summary || ''}`
-        );
-        autocomplete(issueInputRef.current, issueItems, issueList, null, {
+        await loadProjectIssuesIntoAutocomplete({
+          ctx,
+          selectedProject,
+          formatIssueRow: (i) => `${i.key}: ${i.fields.summary || ''}`,
           getJiraForSuggestions: () => JIRA,
         });
-        bindInfiniteIssuesScroll(
-          issueList,
-          issueItems,
-          jql,
-          jira,
-          issueInputRef.current,
-          (i) => `${i.key}: ${i.fields.summary || ''}`,
-          page.nextCursor
-        );
       },
     });
 
@@ -241,11 +160,8 @@ async function logTimeClick(evt: Event): Promise<void> {
   }
 
   // Validate time format
-  const timeMatches = timeSpent.match(/[0-9]{1,4}[dhm]/g);
-  if (!timeMatches) {
-    displayError(
-      'Invalid time format. Please use:\n• Hours: 2h, 1.5h\n• Minutes: 30m, 45m\n• Days: 1d, 0.5d\n\nExamples: "2h 30m", "1d", "45m"'
-    );
+  if (!isValidWorklogDuration(timeSpent)) {
+    displayError(getWorklogDurationValidationMessage());
     return;
   }
 
@@ -272,11 +188,8 @@ async function logTimeClick(evt: Event): Promise<void> {
           options.username as string,
           options.apiToken as string
         );
-        const startedTime =
-          typeof JIRA.buildStartedTimestamp === 'function'
-            ? JIRA.buildStartedTimestamp(date)
-            : new Date(date).toISOString();
-        const timeSpentSeconds = convertTimeToSeconds(timeSpent);
+        const startedTime = buildWorklogStartedTimestamp(date);
+        const timeSpentSeconds = parseWorklogDurationToSeconds(timeSpent);
 
         console.log({
           issueKey,
@@ -309,26 +222,6 @@ async function logTimeClick(evt: Event): Promise<void> {
       }
     }
   );
-}
-
-function convertTimeToSeconds(timeStr: string): number {
-  const timeUnits = {
-    d: 60 * 60 * 24,
-    h: 60 * 60,
-    m: 60,
-  } as const;
-
-  const regex = /(\d+)([dhm])/g;
-  let match;
-  let totalSeconds = 0;
-
-  while ((match = regex.exec(timeStr)) !== null) {
-    const value = parseInt(match[1], 10);
-    const unit = match[2] as keyof typeof timeUnits;
-    totalSeconds += value * timeUnits[unit];
-  }
-
-  return totalSeconds;
 }
 
 function displayError(message: string): void {

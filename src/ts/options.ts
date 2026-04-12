@@ -2,10 +2,10 @@ import type {
   JiraType,
   OptionsPageSettings,
   SettingsChangedMessage,
-  ThemeSettings,
 } from './shared/types';
 
 import { getRequiredElement } from './shared/dom-utils';
+import { initializeStoredThemeControls } from './shared/theme-sync';
 
 function getRequiredSelector<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector(selector);
@@ -96,99 +96,20 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
     }
   }
 
-  function updateThemeButton(
-    themeToggle: HTMLButtonElement,
-    isDark: boolean
-  ): void {
-    const iconSpan = themeToggle.querySelector<HTMLElement>('.icon');
-    if (!iconSpan) return;
-
-    if (isDark) {
-      iconSpan.textContent = '☀️';
-      themeToggle.title = 'Switch to light mode';
-    } else {
-      iconSpan.textContent = '🌙';
-      themeToggle.title = 'Switch to dark mode';
-    }
-  }
-
-  function setTheme(themeToggle: HTMLButtonElement, isDark: boolean): void {
-    updateThemeButton(themeToggle, isDark);
-    document.body.classList.toggle('dark-mode', isDark);
-  }
-
-  function applyTheme(
-    themeToggle: HTMLButtonElement,
-    followSystem: boolean,
-    manualDark: boolean
-  ): void {
-    if (followSystem) {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      setTheme(themeToggle, mediaQuery.matches);
-      mediaQuery.onchange = (event) => setTheme(themeToggle, event.matches);
-      window._systemThemeListener = mediaQuery;
-      return;
-    }
-
-    if (window._systemThemeListener) {
-      window._systemThemeListener.onchange = null;
-      window._systemThemeListener = null;
-    }
-
-    setTheme(themeToggle, manualDark);
-  }
-
   function initThemeControls(): void {
     document.addEventListener('DOMContentLoaded', async () => {
       const themeToggle = getRequiredElement<HTMLButtonElement>('themeToggle');
-      const themeSettings = await getSyncStorage<ThemeSettings>({
-        followSystemTheme: true,
-        darkMode: false,
-      });
-      const followSystem = themeSettings.followSystemTheme !== false;
-      const manualDark = themeSettings.darkMode === true;
-
-      applyTheme(themeToggle, followSystem, manualDark);
-      systemThemeToggle.checked = followSystem;
-
-      themeToggle.addEventListener('click', async () => {
-        const isDark = !document.body.classList.contains('dark-mode');
-        setTheme(themeToggle, isDark);
-        await setSyncStorage({ darkMode: isDark, followSystemTheme: false });
-        systemThemeToggle.checked = false;
+      initializeStoredThemeControls({
+        toggle: themeToggle,
+        onSettingsApplied: (settings) => {
+          systemThemeToggle.checked = settings.followSystemTheme;
+        },
       });
 
       systemThemeToggle.addEventListener('change', async () => {
-        const nextFollowSystem = systemThemeToggle.checked;
-        await setSyncStorage({ followSystemTheme: nextFollowSystem });
-        const latestTheme = await getSyncStorage<
-          Pick<ThemeSettings, 'darkMode'>
-        >({
-          darkMode: false,
+        await setSyncStorage({
+          followSystemTheme: systemThemeToggle.checked,
         });
-        applyTheme(
-          themeToggle,
-          nextFollowSystem,
-          latestTheme.darkMode === true
-        );
-      });
-
-      chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (
-          namespace === 'sync' &&
-          ('followSystemTheme' in changes || 'darkMode' in changes)
-        ) {
-          void getSyncStorage<ThemeSettings>({
-            followSystemTheme: true,
-            darkMode: false,
-          }).then((latestThemeSettings) => {
-            const latestFollowSystem =
-              latestThemeSettings.followSystemTheme !== false;
-            const latestManualDark = latestThemeSettings.darkMode === true;
-            applyTheme(themeToggle, latestFollowSystem, latestManualDark);
-            systemThemeToggle.checked = latestFollowSystem;
-          });
-        }
       });
     });
   }

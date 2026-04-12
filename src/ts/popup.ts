@@ -1,6 +1,14 @@
 import './shared/jira-api';
 import { getErrorMessage } from './shared/jira-error-handler';
 import './shared/worklog-suggestions';
+import { initializeStoredThemeControls } from './shared/theme-sync';
+import {
+  buildWorklogStartedTimestamp,
+  getWorklogDurationValidationMessage,
+  isValidWorklogDuration,
+  parseWorklogDurationToSeconds,
+  sumWorklogSeconds,
+} from './shared/worklog-time';
 import type {
   JiraApiClient,
   JiraIssue,
@@ -109,69 +117,10 @@ function normalizeColumnOrder(stored: unknown): ColumnId[] {
 document.addEventListener('DOMContentLoaded', function () {
   const themeToggle = document.getElementById('themeToggle');
   if (!themeToggle) return;
-
-  function applyTheme(followSystem: boolean, manualDark: boolean) {
-    if (followSystem) {
-      const mql = window.matchMedia('(prefers-color-scheme: dark)');
-      setTheme(mql.matches);
-      mql.onchange = (e: MediaQueryListEvent) => setTheme(e.matches);
-      window._systemThemeListener = mql;
-    } else {
-      if (window._systemThemeListener) {
-        window._systemThemeListener.onchange = null;
-        window._systemThemeListener = null;
-      }
-      setTheme(manualDark);
-    }
-  }
-  function setTheme(isDark: boolean) {
-    updateThemeButton(isDark);
-    if (isDark) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
-  }
-  chrome.storage.sync.get(['followSystemTheme', 'darkMode'], function (result) {
-    const followSystem = result.followSystemTheme !== false;
-    const manualDark = result.darkMode === true;
-    applyTheme(followSystem, manualDark);
-  });
-  themeToggle.addEventListener('click', function () {
-    const isDark = !document.body.classList.contains('dark-mode');
-    updateThemeButton(isDark);
-    setTheme(isDark);
-    chrome.storage.sync.set({ darkMode: isDark, followSystemTheme: false });
-  });
-  chrome.storage.onChanged.addListener(function (changes, namespace) {
-    if (
-      namespace === 'sync' &&
-      ('followSystemTheme' in changes || 'darkMode' in changes)
-    ) {
-      chrome.storage.sync.get(
-        ['followSystemTheme', 'darkMode'],
-        function (result) {
-          const followSystem = result.followSystemTheme !== false;
-          const manualDark = result.darkMode === true;
-          applyTheme(followSystem, manualDark);
-        }
-      );
-    }
+  initializeStoredThemeControls({
+    toggle: themeToggle as HTMLButtonElement,
   });
 });
-
-function updateThemeButton(isDark: boolean) {
-  const themeToggle = document.getElementById('themeToggle');
-  const iconSpan = themeToggle?.querySelector('.icon');
-  if (!themeToggle || !iconSpan) return;
-  if (isDark) {
-    iconSpan.textContent = '☀️';
-    themeToggle.title = 'Switch to light mode';
-  } else {
-    iconSpan.textContent = '🌙';
-    themeToggle.title = 'Switch to dark mode';
-  }
-}
 
 // ===== Main init =====
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
@@ -700,11 +649,7 @@ function getWorklog(issueId: string, JIRA: JiraApiClient) {
 }
 
 function sumWorklogs(worklogs: JiraWorklog[]) {
-  if (!Array.isArray(worklogs)) return '0 hrs';
-  const totalSeconds = worklogs.reduce(
-    (total, log) => total + log.timeSpentSeconds,
-    0
-  );
+  const totalSeconds = sumWorklogSeconds(worklogs);
   const totalHours = (totalSeconds / 3600).toFixed(1);
   return `${totalHours} hrs`;
 }
@@ -781,15 +726,16 @@ async function logTimeClick(evt: Event) {
     return;
   }
 
-  const timeMatches = timeInput.value.match(/[0-9]{1,4}[dhm]/g);
-  if (!timeMatches) {
+  if (!isValidWorklogDuration(timeInput.value, { allowWeeks: true })) {
     displayError(
-      'Invalid time format. Please use:\n• Hours: 2h, 1.5h\n• Minutes: 30m, 45m\n• Days: 1d, 0.5d\n\nExamples: "2h 30m", "1d", "45m"'
+      getWorklogDurationValidationMessage({ allowWeeks: true })
     );
     return;
   }
 
-  const timeSpentSeconds = convertTimeToSeconds(timeInput.value);
+  const timeSpentSeconds = parseWorklogDurationToSeconds(timeInput.value, {
+    allowWeeks: true,
+  });
   if (isNaN(timeSpentSeconds) || timeSpentSeconds <= 0) {
     displayError(
       'Invalid time value. Please enter a positive time amount using valid units (d=days, h=hours, m=minutes).'
@@ -803,7 +749,7 @@ async function logTimeClick(evt: Event) {
     loader.style.display = 'block';
   }
 
-  const startedTime = getStartedTime(dateInput.value);
+  const startedTime = buildWorklogStartedTimestamp(dateInput.value);
 
   try {
     const options = await new Promise<PopupOptions>((resolve, reject) =>
@@ -867,28 +813,6 @@ async function logTimeClick(evt: Event) {
       showErrorAnimation(issueId);
     }
   }
-}
-
-function convertTimeToSeconds(timeStr: string): number {
-  const timeUnits: Record<'d' | 'h' | 'm' | 'w', number> = {
-    d: 60 * 60 * 24,
-    h: 60 * 60,
-    m: 60,
-    w: 60 * 60 * 24 * 5,
-  };
-
-  const regex = /(\d+)([wdhm])/g;
-  let match: RegExpExecArray | null;
-  let totalSeconds = 0;
-
-  while ((match = regex.exec(timeStr)) !== null) {
-    const value = parseInt(match[1], 10);
-    const unit = match[2] as keyof typeof timeUnits;
-    const mult = timeUnits[unit];
-    if (mult != null) totalSeconds += value * mult;
-  }
-
-  return totalSeconds;
 }
 
 /***************
@@ -1363,47 +1287,6 @@ Date.prototype.toDateInputValue = function () {
   local.setMinutes(this.getMinutes() - this.getTimezoneOffset());
   return local.toJSON().slice(0, 10);
 };
-
-function getStartedTime(dateString: string) {
-  // Parse the input date string
-  const [year, month, day] = dateString.split('-').map(Number);
-
-  // Create a date object using the local timezone
-  const date = new Date(year, month - 1, day);
-  const now = new Date();
-
-  // Combine the input date with the current time
-  date.setHours(
-    now.getHours(),
-    now.getMinutes(),
-    now.getSeconds(),
-    now.getMilliseconds()
-  );
-
-  // Calculate timezone offset
-  const tzo = -date.getTimezoneOffset();
-  const dif = tzo >= 0 ? '+' : '-';
-
-  // Format the date string
-  const formattedDate =
-    `${date.getFullYear()}-` +
-    `${pad(date.getMonth() + 1)}-` +
-    `${pad(date.getDate())}T` +
-    `${pad(date.getHours())}:` +
-    `${pad(date.getMinutes())}:` +
-    `${pad(date.getSeconds())}.` +
-    `${pad(date.getMilliseconds(), 3)}` +
-    `${dif}${pad(Math.abs(Math.floor(tzo / 60)))}:${pad(Math.abs(tzo % 60))}`;
-
-  console.log('Input date string:', dateString);
-  console.log('Formatted start time:', formattedDate);
-
-  return formattedDate;
-}
-
-function pad(num: number, width = 2) {
-  return String(Math.abs(Math.floor(num))).padStart(width, '0');
-}
 
 function insertFrequentWorklogDescription(options: PopupOptions) {
   const descriptionFields = document.querySelectorAll<HTMLInputElement>(

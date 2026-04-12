@@ -1,4 +1,9 @@
 import { getErrorMessage } from './shared/jira-error-handler';
+import {
+  buildNoonWorklogStartedTimestamp,
+  isValidWorklogDuration,
+  parseWorklogDurationToSeconds,
+} from './shared/worklog-time';
 import type {
   BackgroundWorklogResponse,
   ExtensionSettings,
@@ -26,7 +31,7 @@ function isTextEntryElement(
   );
 }
 
-// JIRA Issue ID Detection and Time Tracking Content Script (stable)
+// JIRA Issue ID Detection and Time Tracking Content Script
 // Detects JIRA issue IDs on any page and provides a quick log-time popup
 
 class JiraIssueDetector {
@@ -668,9 +673,9 @@ class JiraIssueDetector {
         return;
       }
 
-      if (!this.validateTimeFormat(timeValue)) {
+      if (!isValidWorklogDuration(timeValue)) {
         this.showPopupError(
-          'Invalid time format. Use: 2h, 30m, 1d, or combinations like "2h 30m"'
+          'Invalid time format. Use values like 2h, 30m, 1d, or 1.5h.'
         );
         return;
       }
@@ -686,35 +691,6 @@ class JiraIssueDetector {
 
     // Focus time input
     timeInput.focus();
-  }
-
-  validateTimeFormat(timeStr: string): boolean {
-    // Check if time format is valid (e.g., 2h, 30m, 1d, 2h 30m)
-    const timePattern = /^(\d+[dhm]\s*)+$/i;
-    return timePattern.test(timeStr.trim());
-  }
-
-  convertTimeToSeconds(timeStr: string): number {
-    const timeUnits: Record<'d' | 'h' | 'm', number> = {
-      d: 60 * 60 * 24,
-      h: 60 * 60,
-      m: 60,
-    };
-
-    const regex = /(\d+)([dhm])/gi;
-    let match;
-    let totalSeconds = 0;
-
-    while ((match = regex.exec(timeStr)) !== null) {
-      const value = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase() as keyof typeof timeUnits;
-      const multiplier = timeUnits[unit];
-      if (multiplier !== undefined) {
-        totalSeconds += value * multiplier;
-      }
-    }
-
-    return totalSeconds;
   }
 
   async logTime(
@@ -740,8 +716,8 @@ class JiraIssueDetector {
     submitBtn.disabled = true;
 
     try {
-      const timeInSeconds = this.convertTimeToSeconds(timeStr);
-      const startedTime = this.getStartedTime(dateStr);
+      const timeInSeconds = parseWorklogDurationToSeconds(timeStr);
+      const startedTime = buildNoonWorklogStartedTimestamp(dateStr);
 
       // Send message to background script to handle the API call
       const response = await new Promise<BackgroundWorklogResponse>(
@@ -804,21 +780,6 @@ class JiraIssueDetector {
       loading.classList.remove('show');
       submitBtn.disabled = false;
     }
-  }
-
-  getStartedTime(dateString: string): string {
-    if (!dateString) {
-      return new Date().toISOString();
-    }
-
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return new Date().toISOString();
-    }
-
-    // Set to 12:00 PM of the selected date
-    date.setHours(12, 0, 0, 0);
-    return date.toISOString();
   }
 
   showPopupSuccess(message: string): void {

@@ -3,15 +3,19 @@ import { getErrorMessage } from '../shared/jira-error-handler';
 import '../shared/worklog-suggestions';
 import { getRequiredElement } from '../shared/dom-utils';
 import {
-  autocomplete,
-  bindInfiniteIssuesScroll,
+  loadProjectIssuesIntoAutocomplete,
   setupProjectIssueAutocomplete,
   type ProjectIssueAutocompleteContext,
 } from '../shared/jira-project-issue-autocomplete';
+import {
+  applyStoredTheme,
+  initializeStoredThemeControls,
+} from '../shared/theme-sync';
 import type {
   BackgroundTimerSettings,
   BackgroundWorklogResponse,
   JiraApiClient,
+  JiraIssue,
   TextEntryElement,
   TimerOptions,
   TimerState,
@@ -37,34 +41,8 @@ let seconds = 0;
 let JIRA: JiraApiClient | null = null;
 let _timerSettings: BackgroundTimerSettings | null = null;
 
-(function immediateTheme() {
-  // Synchronously read theme from storage (best effort, may be async, but runs before DOMContentLoaded)
-  if (chrome.storage?.sync?.get) {
-    chrome.storage.sync.get(
-      ['followSystemTheme', 'darkMode'],
-      function (result) {
-        const theme = (result || {}) as {
-          followSystemTheme?: boolean;
-          darkMode?: boolean;
-        };
-        const followSystem = theme.followSystemTheme !== false; // default true
-        const manualDark = theme.darkMode === true;
-        if (followSystem) {
-          const mql = window.matchMedia('(prefers-color-scheme: dark)');
-          setTheme(mql.matches);
-        } else {
-          setTheme(manualDark);
-        }
-      }
-    );
-  }
-  function setTheme(isDark: boolean) {
-    if (isDark) {
-      document.body.classList.add('dark-mode');
-    } else {
-      document.body.classList.remove('dark-mode');
-    }
-  }
+(function applyInitialTheme() {
+  void applyStoredTheme();
 })();
 
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
@@ -181,43 +159,9 @@ async function onDOMContentLoaded(): Promise<void> {
       const themeToggle = document.getElementById(
         'themeToggle'
       ) as HTMLButtonElement | null;
-
-      // Unified theme logic
-      function applyTheme(followSystem: boolean, manualDark: boolean) {
-        if (followSystem) {
-          const mql = window.matchMedia('(prefers-color-scheme: dark)');
-          setTheme(mql.matches);
-          mql.onchange = (e) => setTheme(e.matches);
-          window._systemThemeListener = mql;
-        } else {
-          if (window._systemThemeListener) {
-            window._systemThemeListener.onchange = null;
-            window._systemThemeListener = null;
-          }
-          setTheme(manualDark);
-        }
-      }
-      function setTheme(isDark: boolean) {
-        updateThemeButton(isDark);
-        if (isDark) {
-          document.body.classList.add('dark-mode');
-        } else {
-          document.body.classList.remove('dark-mode');
-        }
-      }
-      // Load settings and apply theme
-      chrome.storage.sync.get(
-        ['followSystemTheme', 'darkMode'],
-        function (result) {
-          const theme = result as {
-            followSystemTheme?: boolean;
-            darkMode?: boolean;
-          };
-          const followSystem = theme.followSystemTheme !== false; // default true
-          const manualDark = theme.darkMode === true;
-          applyTheme(followSystem, manualDark);
-
-          // Initialize worklog suggestions AFTER theme is applied
+      initializeStoredThemeControls({
+        toggle: themeToggle,
+        afterInitialApply: () => {
           const descriptionField = document.getElementById(
             'description'
           ) as TextEntryElement | null;
@@ -227,34 +171,10 @@ async function onDOMContentLoaded(): Promise<void> {
           ) {
             initializeWorklogSuggestions(descriptionField);
           }
-        }
-      );
-      // Theme button disables system-following and sets manual override
-      themeToggle?.addEventListener('click', function () {
-        const isDark = !document.body.classList.contains('dark-mode');
-        updateThemeButton(isDark);
-        setTheme(isDark);
-        chrome.storage.sync.set({ darkMode: isDark, followSystemTheme: false });
+        },
       });
-      // Listen for changes from other tabs/options
+
       chrome.storage.onChanged.addListener(function (changes, namespace) {
-        if (
-          namespace === 'sync' &&
-          ('followSystemTheme' in changes || 'darkMode' in changes)
-        ) {
-          chrome.storage.sync.get(
-            ['followSystemTheme', 'darkMode'],
-            function (result) {
-              const theme = result as {
-                followSystemTheme?: boolean;
-                darkMode?: boolean;
-              };
-              const followSystem = theme.followSystemTheme !== false;
-              const manualDark = theme.darkMode === true;
-              applyTheme(followSystem, manualDark);
-            }
-          );
-        }
         if (
           namespace === 'sync' &&
           ('timerSeconds' in changes ||
@@ -306,9 +226,22 @@ async function init(options: TimerOptions): Promise<void> {
 
 async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
   const client = JIRA;
+  const formatIssueRow = (issue: JiraIssue) =>
+    `${issue.key}: ${issue.fields.summary || ''}`;
+  const persistSelectedIssue = (selectedIssue: string) => {
+    const issueKey = selectedIssue.split(':')[0].trim();
+    const issueTitle = selectedIssue
+      .substring(selectedIssue.indexOf(':') + 1)
+      .trim();
+    chrome.storage.sync.set({
+      issueKey: issueKey,
+      issueTitle: issueTitle,
+    });
+  };
+
   await setupProjectIssueAutocomplete(client, {
     getJiraForSuggestions: () => client,
-    formatIssueRow: (i) => `${i.key}: ${i.fields.summary || ''}`,
+    formatIssueRow,
     directIssueHooks: {
       onMismatch: (_inputEl, ctx) => {
         clearIssueStorageFromAutocomplete(ctx);
@@ -332,13 +265,7 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
       selectedProject,
       ctx,
     }) => {
-      const {
-        JIRA: jira,
-        replaceIssueInput,
-        issueInputRef,
-        issueList,
-        projectInput,
-      } = ctx;
+      const { projectInput } = ctx;
       const previousKey =
         projectInput && projectInput.dataset
           ? projectInput.dataset.selectedKey
@@ -348,54 +275,20 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
       if (previousKey && previousKey !== selectedKey) {
         clearIssueStorageFromAutocomplete(ctx);
       }
-      const jql = `project = ${selectedProject.key}`;
-      replaceIssueInput();
-      const page = await jira.getIssuesPage(jql, null, 100);
-      const issueItems = page.data.map(
-        (i) => `${i.key}: ${i.fields.summary || ''}`
-      );
-      autocomplete(
-        issueInputRef.current,
-        issueItems,
-        issueList,
-        (selectedIssue) => {
-          const issueKey = selectedIssue.split(':')[0].trim();
-          const issueTitle = selectedIssue
-            .substring(selectedIssue.indexOf(':') + 1)
-            .trim();
-          chrome.storage.sync.set({
-            issueKey: issueKey,
-            issueTitle: issueTitle,
-          });
-          issueInputRef.current.value = selectedIssue;
-        },
-        {
-          getJiraForSuggestions: () => client,
-        }
-      );
-      bindInfiniteIssuesScroll(
-        issueList,
-        issueItems,
-        jql,
-        jira,
-        issueInputRef.current,
-        (i) => `${i.key}: ${i.fields.summary || ''}`,
-        page.nextCursor
-      );
+      await loadProjectIssuesIntoAutocomplete({
+        ctx,
+        selectedProject,
+        formatIssueRow,
+        getJiraForSuggestions: () => client,
+        onIssueSelected: persistSelectedIssue,
+      });
       chrome.storage.sync.set({
         projectId: selectedKey,
         projectName: selectedProject.name,
       });
     },
     runInitialPreload: async (ctx) => {
-      const {
-        JIRA: jira,
-        projectInput,
-        issueInputRef,
-        projectMap,
-        issueList,
-        replaceIssueInput,
-      } = ctx;
+      const { projectInput, issueInputRef, projectMap } = ctx;
       try {
         const initialVal =
           projectInput && projectInput.value ? projectInput.value : '';
@@ -422,41 +315,13 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
 
         const selectedProject = projectMap.get(initialKey);
         if (!selectedProject) return;
-
-        const jql = `project = ${selectedProject.key}`;
-        replaceIssueInput();
-        const page = await jira.getIssuesPage(jql, null, 100);
-        const issueItems = page.data.map(
-          (i) => `${i.key}: ${i.fields.summary || ''}`
-        );
-        autocomplete(
-          issueInputRef.current,
-          issueItems,
-          issueList,
-          (selectedIssue) => {
-            const issueKey = selectedIssue.split(':')[0].trim();
-            const issueTitle = selectedIssue
-              .substring(selectedIssue.indexOf(':') + 1)
-              .trim();
-            chrome.storage.sync.set({
-              issueKey: issueKey,
-              issueTitle: issueTitle,
-            });
-            issueInputRef.current.value = selectedIssue;
-          },
-          {
-            getJiraForSuggestions: () => client,
-          }
-        );
-        bindInfiniteIssuesScroll(
-          issueList,
-          issueItems,
-          jql,
-          jira,
-          issueInputRef.current,
-          (i) => `${i.key}: ${i.fields.summary || ''}`,
-          page.nextCursor
-        );
+        await loadProjectIssuesIntoAutocomplete({
+          ctx,
+          selectedProject,
+          formatIssueRow,
+          getJiraForSuggestions: () => client,
+          onIssueSelected: persistSelectedIssue,
+        });
       } catch {
         // best-effort init
       }
@@ -942,22 +807,6 @@ function saveTimerState(): void {
 
 function restoreTimerState() {
   loadTimerState(true);
-}
-
-// Function to update the theme button icon
-function updateThemeButton(isDark: boolean) {
-  const themeToggle = document.getElementById(
-    'themeToggle'
-  ) as HTMLButtonElement | null;
-  const iconSpan = themeToggle?.querySelector<HTMLElement>('.icon');
-  if (!themeToggle || !iconSpan) return;
-  if (isDark) {
-    iconSpan.textContent = '☀️';
-    themeToggle.title = 'Switch to light mode';
-  } else {
-    iconSpan.textContent = '🌙';
-    themeToggle.title = 'Switch to dark mode';
-  }
 }
 (window as Window & { displayError?: typeof displayError }).displayError =
   displayError;
