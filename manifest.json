@@ -4,7 +4,7 @@
   "version": "1.5.0",
   "description": "Log/Track your time in Jira in seconds!",
   "host_permissions": ["<all_urls>"],
-  "permissions": ["storage", "sidePanel"],
+  "permissions": ["storage", "tabs", "windows"],
   "background": {
     "service_worker": "dist/timerFeatureModule/background.js"
   },
@@ -19,9 +19,6 @@
   "action": {
     "default_icon": "src/icons/jira_logo.png",
     "default_popup": "dist/popup.html"
-  },
-  "side_panel": {
-    "default_path": "dist/popup.html"
   },
   "options_page": "dist/options.html",
   "icons": {

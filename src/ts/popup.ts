@@ -1,6 +1,7 @@
 import './shared/jira-api';
 import { getErrorMessage } from './shared/jira-error-handler';
 import './shared/worklog-suggestions';
+import { initPageViewLayout } from './shared/page-view-layout';
 import { initializeStoredThemeControls } from './shared/theme-sync';
 import {
   buildWorklogStartedTimestamp,
@@ -17,6 +18,8 @@ import type {
   PopupColumnVisibility,
   PopupOptions,
 } from './shared/types';
+
+initPageViewLayout();
 
 type CachedIssuesResponse = {
   data: JiraIssuesResponse;

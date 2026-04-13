@@ -4,13 +4,15 @@ import type {
   BackgroundWorklogResponse,
 } from '../shared/types';
 
+const POPUP_PATH = 'dist/popup.html';
+const TIMER_PAGE_PATH = 'dist/timerFeatureModule/timer.html';
+
 type BackgroundMessage =
   | { action: 'startTimer'; seconds: number }
   | { action: 'stopTimer' }
   | { action: 'resetTimer' }
   | { action: 'updateBadge'; seconds: number; isRunning: boolean }
   | { action: 'syncTime'; seconds: number; isRunning: boolean }
-  | { action: 'openSidePanel' }
   | { action: 'openUrl'; url: string }
   | BackgroundWorklogRequest;
 
@@ -18,28 +20,38 @@ let badgeUpdateInterval: number | null = null;
 let currentSeconds = 0;
 let isRunning = false;
 
-async function initSidePanelBehavior(): Promise<void> {
+async function applyToolbarActionMode(openPageView: boolean): Promise<void> {
+  try {
+    if (openPageView) {
+      await chrome.action.setPopup({ popup: '' });
+    } else {
+      await chrome.action.setPopup({ popup: POPUP_PATH });
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function initToolbarActionFromStorage(): Promise<void> {
   const items = await new Promise<{ sidePanelEnabled: boolean }>((resolve) => {
     chrome.storage.sync.get({ sidePanelEnabled: false }, (result) => {
       resolve(result as { sidePanelEnabled: boolean });
     });
   });
 
-  void chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: items.sidePanelEnabled })
-    .catch((error) => console.error(error));
+  await applyToolbarActionMode(items.sidePanelEnabled);
 }
 
-void initSidePanelBehavior();
+void initToolbarActionFromStorage();
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.sidePanelEnabled) {
-    void chrome.sidePanel
-      .setPanelBehavior({
-        openPanelOnActionClick: changes.sidePanelEnabled.newValue === true,
-      })
-      .catch((error) => console.error(error));
+    void applyToolbarActionMode(changes.sidePanelEnabled.newValue === true);
   }
+});
+
+chrome.action.onClicked.addListener((tab) => {
+  void focusOrOpenTimerTab(tab);
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -61,13 +73,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'syncTime':
       syncTime(message.seconds, message.isRunning);
       return false;
-    case 'openSidePanel':
-      if (sender.tab?.windowId) {
-        void chrome.sidePanel.open({ windowId: sender.tab.windowId });
-      }
-      return false;
     case 'openUrl':
-      openUrlInTab(message.url, sender);
+      openUrlInTab(message.url, sender.tab);
       return false;
     case 'logWorklog':
       void handleWorklogRequest(
@@ -80,17 +87,47 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-function openUrlInTab(
-  url: string,
-  sender?: chrome.runtime.MessageSender
-): void {
+/** Timer full-page URL (singleton: focus existing tab instead of opening duplicates). */
+function getTimerPageUrl(): string {
+  return chrome.runtime.getURL(TIMER_PAGE_PATH);
+}
+
+async function focusOrOpenTimerTab(refTab?: chrome.tabs.Tab): Promise<void> {
+  const timerUrl = getTimerPageUrl();
+  const urlPrefix = timerUrl.split(/[?#]/)[0] ?? timerUrl;
+
+  try {
+    const allTabs = await chrome.tabs.query({});
+    const matches = allTabs.filter(
+      (t) => typeof t.url === 'string' && t.url.startsWith(urlPrefix)
+    );
+    if (matches.length > 0) {
+      const existing = matches.sort(
+        (a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0)
+      )[0];
+      if (existing?.id != null) {
+        await chrome.tabs.update(existing.id, { active: true });
+        if (existing.windowId != null) {
+          await chrome.windows.update(existing.windowId, { focused: true });
+        }
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('focusOrOpenTimerTab:', error);
+  }
+
+  openUrlInTab(timerUrl, refTab);
+}
+
+function openUrlInTab(url: string, refTab?: chrome.tabs.Tab): void {
   if (!url) return;
 
   const createProperties: chrome.tabs.CreateProperties = { url };
-  if (sender?.tab?.windowId) {
-    createProperties.windowId = sender.tab.windowId;
-    if (typeof sender.tab.index === 'number') {
-      createProperties.index = sender.tab.index + 1;
+  if (refTab?.windowId != null) {
+    createProperties.windowId = refTab.windowId;
+    if (typeof refTab.index === 'number') {
+      createProperties.index = refTab.index + 1;
     }
   }
 
