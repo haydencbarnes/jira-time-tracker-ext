@@ -1,7 +1,7 @@
 {
   "name": "jira-time-tracker-ext",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Chrome extension for logging and tracking Jira time.",
   "scripts": {
     "build": "node scripts/build.mjs",

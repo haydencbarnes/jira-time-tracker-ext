@@ -1,3 +1,7 @@
+## 1.5.1 (Apr 14, 2026)
+- Feature: Page view (new tab) is now an experimental feature. Users can now toggle page view (new tab) on and off from the options page. The side panel feature is now deprecated and has been removed.
+- Fix: Live timer badge now updates correctly when the timer is running.
+
 ## 1.5.0 (Apr 12, 2026)
 
 - Development: Migrated extension source to TypeScript (`src/ts`) and HTML templates (`src/html`); bundled JavaScript is emitted to `dist/` with esbuild. Legacy root-level script copies were removed; the manifest now references the built assets under `dist/`.
