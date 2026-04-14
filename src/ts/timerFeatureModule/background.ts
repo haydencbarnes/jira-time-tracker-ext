@@ -89,20 +89,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-/** Timer full-page URL (singleton: focus existing tab instead of opening duplicates). */
 function getTimerPageUrl(): string {
   return chrome.runtime.getURL(TIMER_PAGE_PATH);
 }
 
+function getExtensionTabsUrlPattern(): string {
+  return `${new URL(chrome.runtime.getURL(POPUP_PATH)).origin}/*`;
+}
+
 async function focusOrOpenTimerTab(refTab?: chrome.tabs.Tab): Promise<void> {
   const timerUrl = getTimerPageUrl();
-  const urlPrefix = timerUrl.split(/[?#]/)[0] ?? timerUrl;
 
   try {
-    const allTabs = await chrome.tabs.query({});
-    const matches = allTabs.filter(
-      (t) => typeof t.url === 'string' && t.url.startsWith(urlPrefix)
-    );
+    const matches = await chrome.tabs.query({ url: getExtensionTabsUrlPattern() });
     if (matches.length > 0) {
       const existing = matches.sort(
         (a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0)
