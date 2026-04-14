@@ -115,8 +115,6 @@ async function focusOrOpenTimerTab(refTab?: chrome.tabs.Tab): Promise<void> {
     }
   } catch (error) {
     console.error('focusOrOpenTimerTab:', error);
-    // Unlikey case, but if we can't focus or open the timer tab due the window closing between the two awaits, just return
-    return;
   }
 
   openUrlInTab(timerUrl, refTab);
