@@ -4,13 +4,15 @@ import type {
   BackgroundWorklogResponse,
 } from '../shared/types';
 
+const POPUP_PATH = 'dist/popup.html';
+const TIMER_PAGE_PATH = 'dist/timerFeatureModule/timer.html';
+
 type BackgroundMessage =
   | { action: 'startTimer'; seconds: number }
   | { action: 'stopTimer' }
   | { action: 'resetTimer' }
   | { action: 'updateBadge'; seconds: number; isRunning: boolean }
   | { action: 'syncTime'; seconds: number; isRunning: boolean }
-  | { action: 'openSidePanel' }
   | { action: 'openUrl'; url: string }
   | BackgroundWorklogRequest;
 
@@ -18,28 +20,40 @@ let badgeUpdateInterval: number | null = null;
 let currentSeconds = 0;
 let isRunning = false;
 
-async function initSidePanelBehavior(): Promise<void> {
-  const items = await new Promise<{ sidePanelEnabled: boolean }>((resolve) => {
-    chrome.storage.sync.get({ sidePanelEnabled: false }, (result) => {
-      resolve(result as { sidePanelEnabled: boolean });
-    });
-  });
-
-  void chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: items.sidePanelEnabled })
-    .catch((error) => console.error(error));
+async function applyToolbarActionMode(openTimerPageInNewTab: boolean): Promise<void> {
+  try {
+    if (openTimerPageInNewTab) {
+      await chrome.action.setPopup({ popup: '' });
+    } else {
+      await chrome.action.setPopup({ popup: POPUP_PATH });
+    }
+  } catch (error) {
+    console.error(error);
+  }
 }
 
-void initSidePanelBehavior();
+async function initToolbarActionFromStorage(): Promise<void> {
+  const items = await new Promise<{ pageViewNewTabEnabled: boolean }>(
+    (resolve) => {
+      chrome.storage.sync.get({ pageViewNewTabEnabled: false }, (result) => {
+        resolve(result as { pageViewNewTabEnabled: boolean });
+      });
+    }
+  );
+
+  await applyToolbarActionMode(items.pageViewNewTabEnabled === true);
+}
+
+void initToolbarActionFromStorage();
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.sidePanelEnabled) {
-    void chrome.sidePanel
-      .setPanelBehavior({
-        openPanelOnActionClick: changes.sidePanelEnabled.newValue === true,
-      })
-      .catch((error) => console.error(error));
+  if (namespace === 'sync' && changes.pageViewNewTabEnabled) {
+    void applyToolbarActionMode(changes.pageViewNewTabEnabled.newValue === true);
   }
+});
+
+chrome.action.onClicked.addListener((tab) => {
+  void focusOrOpenTimerTab(tab);
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -61,13 +75,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'syncTime':
       syncTime(message.seconds, message.isRunning);
       return false;
-    case 'openSidePanel':
-      if (sender.tab?.windowId) {
-        void chrome.sidePanel.open({ windowId: sender.tab.windowId });
-      }
-      return false;
     case 'openUrl':
-      openUrlInTab(message.url, sender);
+      openUrlInTab(message.url, sender.tab);
       return false;
     case 'logWorklog':
       void handleWorklogRequest(
@@ -80,17 +89,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-function openUrlInTab(
-  url: string,
-  sender?: chrome.runtime.MessageSender
-): void {
+function getTimerPageUrl(): string {
+  return chrome.runtime.getURL(TIMER_PAGE_PATH);
+}
+
+function getExtensionTabsUrlPattern(): string {
+  return `${new URL(chrome.runtime.getURL(POPUP_PATH)).origin}/*`;
+}
+
+async function focusOrOpenTimerTab(refTab?: chrome.tabs.Tab): Promise<void> {
+  const timerUrl = getTimerPageUrl();
+
+  try {
+    const matches = await chrome.tabs.query({ url: getExtensionTabsUrlPattern() });
+    if (matches.length > 0) {
+      const existing = matches.sort(
+        (a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0)
+      )[0];
+      if (existing?.id != null) {
+        await chrome.tabs.update(existing.id, { active: true });
+        if (existing.windowId != null) {
+          await chrome.windows.update(existing.windowId, { focused: true });
+        }
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('focusOrOpenTimerTab:', error);
+  }
+
+  openUrlInTab(timerUrl, refTab);
+}
+
+function openUrlInTab(url: string, refTab?: chrome.tabs.Tab): void {
   if (!url) return;
 
   const createProperties: chrome.tabs.CreateProperties = { url };
-  if (sender?.tab?.windowId) {
-    createProperties.windowId = sender.tab.windowId;
-    if (typeof sender.tab.index === 'number') {
-      createProperties.index = sender.tab.index + 1;
+  if (refTab?.windowId != null) {
+    createProperties.windowId = refTab.windowId;
+    if (typeof refTab.index === 'number') {
+      createProperties.index = refTab.index + 1;
     }
   }
 
@@ -153,7 +191,7 @@ async function handleWorklogRequest(
 
 function clearBadgeInterval(): void {
   if (badgeUpdateInterval !== null) {
-    window.clearInterval(badgeUpdateInterval);
+    clearInterval(badgeUpdateInterval);
     badgeUpdateInterval = null;
   }
 }
@@ -163,7 +201,7 @@ function startBadgeUpdate(seconds: number): void {
   isRunning = true;
   updateBadge(currentSeconds, isRunning);
   clearBadgeInterval();
-  badgeUpdateInterval = window.setInterval(() => {
+  badgeUpdateInterval = setInterval(() => {
     currentSeconds += 1;
     updateBadge(currentSeconds, isRunning);
   }, 1000);

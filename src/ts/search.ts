@@ -6,6 +6,7 @@ import {
   loadProjectIssuesIntoAutocomplete,
   setupProjectIssueAutocomplete,
 } from './shared/jira-project-issue-autocomplete';
+import { initPageViewLayout } from './shared/page-view-layout';
 import { initializeStoredThemeControls } from './shared/theme-sync';
 import {
   buildWorklogStartedTimestamp,
@@ -18,6 +19,8 @@ import type {
   SearchOptions,
   TextEntryElement,
 } from './shared/types';
+
+initPageViewLayout();
 
 document.addEventListener('DOMContentLoaded', function () {
   const themeToggleElement = document.getElementById(

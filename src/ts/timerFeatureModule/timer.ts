@@ -7,6 +7,7 @@ import {
   setupProjectIssueAutocomplete,
   type ProjectIssueAutocompleteContext,
 } from '../shared/jira-project-issue-autocomplete';
+import { initPageViewLayout } from '../shared/page-view-layout';
 import {
   applyStoredTheme,
   initializeStoredThemeControls,
@@ -20,6 +21,8 @@ import type {
   TimerOptions,
   TimerState,
 } from '../shared/types';
+
+initPageViewLayout();
 
 type CommentContainerVisibilityDetail = { shown: boolean };
 

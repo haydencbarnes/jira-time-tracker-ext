@@ -175,14 +175,15 @@ export interface ExtensionSettings {
   floatingTimerWidgetEnabled?: boolean;
   followSystemTheme?: boolean;
   darkMode?: boolean;
-  sidePanelEnabled?: boolean;
+  /** Open full timer page in a new tab when clicking the toolbar icon (vs popup). */
+  pageViewNewTabEnabled?: boolean;
 }
 
 export interface OptionsPageSettings extends BaseExtensionOptions {
   issueDetectionEnabled: boolean;
   defaultPage: string;
   followSystemTheme: boolean;
-  sidePanelEnabled: boolean;
+  pageViewNewTabEnabled: boolean;
   floatingTimerWidgetEnabled: boolean;
 }
 

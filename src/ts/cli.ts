@@ -1,6 +1,7 @@
 import './shared/jira-api';
 import { getErrorMessage } from './shared/jira-error-handler';
 import { getRequiredElement } from './shared/dom-utils';
+import { initPageViewLayout } from './shared/page-view-layout';
 import { initializeStoredThemeControls } from './shared/theme-sync';
 import { buildWorklogStartedTimestamp } from './shared/worklog-time';
 import type {
@@ -9,6 +10,8 @@ import type {
   JiraLoginResponse,
   JiraWorklog,
 } from './shared/types';
+
+initPageViewLayout();
 
 interface MeIdentifiers {
   accountId: string | null;

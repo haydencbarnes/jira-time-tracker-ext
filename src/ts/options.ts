@@ -5,7 +5,10 @@ import type {
 } from './shared/types';
 
 import { getRequiredElement } from './shared/dom-utils';
+import { initPageViewLayout } from './shared/page-view-layout';
 import { initializeStoredThemeControls } from './shared/theme-sync';
+
+initPageViewLayout();
 
 function getRequiredSelector<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector(selector);
@@ -44,9 +47,9 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
   const baseUrlInput = getRequiredElement<HTMLInputElement>('baseUrl');
   const systemThemeToggle =
     getRequiredElement<HTMLInputElement>('systemThemeToggle');
-  const sidePanelToggle =
-    getRequiredElement<HTMLInputElement>('sidePanelToggle');
-  const sidePanelRow = getRequiredElement<HTMLTableRowElement>('sidePanelRow');
+  const pageViewToggle =
+    getRequiredElement<HTMLInputElement>('pageViewToggle');
+  const pageViewRow = getRequiredElement<HTMLTableRowElement>('pageViewRow');
   const floatingTimerWidgetToggle = getRequiredElement<HTMLInputElement>(
     'floatingTimerWidgetToggle'
   );
@@ -121,14 +124,14 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       .forEach((shape) => {
         shape.style.opacity = isEnabled ? '1' : '0';
       });
-    sidePanelRow.style.display = isEnabled ? 'table-row' : 'none';
+    pageViewRow.style.display = isEnabled ? 'table-row' : 'none';
     floatingTimerWidgetRow.style.display = isEnabled ? 'table-row' : 'none';
 
     if (!isEnabled) {
-      sidePanelToggle.checked = false;
+      pageViewToggle.checked = false;
       floatingTimerWidgetToggle.checked = false;
       chrome.storage.sync.set({
-        sidePanelEnabled: false,
+        pageViewNewTabEnabled: false,
         floatingTimerWidgetEnabled: false,
       });
     }
@@ -167,7 +170,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
   async function saveOptions(): Promise<void> {
     const experimentalFeatures = experimentalFeaturesToggle.checked;
     const issueDetectionEnabled = issueDetectionToggle.checked;
-    const sidePanelEnabled = experimentalFeatures && sidePanelToggle.checked;
+    const pageViewNewTabEnabled = experimentalFeatures && pageViewToggle.checked;
     const floatingTimerWidgetEnabled =
       experimentalFeatures && floatingTimerWidgetToggle.checked;
 
@@ -181,7 +184,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       frequentWorklogDescription1: frequentWorklogDescription1Input.value,
       frequentWorklogDescription2: frequentWorklogDescription2Input.value,
       defaultPage: defaultPageSelect.value,
-      sidePanelEnabled,
+      pageViewNewTabEnabled,
       floatingTimerWidgetEnabled,
     });
 
@@ -210,7 +213,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       frequentWorklogDescription2: '',
       defaultPage: 'popup.html',
       followSystemTheme: true,
-      sidePanelEnabled: false,
+      pageViewNewTabEnabled: false,
       floatingTimerWidgetEnabled: false,
       darkMode: false,
     });
@@ -225,11 +228,11 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
     frequentWorklogDescription2Input.value = items.frequentWorklogDescription2;
     defaultPageSelect.value = items.defaultPage;
     systemThemeToggle.checked = items.followSystemTheme;
-    sidePanelRow.style.display = items.experimentalFeatures
+    pageViewRow.style.display = items.experimentalFeatures
       ? 'table-row'
       : 'none';
-    sidePanelToggle.checked = !!(
-      items.experimentalFeatures && items.sidePanelEnabled
+    pageViewToggle.checked = !!(
+      items.experimentalFeatures && items.pageViewNewTabEnabled
     );
     floatingTimerWidgetRow.style.display = items.experimentalFeatures
       ? 'table-row'

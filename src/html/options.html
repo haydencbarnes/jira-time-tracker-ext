@@ -4,15 +4,28 @@
     <meta charset="UTF-8" />
     <title>Jira Log Time Settings</title>
     <style>
+      /* Full viewport width so % widths in page view resolve against the window, not 750px. */
+      html {
+        height: 100%;
+        width: 100%;
+      }
+
       body {
         width: 750px;
+        margin: 0 auto;
+        min-height: 100vh;
+        box-sizing: border-box;
         font-family: Arial, sans-serif;
-        margin: 0;
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
         background-color: #fff;
         color: #000;
+      }
+
+      html.page-view-layout body {
+        width: 100%;
+        max-width: 1400px;
+        padding: 0 clamp(12px, 4vw, 32px);
       }
 
       .container {
@@ -683,16 +696,16 @@
               <span class="slider"></span>
             </label>
             <span class="toggle-label"
-              >(Calendar Add-on, Side Panel, Floating Timer Widget + More Coming
-              Soon!)</span
+              >(Calendar Add-on, page view in a new tab, Floating Timer Widget
+              + More Coming Soon!)</span
             >
           </td>
         </tr>
-        <tr id="sidePanelRow" style="display: none">
-          <td>Side Panel</td>
+        <tr id="pageViewRow" style="display: none">
+          <td>Page view (new tab)</td>
           <td>
             <label class="toggle-switch">
-              <input type="checkbox" id="sidePanelToggle" />
+              <input type="checkbox" id="pageViewToggle" />
               <span class="slider"></span>
             </label>
             <span class="jira-popup-beta-badge">Beta</span>
