@@ -1,11 +1,11 @@
 /**
- * Fluid centered layout when Experimental + Page View are on; otherwise fixed
- * width (750px body / table). Uses `sidePanelEnabled` storage key.
+ * Fluid centered layout when Experimental + Page View (new tab) are on; otherwise fixed
+ * width (750px body / table). Uses `pageViewNewTabEnabled` in sync storage.
  * Applies to full-tab pages and to `popup.html` when opened (e.g. menu).
  */
 function readPageViewLayoutEnabled(items: Record<string, unknown>): boolean {
   return (
-    items.experimentalFeatures === true && items.sidePanelEnabled === true
+    items.experimentalFeatures === true && items.pageViewNewTabEnabled === true
   );
 }
 
@@ -15,7 +15,7 @@ function applyPageViewLayoutClass(enabled: boolean): void {
 
 export function initPageViewLayout(): void {
   chrome.storage.sync.get(
-    { sidePanelEnabled: false, experimentalFeatures: false },
+    { pageViewNewTabEnabled: false, experimentalFeatures: false },
     (items) => {
       applyPageViewLayoutClass(readPageViewLayoutEnabled(items));
     }
@@ -23,9 +23,9 @@ export function initPageViewLayout(): void {
 
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace !== 'sync') return;
-    if (!changes.sidePanelEnabled && !changes.experimentalFeatures) return;
+    if (!changes.pageViewNewTabEnabled && !changes.experimentalFeatures) return;
     chrome.storage.sync.get(
-      { sidePanelEnabled: false, experimentalFeatures: false },
+      { pageViewNewTabEnabled: false, experimentalFeatures: false },
       (items) => {
         applyPageViewLayoutClass(readPageViewLayoutEnabled(items));
       }

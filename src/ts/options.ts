@@ -131,7 +131,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       pageViewToggle.checked = false;
       floatingTimerWidgetToggle.checked = false;
       chrome.storage.sync.set({
-        sidePanelEnabled: false,
+        pageViewNewTabEnabled: false,
         floatingTimerWidgetEnabled: false,
       });
     }
@@ -170,7 +170,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
   async function saveOptions(): Promise<void> {
     const experimentalFeatures = experimentalFeaturesToggle.checked;
     const issueDetectionEnabled = issueDetectionToggle.checked;
-    const sidePanelEnabled = experimentalFeatures && pageViewToggle.checked;
+    const pageViewNewTabEnabled = experimentalFeatures && pageViewToggle.checked;
     const floatingTimerWidgetEnabled =
       experimentalFeatures && floatingTimerWidgetToggle.checked;
 
@@ -184,7 +184,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       frequentWorklogDescription1: frequentWorklogDescription1Input.value,
       frequentWorklogDescription2: frequentWorklogDescription2Input.value,
       defaultPage: defaultPageSelect.value,
-      sidePanelEnabled,
+      pageViewNewTabEnabled,
       floatingTimerWidgetEnabled,
     });
 
@@ -213,7 +213,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       frequentWorklogDescription2: '',
       defaultPage: 'popup.html',
       followSystemTheme: true,
-      sidePanelEnabled: false,
+      pageViewNewTabEnabled: false,
       floatingTimerWidgetEnabled: false,
       darkMode: false,
     });
@@ -232,7 +232,7 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       ? 'table-row'
       : 'none';
     pageViewToggle.checked = !!(
-      items.experimentalFeatures && items.sidePanelEnabled
+      items.experimentalFeatures && items.pageViewNewTabEnabled
     );
     floatingTimerWidgetRow.style.display = items.experimentalFeatures
       ? 'table-row'

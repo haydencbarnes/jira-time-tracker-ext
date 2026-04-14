@@ -20,9 +20,9 @@ let badgeUpdateInterval: number | null = null;
 let currentSeconds = 0;
 let isRunning = false;
 
-async function applyToolbarActionMode(openPageView: boolean): Promise<void> {
+async function applyToolbarActionMode(openTimerPageInNewTab: boolean): Promise<void> {
   try {
-    if (openPageView) {
+    if (openTimerPageInNewTab) {
       await chrome.action.setPopup({ popup: '' });
     } else {
       await chrome.action.setPopup({ popup: POPUP_PATH });
@@ -33,20 +33,22 @@ async function applyToolbarActionMode(openPageView: boolean): Promise<void> {
 }
 
 async function initToolbarActionFromStorage(): Promise<void> {
-  const items = await new Promise<{ sidePanelEnabled: boolean }>((resolve) => {
-    chrome.storage.sync.get({ sidePanelEnabled: false }, (result) => {
-      resolve(result as { sidePanelEnabled: boolean });
-    });
-  });
+  const items = await new Promise<{ pageViewNewTabEnabled: boolean }>(
+    (resolve) => {
+      chrome.storage.sync.get({ pageViewNewTabEnabled: false }, (result) => {
+        resolve(result as { pageViewNewTabEnabled: boolean });
+      });
+    }
+  );
 
-  await applyToolbarActionMode(items.sidePanelEnabled);
+  await applyToolbarActionMode(items.pageViewNewTabEnabled === true);
 }
 
 void initToolbarActionFromStorage();
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.sidePanelEnabled) {
-    void applyToolbarActionMode(changes.sidePanelEnabled.newValue === true);
+  if (namespace === 'sync' && changes.pageViewNewTabEnabled) {
+    void applyToolbarActionMode(changes.pageViewNewTabEnabled.newValue === true);
   }
 });
 
