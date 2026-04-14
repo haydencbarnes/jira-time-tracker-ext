@@ -4,7 +4,7 @@
   "version": "1.5.0",
   "description": "Log/Track your time in Jira in seconds!",
   "host_permissions": ["<all_urls>"],
-  "permissions": ["storage", "tabs", "windows"],
+  "permissions": ["storage", "tabs"],
   "background": {
     "service_worker": "dist/timerFeatureModule/background.js"
   },
