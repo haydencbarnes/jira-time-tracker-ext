@@ -190,7 +190,7 @@ async function handleWorklogRequest(
 
 function clearBadgeInterval(): void {
   if (badgeUpdateInterval !== null) {
-    window.clearInterval(badgeUpdateInterval);
+    clearInterval(badgeUpdateInterval);
     badgeUpdateInterval = null;
   }
 }
@@ -200,7 +200,7 @@ function startBadgeUpdate(seconds: number): void {
   isRunning = true;
   updateBadge(currentSeconds, isRunning);
   clearBadgeInterval();
-  badgeUpdateInterval = window.setInterval(() => {
+  badgeUpdateInterval = setInterval(() => {
     currentSeconds += 1;
     updateBadge(currentSeconds, isRunning);
   }, 1000);
