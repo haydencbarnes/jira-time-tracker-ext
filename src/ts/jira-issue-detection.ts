@@ -522,7 +522,7 @@ class JiraIssueDetector {
         </div>
         
         <div class="jira-issue-popup-field">
-          <label class="jira-issue-popup-label" for="jira-comment-input">Work Description</label>
+          <label class="jira-issue-popup-label" for="jira-comment-input">Worklog Comment</label>
           <textarea 
             id="jira-comment-input" 
             class="jira-issue-popup-input jira-issue-popup-textarea" 

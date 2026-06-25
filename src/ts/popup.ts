@@ -34,7 +34,7 @@ const COLUMN_DEFS = {
   assignee: { label: 'Assignee', baseWidth: 10, optional: true },
   total: { label: 'Total', baseWidth: 8, optional: true },
   log: { label: 'Log', baseWidth: 7 },
-  comment: { label: 'Comment', baseWidth: 15, optional: true },
+  comment: { label: 'Worklog Comment', baseWidth: 15, optional: true },
   date: { label: 'Date', baseWidth: 10 },
   actions: { label: '', baseWidth: 3, locked: 'last' },
 };
@@ -1152,7 +1152,7 @@ const cellBuilders: Record<ColumnId, CellBuilder> = {
       buildHTML('input', null, {
         class: 'issue-comment-input',
         'data-issue-id': issue.key,
-        placeholder: 'Comment',
+        placeholder: 'Worklog comment',
         style: 'width:100%;box-sizing:border-box;',
       })
     );
