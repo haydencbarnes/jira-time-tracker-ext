@@ -28,6 +28,10 @@ interface ApiSearchIssue {
     status?: JiraIssue['fields']['status'];
     assignee?: JiraIssue['fields']['assignee'];
     worklog?: JiraIssue['fields']['worklog'];
+    priority?: JiraIssue['fields']['priority'];
+    created?: string;
+    updated?: string;
+    timespent?: number | null;
   };
 }
 
@@ -263,7 +267,7 @@ async function JiraAPI(
       let total: number | null = null;
 
       while (aggregatedIssues.length < hardCap) {
-        const endpoint = `/search?jql=${encodeURIComponent(jql ?? '')}&fields=summary,parent,project,status,assignee&maxResults=${pageSize}&startAt=${startAt}`;
+        const endpoint = `/search?jql=${encodeURIComponent(jql ?? '')}&fields=summary,parent,project,status,assignee,priority,created,updated,timespent,worklog&maxResults=${pageSize}&startAt=${startAt}`;
         console.log(`Requesting issues from: ${endpoint}`);
         const resp = await apiRequest<ApiSearchResponse>(endpoint, 'GET');
         console.log(`Response from Jira:`, resp);
@@ -541,7 +545,18 @@ async function JiraAPI(
     } = {
       jql: jql || '',
       maxResults: maxResults || 100,
-      fields: ['summary', 'parent', 'project', 'status', 'assignee'],
+      fields: [
+        'summary',
+        'parent',
+        'project',
+        'status',
+        'assignee',
+        'priority',
+        'created',
+        'updated',
+        'timespent',
+        'worklog',
+      ],
     };
     if (nextPageToken) body.nextPageToken = nextPageToken;
     return apiRequest<ApiSearchResponse>(endpoint, 'POST', body);
@@ -609,6 +624,10 @@ async function JiraAPI(
             project: i.fields?.project ?? null,
             status: i.fields?.status ?? null,
             assignee: i.fields?.assignee ?? null,
+            priority: i.fields?.priority ?? null,
+            created: i.fields?.created,
+            updated: i.fields?.updated,
+            timespent: i.fields?.timespent ?? null,
             worklog: i.fields?.worklog ?? { worklogs: [] },
           },
         };

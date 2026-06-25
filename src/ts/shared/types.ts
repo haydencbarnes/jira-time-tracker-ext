@@ -25,6 +25,11 @@ export interface JiraStatus {
   name?: string;
 }
 
+export interface JiraPriority {
+  id?: string;
+  name?: string;
+}
+
 export interface JiraWorklog {
   started?: string;
   timeSpentSeconds: number;
@@ -43,6 +48,10 @@ export interface JiraIssueFields {
   project?: JiraProjectRef | null;
   status?: JiraStatus | null;
   assignee?: JiraUser | null;
+  priority?: JiraPriority | null;
+  created?: string;
+  updated?: string;
+  timespent?: number | null;
   worklog?: JiraWorklogResponse;
   [key: string]: unknown;
 }
@@ -150,12 +159,21 @@ export interface PopupColumnVisibility {
   [key: string]: boolean;
 }
 
+export type TimeTableSort =
+  | 'default'
+  | 'dateNewest'
+  | 'dateOldest'
+  | 'totalDesc'
+  | 'totalAsc'
+  | 'priority';
+
 export interface PopupOptions extends BaseExtensionOptions {
   jql: string;
   starredIssues: Record<string, number>;
   defaultPage: string;
   timeTableColumns: PopupColumnVisibility;
   timeTableColumnOrder: string[];
+  timeTableSort: TimeTableSort;
 }
 
 export interface TimerOptions extends BaseExtensionOptions {

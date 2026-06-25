@@ -6,7 +6,7 @@
     <script src="dist/popup.js" defer></script>
     <style type="text/css">
       /* ===== Base/Reset Styles ===== */
-      /* width: 100% so page-view % widths use the popup viewport, not a 750px-tall column. */
+      /* width: 100% so page-view % widths use the popup viewport, not a fixed-width column. */
       html {
         height: 100%;
         width: 100%;
@@ -103,7 +103,7 @@
       }
 
       /* ===== Layout & Structure ===== */
-      /* Main table fills the 750px-wide body. */
+      /* Main table fills the popup body. */
       #jira-log-time-table {
         width: 100%;
         margin-left: 0;
@@ -1041,7 +1041,8 @@
         background: #fff;
         border-radius: 8px;
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-        width: 360px;
+        width: 460px;
+        max-width: calc(100vw - 32px);
         max-height: 80vh;
         overflow-y: auto;
         font-size: 12px;
@@ -1093,6 +1094,20 @@
         min-height: 48px;
       }
       .gear-section textarea:focus {
+        outline: none;
+        border-color: #0052cc;
+      }
+      .gear-section select {
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 11px;
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: #fff;
+        color: #333;
+      }
+      .gear-section select:focus {
         outline: none;
         border-color: #0052cc;
       }
@@ -1191,6 +1206,14 @@
         border-color: #333;
       }
       body.dark-mode .gear-section textarea:focus {
+        border-color: #4690dd;
+      }
+      body.dark-mode .gear-section select {
+        background: #141414;
+        color: #e0e0e0;
+        border-color: #333;
+      }
+      body.dark-mode .gear-section select:focus {
         border-color: #4690dd;
       }
       body.dark-mode #gear-column-order li {
@@ -1329,6 +1352,20 @@
               >.
             </p>
             <textarea id="gear-jql"></textarea>
+          </div>
+          <div class="gear-section">
+            <div class="gear-section-title">Sort</div>
+            <select
+              id="gear-time-table-sort"
+              aria-label="Sort timetable tickets"
+            >
+              <option value="default">Default</option>
+              <option value="dateNewest">Recently updated first</option>
+              <option value="dateOldest">Oldest updated first</option>
+              <option value="totalDesc">Most logged time first</option>
+              <option value="totalAsc">Least logged time first</option>
+              <option value="priority">Highest priority first</option>
+            </select>
           </div>
           <div class="gear-section">
             <div class="gear-section-title">Columns</div>
