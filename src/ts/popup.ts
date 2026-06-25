@@ -337,21 +337,25 @@ function initGearPanel(options: PopupOptions) {
       }
     } else {
       // Just redraw table with new column settings
-      redrawCurrentTable(options);
+      await redrawCurrentTable(options);
     }
     insertFrequentWorklogDescription(options);
   });
 }
 
-function redrawCurrentTable(options: PopupOptions) {
+async function redrawCurrentTable(options: PopupOptions) {
   const cacheKey = getIssuesCacheKey(options);
-  chrome.storage.local.get([cacheKey], (items) => {
-    const cached = items[cacheKey] as CachedIssuesResponse | undefined;
-    if (cached && cached.data) {
-      void onFetchSuccess(cached.data, options);
-      insertFrequentWorklogDescription(options);
+  const cached = await new Promise<CachedIssuesResponse | undefined>(
+    (resolve) => {
+      chrome.storage.local.get([cacheKey], (items) =>
+        resolve(items[cacheKey] as CachedIssuesResponse | undefined)
+      );
     }
-  });
+  );
+
+  if (cached && cached.data) {
+    await onFetchSuccess(cached.data, options);
+  }
 }
 
 // Drag-and-drop column order in gear panel (with inline visibility toggles)
