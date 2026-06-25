@@ -674,50 +674,13 @@ async function init(options: PopupOptions) {
   }
 }
 
-async function onFetchSuccess(
+function onFetchSuccess(
   issuesResponse: JiraIssuesResponse,
   options: PopupOptions
 ) {
   clearMessages();
   console.log('Fetched issues:', issuesResponse);
-  const hydratedResponse = isTotalSort(options.timeTableSort)
-    ? await hydrateIssueWorklogsForTotalSort(issuesResponse, options)
-    : issuesResponse;
-  drawIssuesTable(hydratedResponse, options);
-}
-
-function isTotalSort(sortMode: TimeTableSort) {
-  return sortMode === 'totalDesc' || sortMode === 'totalAsc';
-}
-
-async function hydrateIssueWorklogsForTotalSort(
-  issuesResponse: JiraIssuesResponse,
-  options: PopupOptions
-): Promise<JiraIssuesResponse> {
-  try {
-    const JIRA = await getSharedJira(options);
-    const data = await Promise.all(
-      (issuesResponse.data || []).map(async (issue) => {
-        try {
-          const worklog = await JIRA.getIssueWorklog(issue.key);
-          return {
-            ...issue,
-            fields: {
-              ...issue.fields,
-              worklog,
-            },
-          };
-        } catch (err) {
-          console.warn(`Failed to fetch worklogs for ${issue.key}:`, err);
-          return issue;
-        }
-      })
-    );
-    return { ...issuesResponse, data };
-  } catch (err) {
-    console.warn('Failed to prepare worklog totals for sorting:', err);
-    return issuesResponse;
-  }
+  drawIssuesTable(issuesResponse, options);
 }
 
 function getWorklog(issueId: string, JIRA: JiraApiClient) {
@@ -1027,15 +990,16 @@ function getIssueDateMs(issue: JiraIssue) {
 }
 
 function getIssueTotalSeconds(issue: JiraIssue) {
+  if (typeof issue.fields.timespent === 'number') {
+    return issue.fields.timespent;
+  }
+
   return sumWorklogSeconds(issue.fields.worklog?.worklogs || []);
 }
 
 function getIssuePriorityRank(issue: JiraIssue) {
   const priorityName = (issue.fields.priority?.name || '').toLowerCase();
   if (priorityName in PRIORITY_RANKS) return PRIORITY_RANKS[priorityName];
-
-  const numericId = Number(issue.fields.priority?.id);
-  if (Number.isFinite(numericId)) return -numericId;
 
   return 0;
 }

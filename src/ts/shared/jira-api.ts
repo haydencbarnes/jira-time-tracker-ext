@@ -31,6 +31,7 @@ interface ApiSearchIssue {
     priority?: JiraIssue['fields']['priority'];
     created?: string;
     updated?: string;
+    timespent?: number | null;
   };
 }
 
@@ -266,7 +267,7 @@ async function JiraAPI(
       let total: number | null = null;
 
       while (aggregatedIssues.length < hardCap) {
-        const endpoint = `/search?jql=${encodeURIComponent(jql ?? '')}&fields=summary,parent,project,status,assignee,priority,created,updated,worklog&maxResults=${pageSize}&startAt=${startAt}`;
+        const endpoint = `/search?jql=${encodeURIComponent(jql ?? '')}&fields=summary,parent,project,status,assignee,priority,created,updated,timespent,worklog&maxResults=${pageSize}&startAt=${startAt}`;
         console.log(`Requesting issues from: ${endpoint}`);
         const resp = await apiRequest<ApiSearchResponse>(endpoint, 'GET');
         console.log(`Response from Jira:`, resp);
@@ -553,6 +554,7 @@ async function JiraAPI(
         'priority',
         'created',
         'updated',
+        'timespent',
         'worklog',
       ],
     };
@@ -625,6 +627,7 @@ async function JiraAPI(
             priority: i.fields?.priority ?? null,
             created: i.fields?.created,
             updated: i.fields?.updated,
+            timespent: i.fields?.timespent ?? null,
             worklog: i.fields?.worklog ?? { worklogs: [] },
           },
         };

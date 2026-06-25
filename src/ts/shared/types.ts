@@ -51,6 +51,7 @@ export interface JiraIssueFields {
   priority?: JiraPriority | null;
   created?: string;
   updated?: string;
+  timespent?: number | null;
   worklog?: JiraWorklogResponse;
   [key: string]: unknown;
 }
