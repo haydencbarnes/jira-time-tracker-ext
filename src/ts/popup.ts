@@ -17,6 +17,7 @@ import type {
   JiraWorklog,
   PopupColumnVisibility,
   PopupOptions,
+  TimeTableSort,
 } from './shared/types';
 
 initPageViewLayout();
@@ -54,6 +55,20 @@ const DEFAULT_TIME_TABLE_COLUMNS = {
   showAssignee: false,
   showTotal: true,
   showComment: true,
+};
+const DEFAULT_TIME_TABLE_SORT: TimeTableSort = 'default';
+const PRIORITY_RANKS: Record<string, number> = {
+  highest: 5,
+  blocker: 5,
+  critical: 5,
+  high: 4,
+  major: 4,
+  medium: 3,
+  normal: 3,
+  minor: 2,
+  low: 2,
+  lowest: 1,
+  trivial: 1,
 };
 
 type ColumnId = keyof typeof COLUMN_DEFS;
@@ -144,6 +159,7 @@ async function onDOMContentLoaded() {
       experimentalFeatures: false,
       timeTableColumns: DEFAULT_TIME_TABLE_COLUMNS,
       timeTableColumnOrder: DEFAULT_COLUMN_ORDER,
+      timeTableSort: DEFAULT_TIME_TABLE_SORT,
     },
     async (storedOptions) => {
       const options = storedOptions as unknown as PopupOptions;
@@ -156,6 +172,7 @@ async function onDOMContentLoaded() {
       options.timeTableColumnOrder = normalizeColumnOrder(
         options.timeTableColumnOrder
       );
+      options.timeTableSort = normalizeTimeTableSort(options.timeTableSort);
 
       const urlParams = new URLSearchParams(window.location.search);
       const isNavigatingBack = urlParams.get('source') === 'navigation';
@@ -182,6 +199,21 @@ async function onDOMContentLoaded() {
   );
 }
 
+function normalizeTimeTableSort(sort: unknown): TimeTableSort {
+  return isTimeTableSort(sort) ? sort : DEFAULT_TIME_TABLE_SORT;
+}
+
+function isTimeTableSort(sort: unknown): sort is TimeTableSort {
+  return (
+    sort === 'default' ||
+    sort === 'dateNewest' ||
+    sort === 'dateOldest' ||
+    sort === 'totalDesc' ||
+    sort === 'totalAsc' ||
+    sort === 'priority'
+  );
+}
+
 function filterExpiredStars(
   starredIssues: Record<string, number>,
   days: number
@@ -205,6 +237,11 @@ function syncGearPanelState(options: PopupOptions) {
     'gear-jql'
   ) as HTMLTextAreaElement | null;
   if (jqlTextarea) jqlTextarea.value = options.jql || DEFAULT_JQL;
+
+  const sortSelect = document.getElementById(
+    'gear-time-table-sort'
+  ) as HTMLSelectElement | null;
+  if (sortSelect) sortSelect.value = options.timeTableSort;
 
   renderGearColumnOrder(
     options.timeTableColumnOrder.filter(isColumnId),
@@ -245,6 +282,9 @@ function initGearPanel(options: PopupOptions) {
   const jqlTextarea = document.getElementById(
     'gear-jql'
   ) as HTMLTextAreaElement;
+  const sortSelect = document.getElementById(
+    'gear-time-table-sort'
+  ) as HTMLSelectElement;
 
   syncGearPanelState(options);
 
@@ -261,16 +301,19 @@ function initGearPanel(options: PopupOptions) {
     const newJql = jqlTextarea.value.trim() || DEFAULT_JQL;
     const newCols = readGearColumnVisibility();
     const newOrder = readGearColumnOrder();
+    const newSort = normalizeTimeTableSort(sortSelect.value);
     const jqlChanged = newJql !== options.jql;
 
     options.jql = newJql;
     options.timeTableColumns = newCols;
     options.timeTableColumnOrder = newOrder;
+    options.timeTableSort = newSort;
 
     chrome.storage.sync.set({
       jql: newJql,
       timeTableColumns: newCols,
       timeTableColumnOrder: newOrder,
+      timeTableSort: newSort,
     });
 
     closeGearModal();
@@ -284,7 +327,7 @@ function initGearPanel(options: PopupOptions) {
         chrome.storage.local.set({
           [cacheKey]: { data: issuesResponse, ts: Date.now() },
         });
-        onFetchSuccess(issuesResponse, options);
+        await onFetchSuccess(issuesResponse, options);
       } catch (err) {
         await handleTimeTableFetchError(
           err,
@@ -305,7 +348,7 @@ function redrawCurrentTable(options: PopupOptions) {
   chrome.storage.local.get([cacheKey], (items) => {
     const cached = items[cacheKey] as CachedIssuesResponse | undefined;
     if (cached && cached.data) {
-      onFetchSuccess(cached.data, options);
+      void onFetchSuccess(cached.data, options);
       insertFrequentWorklogDescription(options);
     }
   });
@@ -577,7 +620,7 @@ async function init(options: PopupOptions) {
       if (cached && cached.data && Date.now() - cached.ts < 5 * 60 * 1000) {
         // Show cached data immediately (if less than 5 min old)
         console.log('Showing cached issues');
-        onFetchSuccess(cached.data, options);
+        await onFetchSuccess(cached.data, options);
         showedCached = true;
       }
     } catch (e) {
@@ -603,7 +646,7 @@ async function init(options: PopupOptions) {
       }
 
       // Update UI with fresh data
-      onFetchSuccess(issuesResponse, options);
+      await onFetchSuccess(issuesResponse, options);
     } catch (error) {
       console.error('Error fetching issues:', error);
       await handleTimeTableFetchError(
@@ -627,13 +670,50 @@ async function init(options: PopupOptions) {
   }
 }
 
-function onFetchSuccess(
+async function onFetchSuccess(
   issuesResponse: JiraIssuesResponse,
   options: PopupOptions
 ) {
   clearMessages();
   console.log('Fetched issues:', issuesResponse);
-  drawIssuesTable(issuesResponse, options); // Pass options to the function
+  const hydratedResponse = isTotalSort(options.timeTableSort)
+    ? await hydrateIssueWorklogsForTotalSort(issuesResponse, options)
+    : issuesResponse;
+  drawIssuesTable(hydratedResponse, options);
+}
+
+function isTotalSort(sortMode: TimeTableSort) {
+  return sortMode === 'totalDesc' || sortMode === 'totalAsc';
+}
+
+async function hydrateIssueWorklogsForTotalSort(
+  issuesResponse: JiraIssuesResponse,
+  options: PopupOptions
+): Promise<JiraIssuesResponse> {
+  try {
+    const JIRA = await getSharedJira(options);
+    const data = await Promise.all(
+      (issuesResponse.data || []).map(async (issue) => {
+        try {
+          const worklog = await JIRA.getIssueWorklog(issue.key);
+          return {
+            ...issue,
+            fields: {
+              ...issue.fields,
+              worklog,
+            },
+          };
+        } catch (err) {
+          console.warn(`Failed to fetch worklogs for ${issue.key}:`, err);
+          return issue;
+        }
+      })
+    );
+    return { ...issuesResponse, data };
+  } catch (err) {
+    console.warn('Failed to prepare worklog totals for sorting:', err);
+    return issuesResponse;
+  }
 }
 
 function getWorklog(issueId: string, JIRA: JiraApiClient) {
@@ -730,9 +810,7 @@ async function logTimeClick(evt: Event) {
   }
 
   if (!isValidWorklogDuration(timeInput.value, { allowWeeks: true })) {
-    displayError(
-      getWorklogDurationValidationMessage({ allowWeeks: true })
-    );
+    displayError(getWorklogDurationValidationMessage({ allowWeeks: true }));
     return;
   }
 
@@ -878,7 +956,11 @@ function drawIssuesTable(
 
   const newTbody = document.createElement('tbody');
   const issues = issuesResponse.data || [];
-  const sortedIssues = sortByStar(issues, options.starredIssues);
+  const sortedIssues = sortIssues(
+    issues,
+    options.starredIssues,
+    options.timeTableSort
+  );
 
   sortedIssues.forEach((issue) => {
     const row = generateLogTableRow(issue, options, visibleCols);
@@ -896,18 +978,62 @@ function drawIssuesTable(
     });
 }
 
-// ⭐️ utility function that sorts starred issues to top
-function sortByStar(
+function sortIssues(
   issues: JiraIssue[],
-  starredIssues: Record<string, number>
+  starredIssues: Record<string, number>,
+  sortMode: TimeTableSort
 ) {
-  // Return a new array sorted by whether the item is starred
-  return issues.slice().sort((a, b) => {
-    const aStar = starredIssues[a.key] ? 1 : 0;
-    const bStar = starredIssues[b.key] ? 1 : 0;
-    // Sort descending so starred=1 goes first
-    return bStar - aStar;
-  });
+  return issues
+    .map((issue, index) => ({ issue, index }))
+    .sort((a, b) => {
+      const starCompare =
+        Number(!!starredIssues[b.issue.key]) -
+        Number(!!starredIssues[a.issue.key]);
+      if (starCompare !== 0) return starCompare;
+
+      const sortCompare = compareIssues(a.issue, b.issue, sortMode);
+      if (sortCompare !== 0) return sortCompare;
+
+      return a.index - b.index;
+    })
+    .map(({ issue }) => issue);
+}
+
+function compareIssues(a: JiraIssue, b: JiraIssue, sortMode: TimeTableSort) {
+  switch (sortMode) {
+    case 'dateNewest':
+      return getIssueDateMs(b) - getIssueDateMs(a);
+    case 'dateOldest':
+      return getIssueDateMs(a) - getIssueDateMs(b);
+    case 'totalDesc':
+      return getIssueTotalSeconds(b) - getIssueTotalSeconds(a);
+    case 'totalAsc':
+      return getIssueTotalSeconds(a) - getIssueTotalSeconds(b);
+    case 'priority':
+      return getIssuePriorityRank(b) - getIssuePriorityRank(a);
+    default:
+      return 0;
+  }
+}
+
+function getIssueDateMs(issue: JiraIssue) {
+  const date = issue.fields.updated || issue.fields.created || '';
+  const parsed = Date.parse(date);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getIssueTotalSeconds(issue: JiraIssue) {
+  return sumWorklogSeconds(issue.fields.worklog?.worklogs || []);
+}
+
+function getIssuePriorityRank(issue: JiraIssue) {
+  const priorityName = (issue.fields.priority?.name || '').toLowerCase();
+  if (priorityName in PRIORITY_RANKS) return PRIORITY_RANKS[priorityName];
+
+  const numericId = Number(issue.fields.priority?.id);
+  if (Number.isFinite(numericId)) return -numericId;
+
+  return 0;
 }
 
 // ===== Cell builders (one per column id) =====
@@ -1408,7 +1534,7 @@ async function toggleStar(issueId: string, options: PopupOptions) {
     const issuesResponse = await JIRA.getIssues(0, options.jql);
 
     // Redraw table so starred item jumps to top
-    drawIssuesTable(issuesResponse, options);
+    await onFetchSuccess(issuesResponse, options);
 
     // ⭐️ Re-run your frequent-worklog setup after the new table is in the DOM
     insertFrequentWorklogDescription(options);
