@@ -1189,11 +1189,7 @@ const cellBuilders: Record<ColumnId, CellBuilder> = {
 
   total(issue, options) {
     const id = issue.key;
-    const worklogs = issue.fields.worklog?.worklogs || [];
-    const totalSecs = worklogs.reduce(
-      (acc, wl) => acc + wl.timeSpentSeconds,
-      0
-    );
+    const totalSecs = getIssueTotalSeconds(issue);
     const totalTime = (totalSecs / 3600).toFixed(1) + ' hrs';
     const td = buildHTML('td', null, {
       class: 'issue-total-time',
@@ -1209,6 +1205,12 @@ const cellBuilders: Record<ColumnId, CellBuilder> = {
     });
     td.appendChild(loader);
     td.appendChild(totalTimeDiv);
+
+    if (typeof issue.fields.timespent === 'number') {
+      loader.style.display = 'none';
+      return td;
+    }
+
     (async () => {
       try {
         const JIRA = await getSharedJira(options);
