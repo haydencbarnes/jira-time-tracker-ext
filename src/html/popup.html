@@ -11,6 +11,7 @@
         height: 100%;
         width: 100%;
         min-width: 750px;
+        background-color: #ffffff;
       }
 
       /* Toolbar popup: overall width 750px (border-box; no extra px from side padding). */
@@ -21,6 +22,7 @@
         box-sizing: border-box;
         padding: 0;
         min-height: 100%;
+        background-color: #ffffff;
       }
 
       /* Experimental + Page View: fluid width up to 1400px (same as full-tab pages). */
@@ -508,6 +510,10 @@
         color: #e0e0e0;
       }
 
+      html.dark-mode {
+        background-color: #141414;
+      }
+
       body.dark-mode input,
       body.dark-mode textarea,
       body.dark-mode select {
@@ -660,6 +666,201 @@
         padding-bottom: 50px;
       }
 
+      .view-toolbar {
+        display: none;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        padding: 6px 0 4px;
+        margin: 0 3px;
+      }
+
+      .week-controls {
+        display: none;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+      }
+
+      .week-nav-btn,
+      #week-today-btn {
+        width: auto;
+        border: 1px solid #c8d4e5;
+        background: #fff;
+        color: #253858;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 1;
+        padding: 5px 7px;
+      }
+
+      .week-nav-btn {
+        min-width: 26px;
+      }
+
+      .week-nav-btn:hover,
+      #week-today-btn:hover {
+        background: #eef4ff;
+        border-color: #0052cc;
+      }
+
+      .week-settings-btn {
+        margin-left: 4px;
+        border: 1px solid #c8d4e5;
+        background: #fff;
+      }
+
+      .week-settings-btn:hover {
+        border-color: #0052cc;
+      }
+
+      #week-range-label {
+        min-width: 128px;
+        text-align: center;
+        color: #253858;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      #week-view {
+        display: none;
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
+
+      #weekly-log-table {
+        min-width: 0;
+        width: 100%;
+        table-layout: fixed;
+        margin: 0;
+      }
+
+      #weekly-log-table th,
+      #weekly-log-table td {
+        padding: 4px 3px;
+        text-align: center;
+        vertical-align: middle;
+      }
+
+      #weekly-log-table th {
+        text-align: center;
+      }
+
+      #weekly-log-table th.weekly-issue-heading {
+        width: 16%;
+      }
+
+      #weekly-log-table th.weekly-day-heading {
+        width: 10.4%;
+      }
+
+      #weekly-log-table th.weekly-total-heading {
+        width: 6%;
+      }
+
+      #weekly-log-table th.weekly-action-heading {
+        width: 5%;
+      }
+
+      .weekly-issue-cell {
+        font-size: 10px;
+        line-height: 1.25;
+        text-align: center;
+      }
+
+      .weekly-issue-key {
+        display: inline-block;
+        font-weight: bold;
+        margin-bottom: 3px;
+      }
+
+      .weekly-issue-summary {
+        color: #5e6c84;
+        max-height: 38px;
+        text-align: center;
+      }
+
+      .weekly-day-label {
+        display: block;
+        font-weight: bold;
+      }
+
+      .weekly-date-label {
+        display: block;
+        margin-top: 1px;
+        color: #5e6c84;
+        font-size: 10px;
+        font-weight: normal;
+      }
+
+      .weekly-entry {
+        display: grid;
+        align-content: center;
+        align-items: center;
+        gap: 3px;
+        height: 100%;
+      }
+
+      .weekly-logged-time {
+        min-height: 12px;
+        color: #4f8a10;
+        font-size: 9px;
+        font-weight: bold;
+        line-height: 1.2;
+      }
+
+      .weekly-time-input,
+      .weekly-comment-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 3px 2px;
+        font-size: 10px;
+        border-radius: 4px;
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+
+      .weekly-comment-input {
+        min-height: 34px;
+        line-height: 1.2;
+        resize: vertical;
+      }
+
+      .weekly-row-total,
+      .weekly-day-total,
+      .weekly-grand-total {
+        font-weight: bold;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .weekly-log-btn {
+        width: 100%;
+        background: #0052cc;
+        color: #fff;
+        border-radius: 3px;
+        border: none;
+        padding: 5px 2px;
+        font-size: 10px;
+        cursor: pointer;
+      }
+
+      .weekly-log-btn:hover {
+        background: #0041a8;
+      }
+
+      .weekly-log-btn:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+
+      .weekly-empty {
+        padding: 20px;
+        text-align: center;
+        color: #5e6c84;
+      }
+
       /* Theme Toggle Styles */
       .theme-toggle {
         display: inline-flex;
@@ -799,6 +1000,41 @@
         background-color: rgba(255, 255, 255, 0.2);
       }
 
+      body.dark-mode .week-nav-btn,
+      body.dark-mode #week-today-btn,
+      body.dark-mode .week-settings-btn {
+        background: #1a1a1a;
+        border-color: #333;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .week-nav-btn:hover,
+      body.dark-mode #week-today-btn:hover,
+      body.dark-mode .week-settings-btn:hover {
+        background: #252525;
+        border-color: #4690dd;
+      }
+
+      body.dark-mode #week-range-label,
+      body.dark-mode .weekly-issue-summary,
+      body.dark-mode .weekly-date-label,
+      body.dark-mode .weekly-empty {
+        color: #aaa;
+      }
+
+      body.dark-mode .weekly-log-btn {
+        background: #4690dd;
+        color: #1a1a1a;
+      }
+
+      body.dark-mode .weekly-log-btn:hover {
+        background: #5e9fe3;
+      }
+
+      body.dark-mode .weekly-logged-time {
+        color: #90ee90;
+      }
+
       body.dark-mode .caret-button:hover,
       body.dark-mode .caret-button:focus,
       body.dark-mode .caret-button:focus-visible {
@@ -896,7 +1132,7 @@
       }
 
       /* ===== Gear button inside actions header cell ===== */
-      #gearBtn {
+      .gear-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -910,17 +1146,17 @@
         color: #0052cc;
         vertical-align: middle;
       }
-      #gearBtn:hover {
+      .gear-btn:hover {
         background: rgba(0, 82, 204, 0.12);
         color: #0041a8;
       }
-      #gearBtn svg {
+      .gear-btn svg {
         display: block;
       }
-      body.dark-mode #gearBtn {
+      body.dark-mode .gear-btn {
         color: #4690dd;
       }
-      body.dark-mode #gearBtn:hover {
+      body.dark-mode .gear-btn:hover {
         background: rgba(70, 144, 221, 0.2);
         color: #7eb4f0;
       }
@@ -1111,6 +1347,30 @@
         outline: none;
         border-color: #0052cc;
       }
+      .gear-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .gear-toggle-row label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        cursor: pointer;
+        font-size: 11px;
+      }
+      .gear-toggle-row input[type='checkbox'] {
+        width: auto;
+        margin: 0;
+        cursor: pointer;
+      }
       #gear-column-order {
         list-style: none;
         padding: 0;
@@ -1216,6 +1476,11 @@
       body.dark-mode .gear-section select:focus {
         border-color: #4690dd;
       }
+      body.dark-mode .gear-toggle-row {
+        background: #252525;
+        border-color: #333;
+        color: #e0e0e0;
+      }
       body.dark-mode #gear-column-order li {
         background: #252525;
         border-color: #333;
@@ -1253,12 +1518,45 @@
     <div id="error"></div>
     <div id="success"></div>
     <div id="table-container">
-      <table id="jira-log-time-table">
-        <thead>
-          <tr></tr>
-        </thead>
-        <!-- <tbody> is created dynamically by dist/popup.js -->
-      </table>
+      <div class="view-toolbar">
+        <div id="week-controls" class="week-controls">
+          <button
+            id="week-prev-btn"
+            class="week-nav-btn"
+            type="button"
+            title="Previous week"
+            aria-label="Previous week"
+          >
+            ‹
+          </button>
+          <span id="week-range-label"></span>
+          <button id="week-today-btn" type="button">Today</button>
+          <button
+            id="week-next-btn"
+            class="week-nav-btn"
+            type="button"
+            title="Next week"
+            aria-label="Next week"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+      <div id="table-view">
+        <table id="jira-log-time-table">
+          <thead>
+            <tr></tr>
+          </thead>
+          <!-- <tbody> is created dynamically by dist/popup.js -->
+        </table>
+      </div>
+      <div id="week-view">
+        <table id="weekly-log-table">
+          <thead></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
       <div id="loader-container">
         <div class="loader"></div>
       </div>
@@ -1333,6 +1631,15 @@
           <button id="gear-modal-close">&times;</button>
         </div>
         <div id="gear-modal-body">
+          <div class="gear-section">
+            <div class="gear-section-title">View</div>
+            <div class="gear-toggle-row">
+              <label for="gear-week-view-toggle">
+                <span>Weekly calendar view</span>
+                <input id="gear-week-view-toggle" type="checkbox" />
+              </label>
+            </div>
+          </div>
           <div class="gear-section">
             <div class="gear-section-title">
               <a

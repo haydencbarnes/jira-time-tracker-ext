@@ -39,6 +39,7 @@ function applyDarkMode(
   toggle?: HTMLButtonElement | null
 ): void {
   updateStandardThemeToggle(toggle, isDark);
+  document.documentElement.classList.toggle('dark-mode', isDark);
   document.body.classList.toggle('dark-mode', isDark);
 }
 

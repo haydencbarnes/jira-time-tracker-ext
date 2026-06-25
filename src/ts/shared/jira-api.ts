@@ -51,6 +51,11 @@ interface ApiPickerSection {
   issues?: ApiPickerIssue[];
 }
 
+interface ApiWorklogResponse extends JiraWorklogResponse {
+  startAt?: number;
+  maxResults?: number;
+}
+
 async function JiraAPI(
   jiraType: JiraType,
   baseUrl: string,
@@ -301,7 +306,42 @@ async function JiraAPI(
   }
 
   async function getIssueWorklog(id: string): Promise<JiraWorklogResponse> {
-    return apiRequest<JiraWorklogResponse>(`/issue/${id}/worklog`);
+    const pageSize = 100;
+    let startAt = 0;
+    let allWorklogs: JiraWorklogResponse['worklogs'] = [];
+    let total: number | null = null;
+    let firstResponse: ApiWorklogResponse | null = null;
+
+    while (true) {
+      const response = await apiRequest<ApiWorklogResponse>(
+        `/issue/${id}/worklog?startAt=${startAt}&maxResults=${pageSize}`
+      );
+      if (!firstResponse) firstResponse = response;
+
+      const worklogs = Array.isArray(response.worklogs)
+        ? response.worklogs
+        : [];
+      allWorklogs = allWorklogs.concat(worklogs);
+
+      if (typeof response.total === 'number') {
+        total = response.total;
+      }
+
+      if (
+        worklogs.length === 0 ||
+        (typeof total === 'number' && allWorklogs.length >= total)
+      ) {
+        break;
+      }
+
+      startAt += worklogs.length;
+    }
+
+    return {
+      ...(firstResponse || { worklogs: [] }),
+      worklogs: allWorklogs,
+      total: total ?? allWorklogs.length,
+    };
   }
 
   async function getProjects(begin = 0): Promise<JiraProjectsResponse> {
@@ -350,8 +390,14 @@ async function JiraAPI(
     // Invalidate cached worklog for this issue
     try {
       const url = buildAbsoluteUrl(`/issue/${id}/worklog`);
+      const worklogCachePrefix = getCacheKey(url);
       const key = getCacheKey(url);
       memoryCache.delete(key);
+      for (const cacheKey of memoryCache.keys()) {
+        if (cacheKey.startsWith(worklogCachePrefix)) {
+          memoryCache.delete(cacheKey);
+        }
+      }
       await storageLocalRemove(key);
     } catch (e: unknown) {
       console.warn('Failed to invalidate worklog cache', e);
