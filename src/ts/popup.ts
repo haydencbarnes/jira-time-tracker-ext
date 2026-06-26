@@ -1639,7 +1639,7 @@ function generateWeeklyIssueRow(
 
     const commentInput = document.createElement('textarea');
     commentInput.className = 'weekly-comment-input';
-    commentInput.placeholder = 'Comment';
+    commentInput.placeholder = 'Worklog comment';
     commentInput.setAttribute('data-weekly-issue-id', issue.key);
     commentInput.setAttribute('data-weekly-date', dateValue);
 
