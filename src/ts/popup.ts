@@ -27,7 +27,7 @@ type CachedIssuesResponse = {
   ts: number;
 };
 
-type TimeEntryView = 'table' | 'week';
+type TimeEntryView = PopupOptions['timeEntryView'];
 
 type WeeklyEntry = {
   date: string;
@@ -43,6 +43,11 @@ type WeeklyLoggedIssuesCacheEntry = {
 
 type WeeklyWorklogTotals = Record<string, Record<string, number>>;
 
+type StatsIssueTotal = {
+  issue: JiraIssue;
+  seconds: number;
+};
+
 type WeeklyWorklogTotalsCacheEntry = {
   data: WeeklyWorklogTotals;
   ts: number;
@@ -52,7 +57,7 @@ const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WEEKLY_LOGGED_ISSUES_CACHE_TTL_MS = 5 * 60 * 1000;
 const WEEKLY_WORKLOG_TOTALS_CACHE_TTL_MS = 60 * 1000;
 const GEAR_ICON_SVG =
-  '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5.5a.5.5 0 0 0-.5.5v1.07a5.5 5.5 0 0 0-1.56.64L3.7 1.97a.5.5 0 0 0-.7 0l-.71.7a.5.5 0 0 0 0 .71l.74.74A5.5 5.5 0 0 0 2.4 5.7H1.3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1.1a5.5 5.5 0 0 0 .63 1.58l-.74.74a.5.5 0 0 0 0 .7l.71.71a.5.5 0 0 0 .7 0l.74-.74a5.5 5.5 0 0 0 1.56.64V12.5a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1.07a5.5 5.5 0 0 0 1.56-.64l.74.74a.5.5 0 0 0 .7 0l.71-.7a.5.5 0 0 0 0-.71l-.74-.74A5.5 5.5 0 0 0 11.6 7.7h1.1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1.1a5.5 5.5 0 0 0-.63-1.58l.74-.74a.5.5 0 0 0 0-.7l-.71-.71a.5.5 0 0 0-.7 0l-.74.74A5.5 5.5 0 0 0 8 2.07V1a.5.5 0 0 0-.5-.5h-1zM7 4.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/></svg>';
+  '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M6.5.5a.5.5 0 0 0-.5.5v1.07a5.5 5.5 0 0 0-1.56.64L3.7 1.97a.5.5 0 0 0-.7 0l-.71.7a.5.5 0 0 0 0 .71l.74.74A5.5 5.5 0 0 0 2.4 5.7H1.3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1.1a5.5 5.5 0 0 0 .63 1.58l-.74.74a.5.5 0 0 0 0 .7l.71.71a.5.5 0 0 0 .7 0l.74-.74a5.5 5.5 0 0 0 1.56.64V12.5a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1.07a5.5 5.5 0 0 0 1.56-.64l.74.74a.5.5 0 0 0 .7 0l.71-.7a.5.5 0 0 0 0-.71l-.74-.74A5.5 5.5 0 0 0 11.6 7.7h1.1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1.1a5.5 5.5 0 0 0-.63-1.58l.74-.74a.5.5 0 0 0 0-.7l-.71-.71a.5.5 0 0 0-.7 0l-.74.74A5.5 5.5 0 0 0 8 2.07V1a.5.5 0 0 0-.5-.5h-1zM7 4.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/></svg>';
 
 let activeTimeEntryView: TimeEntryView = 'table';
 let currentWeekStart = getStartOfWeek(new Date());
@@ -470,7 +475,10 @@ function initViewControls() {
   if (viewControlsInitialized) return;
   viewControlsInitialized = true;
 
-  const weekControls = document.getElementById('week-controls');
+  const toolbarSettings = document.getElementById('toolbar-settings');
+  const viewButtons = document.querySelectorAll<HTMLButtonElement>(
+    '[data-time-entry-view]'
+  );
   const prevBtn = document.getElementById(
     'week-prev-btn'
   ) as HTMLButtonElement | null;
@@ -483,46 +491,82 @@ function initViewControls() {
 
   prevBtn?.addEventListener('click', () => {
     currentWeekStart = addDays(currentWeekStart, -7);
-    void renderCurrentWeeklyView();
+    void renderActiveTimeEntryView();
   });
   nextBtn?.addEventListener('click', () => {
     currentWeekStart = addDays(currentWeekStart, 7);
-    void renderCurrentWeeklyView();
+    void renderActiveTimeEntryView();
   });
   todayBtn?.addEventListener('click', () => {
     currentWeekStart = getStartOfWeek(new Date());
-    void renderCurrentWeeklyView();
+    void renderActiveTimeEntryView();
+  });
+  viewButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const view = button.getAttribute('data-time-entry-view');
+      if (!isTimeEntryView(view)) return;
+
+      setTimeEntryView(view);
+      if (currentPopupOptions) {
+        currentPopupOptions.timeEntryView = view;
+      }
+      chrome.storage.sync.set({ timeEntryView: view });
+    });
   });
 
-  if (weekControls && !document.getElementById('week-gear-btn')) {
-    const weekGearBtn = buildGearButton();
-    weekGearBtn.id = 'week-gear-btn';
-    weekGearBtn.classList.add('week-settings-btn');
-    weekControls.appendChild(weekGearBtn);
+  if (toolbarSettings && !document.getElementById('toolbar-gear-btn')) {
+    const toolbarGearBtn = buildGearButton();
+    toolbarGearBtn.id = 'toolbar-gear-btn';
+    toolbarSettings.appendChild(toolbarGearBtn);
   }
 
   setTimeEntryView(activeTimeEntryView);
 }
 
+function renderActiveTimeEntryView() {
+  if (activeTimeEntryView === 'week') {
+    return renderCurrentWeeklyView();
+  }
+
+  if (activeTimeEntryView === 'stats') {
+    return renderCurrentStatsView();
+  }
+
+  updateWeekRangeLabel();
+  return Promise.resolve();
+}
+
 function setTimeEntryView(view: TimeEntryView) {
   activeTimeEntryView = view;
+  document.documentElement.classList.toggle(
+    'compact-popup-view',
+    view === 'stats'
+  );
 
   const viewToolbar = document.querySelector<HTMLElement>('.view-toolbar');
   const tableView = document.getElementById('table-view');
   const weekView = document.getElementById('week-view');
+  const statsView = document.getElementById('stats-view');
   const weekControls = document.getElementById('week-controls');
 
   if (tableView) tableView.style.display = view === 'table' ? 'block' : 'none';
   if (weekView) weekView.style.display = view === 'week' ? 'block' : 'none';
-  if (viewToolbar)
-    viewToolbar.style.display = view === 'week' ? 'flex' : 'none';
+  if (statsView) statsView.style.display = view === 'stats' ? 'block' : 'none';
+  if (viewToolbar) viewToolbar.style.display = 'grid';
   if (weekControls) {
-    weekControls.style.display = view === 'week' ? 'flex' : 'none';
+    weekControls.style.display =
+      view === 'week' || view === 'stats' ? 'flex' : 'none';
   }
 
-  if (view === 'week') {
-    void renderCurrentWeeklyView();
-  }
+  document
+    .querySelectorAll<HTMLButtonElement>('[data-time-entry-view]')
+    .forEach((button) => {
+      const isActive = button.getAttribute('data-time-entry-view') === view;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-selected', String(isActive));
+    });
+
+  void renderActiveTimeEntryView();
 }
 
 async function renderCurrentWeeklyView() {
@@ -588,6 +632,83 @@ async function renderCurrentWeeklyView() {
       window.JiraErrorHandler?.handleJiraError(
         error,
         'Failed to load issues with work logged for this week',
+        'popup'
+      );
+    }
+  }
+}
+
+async function renderCurrentStatsView() {
+  updateWeekRangeLabel();
+
+  if (!currentIssuesResponse || !currentPopupOptions) {
+    drawStatsView({ data: [], total: 0 }, null, null, true);
+    return;
+  }
+
+  const options = currentPopupOptions;
+  const baseIssuesResponse = currentIssuesResponse;
+  const issueVersion = currentIssuesResponseVersion;
+  const cacheKey = getWeeklyLoggedIssuesCacheKey(options);
+
+  const loadStatsTotals = async (issuesResponse: JiraIssuesResponse) => {
+    const worklogTotalsVersion = weeklyWorklogTotalsVersion;
+    const totals = await loadWeeklyWorklogTotals(options, issuesResponse);
+    if (
+      activeTimeEntryView !== 'stats' ||
+      currentPopupOptions !== options ||
+      currentIssuesResponseVersion !== issueVersion ||
+      weeklyWorklogTotalsVersion !== worklogTotalsVersion ||
+      getWeeklyLoggedIssuesCacheKey(options) !== cacheKey
+    ) {
+      return;
+    }
+
+    drawStatsView(issuesResponse, options, totals);
+  };
+
+  const cached = weeklyLoggedIssuesCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < WEEKLY_LOGGED_ISSUES_CACHE_TTL_MS) {
+    const mergedIssuesResponse = mergeIssueResponses(
+      baseIssuesResponse,
+      cached.data
+    );
+    drawStatsView(mergedIssuesResponse, options, null, true);
+    await loadStatsTotals(mergedIssuesResponse);
+    return;
+  }
+
+  drawStatsView(baseIssuesResponse, options, null, true);
+
+  try {
+    const loggedIssuesResponse = await loadLoggedIssuesForCurrentWeek(options);
+    if (
+      activeTimeEntryView !== 'stats' ||
+      currentPopupOptions !== options ||
+      currentIssuesResponseVersion !== issueVersion ||
+      getWeeklyLoggedIssuesCacheKey(options) !== cacheKey
+    ) {
+      return;
+    }
+
+    const mergedIssuesResponse = mergeIssueResponses(
+      baseIssuesResponse,
+      loggedIssuesResponse
+    );
+    drawStatsView(mergedIssuesResponse, options, null, true);
+    await loadStatsTotals(mergedIssuesResponse);
+  } catch (error) {
+    console.warn('Failed to load statistics issues:', error);
+    if (
+      activeTimeEntryView === 'stats' &&
+      currentPopupOptions === options &&
+      currentIssuesResponseVersion === issueVersion &&
+      getWeeklyLoggedIssuesCacheKey(options) === cacheKey
+    ) {
+      drawStatsView(baseIssuesResponse, options, {});
+      window.JiraErrorHandler?.handleJiraError(
+        error,
+        'Failed to load statistics for this week',
         'popup'
       );
     }
@@ -670,8 +791,7 @@ async function onDOMContentLoaded() {
         options.timeTableColumnOrder
       );
       options.timeTableSort = normalizeTimeTableSort(options.timeTableSort);
-      options.timeEntryView =
-        options.timeEntryView === 'week' ? 'week' : 'table';
+      options.timeEntryView = normalizeTimeEntryView(options.timeEntryView);
       activeTimeEntryView = options.timeEntryView;
 
       const urlParams = new URLSearchParams(window.location.search);
@@ -702,6 +822,14 @@ async function onDOMContentLoaded() {
 
 function normalizeTimeTableSort(sort: unknown): TimeTableSort {
   return isTimeTableSort(sort) ? sort : DEFAULT_TIME_TABLE_SORT;
+}
+
+function normalizeTimeEntryView(view: unknown): TimeEntryView {
+  return isTimeEntryView(view) ? view : 'table';
+}
+
+function isTimeEntryView(view: unknown): view is TimeEntryView {
+  return view === 'table' || view === 'week' || view === 'stats';
 }
 
 function isTimeTableSort(sort: unknown): sort is TimeTableSort {
@@ -744,10 +872,10 @@ function syncGearPanelState(options: PopupOptions) {
   ) as HTMLSelectElement | null;
   if (sortSelect) sortSelect.value = options.timeTableSort;
 
-  const weekViewToggle = document.getElementById(
-    'gear-week-view-toggle'
-  ) as HTMLInputElement | null;
-  if (weekViewToggle) weekViewToggle.checked = activeTimeEntryView === 'week';
+  const viewSelect = document.getElementById(
+    'gear-time-entry-view-select'
+  ) as HTMLSelectElement | null;
+  if (viewSelect) viewSelect.value = activeTimeEntryView;
 
   renderGearColumnOrder(
     options.timeTableColumnOrder.filter(isColumnId),
@@ -793,9 +921,9 @@ function initGearPanel(options: PopupOptions) {
   const sortSelect = document.getElementById(
     'gear-time-table-sort'
   ) as HTMLSelectElement;
-  const weekViewToggle = document.getElementById(
-    'gear-week-view-toggle'
-  ) as HTMLInputElement;
+  const viewSelect = document.getElementById(
+    'gear-time-entry-view-select'
+  ) as HTMLSelectElement;
 
   syncGearPanelState(options);
 
@@ -813,7 +941,7 @@ function initGearPanel(options: PopupOptions) {
     const newCols = readGearColumnVisibility();
     const newOrder = readGearColumnOrder();
     const newSort = normalizeTimeTableSort(sortSelect.value);
-    const nextView: TimeEntryView = weekViewToggle.checked ? 'week' : 'table';
+    const nextView = normalizeTimeEntryView(viewSelect.value);
     const jqlChanged = newJql !== options.jql;
 
     options.jql = newJql;
@@ -1085,6 +1213,7 @@ function clearTimeTableRows(options: PopupOptions) {
   currentPopupOptions = options;
   drawIssuesTable(emptyResponse, options);
   drawWeeklyView(emptyResponse, options);
+  drawStatsView(emptyResponse, options, {});
 }
 
 async function clearCachedTimeTableData(options: PopupOptions) {
@@ -1218,6 +1347,8 @@ function onFetchSuccess(
   drawIssuesTable(issuesResponse, options);
   if (activeTimeEntryView === 'week') {
     void renderCurrentWeeklyView();
+  } else if (activeTimeEntryView === 'stats') {
+    void renderCurrentStatsView();
   }
 }
 
@@ -1369,6 +1500,7 @@ async function logTimeClick(evt: Event) {
 
     // Display success message with the logged time
     showSuccessAnimation(issueId, timeInput.value);
+    clearWeeklyWorklogCaches();
 
     timeInput.value = '';
     if (commentInput) commentInput.value = '';
@@ -1440,7 +1572,7 @@ function drawIssuesTable(
     if (colId === 'issueId') {
       th.innerHTML = `<img src="${chrome.runtime.getURL('src/icons/jira_logo.png')}" alt="Jira Logo" style="vertical-align:middle;margin-right:8px;width:16px;height:16px;"> Jira ID`;
     } else if (colId === 'actions') {
-      th.appendChild(buildGearButton());
+      th.textContent = '';
     } else {
       th.textContent = def.label;
     }
@@ -1497,7 +1629,7 @@ function drawWeeklyView(
   const headerRow = document.createElement('tr');
   const issueHeading = document.createElement('th');
   issueHeading.className = 'weekly-issue-heading';
-  issueHeading.textContent = 'Issue';
+  issueHeading.textContent = 'Work item';
   headerRow.appendChild(issueHeading);
 
   weekDates.forEach((date, index) => {
@@ -1592,6 +1724,190 @@ function drawWeeklyLoadingState(
   loadingCell.textContent = 'Loading logged issues for this week...';
   loadingRow.appendChild(loadingCell);
   tbody.appendChild(loadingRow);
+}
+
+function drawStatsView(
+  issuesResponse: JiraIssuesResponse,
+  options: PopupOptions | null,
+  totals: WeeklyWorklogTotals | null,
+  isLoading = false
+) {
+  const statsContent = document.getElementById('stats-content');
+  if (!statsContent) return;
+
+  statsContent.innerHTML = '';
+
+  if (isLoading || totals === null) {
+    const loading = document.createElement('div');
+    loading.className = 'stats-empty';
+    loading.textContent = 'Loading statistics for this week...';
+    statsContent.appendChild(loading);
+    return;
+  }
+
+  const weekDates = getWeekDates();
+  const dayTotals = new Map<string, number>();
+  const issueTotals: StatsIssueTotal[] = (issuesResponse.data || [])
+    .map((issue) => {
+      const seconds = Object.values(totals[issue.key] || {}).reduce(
+        (sum, issueDaySeconds) => sum + issueDaySeconds,
+        0
+      );
+      return { issue, seconds };
+    })
+    .filter((entry) => entry.seconds > 0)
+    .sort((a, b) => b.seconds - a.seconds);
+
+  weekDates.forEach((date) => {
+    const dateKey = formatWeeklyDateKey(date);
+    const seconds = Object.values(totals).reduce(
+      (sum, issueTotalsByDate) => sum + (issueTotalsByDate[dateKey] || 0),
+      0
+    );
+    dayTotals.set(dateKey, seconds);
+  });
+
+  const grandTotal = Array.from(dayTotals.values()).reduce(
+    (sum, seconds) => sum + seconds,
+    0
+  );
+  const loggedDays = Array.from(dayTotals.values()).filter(
+    (seconds) => seconds > 0
+  ).length;
+
+  if (grandTotal === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'stats-empty';
+    empty.textContent = 'No work logged this week.';
+    statsContent.appendChild(empty);
+    return;
+  }
+
+  const summary = document.createElement('div');
+  summary.className = 'stats-summary';
+  summary.appendChild(
+    createStatsCard('Total logged', formatInputTotal(grandTotal))
+  );
+  summary.appendChild(
+    createStatsCard(
+      'Daily average',
+      formatInputTotal(grandTotal / weekDates.length)
+    )
+  );
+  summary.appendChild(createStatsCard('Days logged', String(loggedDays)));
+  summary.appendChild(
+    createStatsCard('Work items touched', String(issueTotals.length))
+  );
+  statsContent.appendChild(summary);
+
+  const grid = document.createElement('div');
+  grid.className = 'stats-grid';
+  grid.appendChild(createDailyStatsSection(weekDates, dayTotals));
+  grid.appendChild(createIssueStatsSection(issueTotals, options));
+  statsContent.appendChild(grid);
+}
+
+function createStatsCard(label: string, value: string) {
+  const card = document.createElement('div');
+  card.className = 'stats-card';
+
+  const labelElement = document.createElement('div');
+  labelElement.className = 'stats-label';
+  labelElement.textContent = label;
+
+  const valueElement = document.createElement('div');
+  valueElement.className = 'stats-value';
+  valueElement.textContent = value;
+
+  card.appendChild(labelElement);
+  card.appendChild(valueElement);
+  return card;
+}
+
+function createDailyStatsSection(
+  weekDates: Date[],
+  dayTotals: Map<string, number>
+) {
+  const section = document.createElement('div');
+  section.className = 'stats-section';
+
+  const title = document.createElement('div');
+  title.className = 'stats-section-title';
+  title.textContent = 'Daily totals';
+  section.appendChild(title);
+
+  const maxSeconds = Math.max(1, ...Array.from(dayTotals.values()));
+  weekDates.forEach((date, index) => {
+    const dateKey = formatWeeklyDateKey(date);
+    const seconds = dayTotals.get(dateKey) || 0;
+    const row = document.createElement('div');
+    row.className = 'stats-bar-row';
+
+    const label = document.createElement('div');
+    label.textContent = `${WEEKDAY_LABELS[index]} ${formatShortDate(date)}`;
+
+    const track = document.createElement('div');
+    track.className = 'stats-bar-track';
+    const fill = document.createElement('div');
+    fill.className = 'stats-bar-fill';
+    fill.style.width = `${Math.max(0, (seconds / maxSeconds) * 100)}%`;
+    track.appendChild(fill);
+
+    const value = document.createElement('div');
+    value.textContent = formatInputTotal(seconds);
+
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(value);
+    section.appendChild(row);
+  });
+
+  return section;
+}
+
+function createIssueStatsSection(
+  issueTotals: StatsIssueTotal[],
+  options: PopupOptions | null
+) {
+  const section = document.createElement('div');
+  section.className = 'stats-section';
+
+  const title = document.createElement('div');
+  title.className = 'stats-section-title';
+  title.textContent = 'Top work items';
+  section.appendChild(title);
+
+  issueTotals.slice(0, 5).forEach(({ issue, seconds }) => {
+    const row = document.createElement('div');
+    row.className = 'stats-issue-row';
+
+    const issueInfo = document.createElement('div');
+    const issueKey = options
+      ? document.createElement('a')
+      : document.createElement('span');
+    issueKey.className = 'stats-issue-link';
+    issueKey.textContent = issue.key;
+    if (issueKey instanceof HTMLAnchorElement && options) {
+      issueKey.href = getJiraIssueUrl(issue.key, options);
+      issueKey.target = '_blank';
+    }
+
+    const summary = document.createElement('div');
+    summary.className = 'stats-issue-summary truncate';
+    summary.textContent = issue.fields.summary ?? '';
+
+    issueInfo.appendChild(issueKey);
+    issueInfo.appendChild(summary);
+
+    const value = document.createElement('div');
+    value.textContent = formatInputTotal(seconds);
+
+    row.appendChild(issueInfo);
+    row.appendChild(value);
+    section.appendChild(row);
+  });
+
+  return section;
 }
 
 function generateWeeklyIssueRow(

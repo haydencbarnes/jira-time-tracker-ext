@@ -171,7 +171,7 @@ export interface PopupOptions extends BaseExtensionOptions {
   jql: string;
   starredIssues: Record<string, number>;
   defaultPage: string;
-  timeEntryView: 'table' | 'week';
+  timeEntryView: 'table' | 'week' | 'stats';
   timeTableColumns: PopupColumnVisibility;
   timeTableColumnOrder: string[];
   timeTableSort: TimeTableSort;

@@ -14,6 +14,11 @@
         background-color: #ffffff;
       }
 
+      html.compact-popup-view {
+        height: auto;
+        min-height: 370px;
+      }
+
       /* Toolbar popup: overall width 750px (border-box; no extra px from side padding). */
       body {
         margin: 0;
@@ -23,6 +28,10 @@
         padding: 0;
         min-height: 100%;
         background-color: #ffffff;
+      }
+
+      html.compact-popup-view body {
+        min-height: 370px;
       }
 
       /* Experimental + Page View: fluid width up to 1400px (same as full-tab pages). */
@@ -671,25 +680,70 @@
         padding-bottom: 50px;
       }
 
+      html.compact-popup-view #table-container {
+        padding-bottom: 24px;
+      }
+
       .view-toolbar {
         display: none;
+        grid-template-columns: auto 1fr auto;
         align-items: center;
-        justify-content: flex-end;
         gap: 6px;
         padding: 6px 0 4px;
         margin: 0 3px;
+      }
+
+      .view-tabs {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        border: 1px solid #c8d4e5;
+        border-radius: 4px;
+        background: #f8fafc;
+        padding: 2px;
+      }
+
+      .view-tab-btn {
+        width: auto;
+        min-width: 52px;
+        border: none;
+        background: transparent;
+        color: #253858;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 1;
+        padding: 5px 8px;
+      }
+
+      .view-tab-btn:hover {
+        background: #eef4ff;
+      }
+
+      .view-tab-btn.active {
+        background: #0052cc;
+        color: #fff;
       }
 
       .week-controls {
         display: none;
         align-items: center;
         gap: 4px;
-        margin-left: auto;
+        justify-self: end;
+      }
+
+      .toolbar-settings {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 24px;
       }
 
       .week-nav-btn,
       #week-today-btn {
         width: auto;
+        height: 24px;
+        box-sizing: border-box;
         border: 1px solid #c8d4e5;
         background: #fff;
         color: #253858;
@@ -710,16 +764,6 @@
         border-color: #0052cc;
       }
 
-      .week-settings-btn {
-        margin-left: 4px;
-        border: 1px solid #c8d4e5;
-        background: #fff;
-      }
-
-      .week-settings-btn:hover {
-        border-color: #0052cc;
-      }
-
       #week-range-label {
         min-width: 128px;
         text-align: center;
@@ -732,6 +776,116 @@
         display: none;
         overflow-x: auto;
         padding-bottom: 8px;
+      }
+
+      #stats-view {
+        display: none;
+        padding: 4px 3px 12px;
+      }
+
+      .stats-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+
+      .stats-card,
+      .stats-section {
+        border: 1px solid #dfe1e6;
+        border-radius: 6px;
+        background: #fff;
+      }
+
+      .stats-card {
+        padding: 8px;
+      }
+
+      .stats-label {
+        color: #5e6c84;
+        font-size: 10px;
+        line-height: 1.2;
+        margin-bottom: 4px;
+      }
+
+      .stats-value {
+        color: #172b4d;
+        font-size: 18px;
+        font-weight: bold;
+        line-height: 1.1;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .stats-section {
+        padding: 10px;
+      }
+
+      .stats-section-title {
+        color: #172b4d;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+
+      .stats-bar-row {
+        display: grid;
+        grid-template-columns: 54px minmax(0, 1fr) 46px;
+        align-items: center;
+        gap: 8px;
+        min-height: 24px;
+        font-size: 11px;
+      }
+
+      .stats-bar-track {
+        height: 8px;
+        background: #ebecf0;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .stats-bar-fill {
+        height: 100%;
+        min-width: 2px;
+        background: #36b37e;
+        border-radius: 4px;
+      }
+
+      .stats-issue-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 52px;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+        border-top: 1px solid #f1f2f4;
+        font-size: 11px;
+      }
+
+      .stats-issue-row:first-child {
+        border-top: none;
+      }
+
+      .stats-issue-link {
+        font-weight: bold;
+      }
+
+      .stats-issue-summary {
+        color: #5e6c84;
+        font-size: 10px;
+        margin-top: 2px;
+      }
+
+      .stats-empty {
+        padding: 20px;
+        text-align: center;
+        color: #5e6c84;
+        border: 1px solid #dfe1e6;
+        border-radius: 6px;
+        background: #fff;
       }
 
       #weekly-log-table {
@@ -1008,7 +1162,8 @@
 
       body.dark-mode .week-nav-btn,
       body.dark-mode #week-today-btn,
-      body.dark-mode .week-settings-btn {
+      body.dark-mode .week-settings-btn,
+      body.dark-mode .view-tabs {
         background: #1a1a1a;
         border-color: #333;
         color: #e0e0e0;
@@ -1016,16 +1171,53 @@
 
       body.dark-mode .week-nav-btn:hover,
       body.dark-mode #week-today-btn:hover,
-      body.dark-mode .week-settings-btn:hover {
+      body.dark-mode .week-settings-btn:hover,
+      body.dark-mode .view-tab-btn:hover {
         background: #252525;
         border-color: #4690dd;
+      }
+
+      body.dark-mode .view-tab-btn {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .view-tab-btn.active {
+        background: #4690dd;
+        color: #1a1a1a;
       }
 
       body.dark-mode #week-range-label,
       body.dark-mode .weekly-issue-summary,
       body.dark-mode .weekly-date-label,
-      body.dark-mode .weekly-empty {
+      body.dark-mode .weekly-empty,
+      body.dark-mode .stats-label,
+      body.dark-mode .stats-issue-summary,
+      body.dark-mode .stats-empty {
         color: #aaa;
+      }
+
+      body.dark-mode .stats-card,
+      body.dark-mode .stats-section,
+      body.dark-mode .stats-empty {
+        background: #1a1a1a;
+        border-color: #333;
+      }
+
+      body.dark-mode .stats-value,
+      body.dark-mode .stats-section-title {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .stats-bar-track {
+        background: #252525;
+      }
+
+      body.dark-mode .stats-bar-fill {
+        background: #90ee90;
+      }
+
+      body.dark-mode .stats-issue-row {
+        border-top-color: #333;
       }
 
       body.dark-mode .weekly-log-btn {
@@ -1138,19 +1330,21 @@
         background-color: rgba(46, 139, 87, 0.5);
       }
 
-      /* ===== Gear button inside actions header cell ===== */
+      /* ===== Gear settings button ===== */
       .gear-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         width: 22px;
         height: 22px;
+        box-sizing: border-box;
         border-radius: 4px;
         cursor: pointer;
         border: none;
         padding: 0;
         background: transparent;
         color: #0052cc;
+        line-height: 0;
         vertical-align: middle;
       }
       .gear-btn:hover {
@@ -1166,6 +1360,30 @@
       body.dark-mode .gear-btn:hover {
         background: rgba(70, 144, 221, 0.2);
         color: #7eb4f0;
+      }
+
+      .toolbar-settings .gear-btn {
+        width: auto;
+        min-width: 26px;
+        height: 24px;
+        border: 1px solid #c8d4e5;
+        background: #fff;
+        color: #0052cc;
+      }
+
+      .toolbar-settings .gear-btn:hover {
+        background: #eef4ff;
+        border-color: #0052cc;
+      }
+
+      body.dark-mode .toolbar-settings .gear-btn {
+        background: #1a1a1a;
+        border-color: #333;
+      }
+
+      body.dark-mode .toolbar-settings .gear-btn:hover {
+        background: #252525;
+        border-color: #4690dd;
       }
 
       /* Column-specific padding for compact columns */
@@ -1526,6 +1744,32 @@
     <div id="success"></div>
     <div id="table-container">
       <div class="view-toolbar">
+        <div class="view-tabs" role="tablist" aria-label="Time views">
+          <button
+            class="view-tab-btn"
+            type="button"
+            data-time-entry-view="table"
+            role="tab"
+          >
+            Table
+          </button>
+          <button
+            class="view-tab-btn"
+            type="button"
+            data-time-entry-view="week"
+            role="tab"
+          >
+            Week
+          </button>
+          <button
+            class="view-tab-btn"
+            type="button"
+            data-time-entry-view="stats"
+            role="tab"
+          >
+            Stats
+          </button>
+        </div>
         <div id="week-controls" class="week-controls">
           <button
             id="week-prev-btn"
@@ -1548,6 +1792,7 @@
             ›
           </button>
         </div>
+        <div id="toolbar-settings" class="toolbar-settings"></div>
       </div>
       <div id="table-view">
         <table id="jira-log-time-table">
@@ -1563,6 +1808,9 @@
           <tbody></tbody>
           <tfoot></tfoot>
         </table>
+      </div>
+      <div id="stats-view">
+        <div id="stats-content"></div>
       </div>
       <div id="loader-container">
         <div class="loader"></div>
@@ -1641,9 +1889,16 @@
           <div class="gear-section">
             <div class="gear-section-title">View</div>
             <div class="gear-toggle-row">
-              <label for="gear-week-view-toggle">
-                <span>Weekly calendar view</span>
-                <input id="gear-week-view-toggle" type="checkbox" />
+              <label for="gear-time-entry-view-select">
+                <span>Default view</span>
+                <select
+                  id="gear-time-entry-view-select"
+                  aria-label="Default popup view"
+                >
+                  <option value="table">Table</option>
+                  <option value="week">Week</option>
+                  <option value="stats">Stats</option>
+                </select>
               </label>
             </div>
           </div>
