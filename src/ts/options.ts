@@ -30,8 +30,21 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
   });
 }
 
+type TextSettingStorageKey =
+  | 'apiToken'
+  | 'baseUrl'
+  | 'frequentWorklogDescription1'
+  | 'frequentWorklogDescription2'
+  | 'username';
+
+interface TextSettingControl {
+  input: HTMLInputElement | HTMLTextAreaElement;
+  saveButton: HTMLButtonElement;
+  savedValue: string;
+  storageKey: TextSettingStorageKey;
+}
+
 (function initOptionsPage() {
-  const saveButton = getRequiredElement<HTMLButtonElement>('save');
   const versionInput = getRequiredElement<HTMLInputElement>('version');
   const experimentalFeaturesToggle = getRequiredElement<HTMLInputElement>(
     'experimentalFeatures'
@@ -43,20 +56,22 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
     '#experimentalFeatures + .slider'
   );
   const jiraTypeSelect = getRequiredElement<HTMLSelectElement>('jiraType');
-  const urlRow = getRequiredElement<HTMLTableRowElement>('urlRow');
+  const urlLabel = getRequiredElement<HTMLElement>('urlLabel');
   const baseUrlInput = getRequiredElement<HTMLInputElement>('baseUrl');
   const systemThemeToggle =
     getRequiredElement<HTMLInputElement>('systemThemeToggle');
-  const pageViewToggle =
-    getRequiredElement<HTMLInputElement>('pageViewToggle');
-  const pageViewRow = getRequiredElement<HTMLTableRowElement>('pageViewRow');
+  const pageViewToggle = getRequiredElement<HTMLInputElement>('pageViewToggle');
+  const pageViewRow = getRequiredElement<HTMLElement>('pageViewRow');
   const floatingTimerWidgetToggle = getRequiredElement<HTMLInputElement>(
     'floatingTimerWidgetToggle'
   );
-  const floatingTimerWidgetRow = getRequiredElement<HTMLTableRowElement>(
+  const floatingTimerWidgetRow = getRequiredElement<HTMLElement>(
     'floatingTimerWidgetRow'
   );
   const usernameInput = getRequiredElement<HTMLInputElement>('username');
+  const usernameVisibilityToggle = getRequiredElement<HTMLButtonElement>(
+    'usernameVisibilityToggle'
+  );
   const passwordInput = getRequiredElement<HTMLInputElement>('password');
   const frequentWorklogDescription1Input = getRequiredElement<HTMLInputElement>(
     'frequentWorklogDescription1'
@@ -66,22 +81,65 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
   );
   const defaultPageSelect =
     getRequiredElement<HTMLSelectElement>('defaultPage');
-  const statusElement = getRequiredElement<HTMLDivElement>('status');
+  const settingsNavButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('[data-settings-page-target]')
+  );
+  const settingsPages = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-settings-page]')
+  );
+  const textSettingControls: TextSettingControl[] = [
+    {
+      input: baseUrlInput,
+      saveButton: getRequiredSelector<HTMLButtonElement>(
+        '[data-save-input="baseUrl"]'
+      ),
+      savedValue: '',
+      storageKey: 'baseUrl',
+    },
+    {
+      input: usernameInput,
+      saveButton: getRequiredSelector<HTMLButtonElement>(
+        '[data-save-input="username"]'
+      ),
+      savedValue: '',
+      storageKey: 'username',
+    },
+    {
+      input: passwordInput,
+      saveButton: getRequiredSelector<HTMLButtonElement>(
+        '[data-save-input="password"]'
+      ),
+      savedValue: '',
+      storageKey: 'apiToken',
+    },
+    {
+      input: frequentWorklogDescription1Input,
+      saveButton: getRequiredSelector<HTMLButtonElement>(
+        '[data-save-input="frequentWorklogDescription1"]'
+      ),
+      savedValue: '',
+      storageKey: 'frequentWorklogDescription1',
+    },
+    {
+      input: frequentWorklogDescription2Input,
+      saveButton: getRequiredSelector<HTMLButtonElement>(
+        '[data-save-input="frequentWorklogDescription2"]'
+      ),
+      savedValue: '',
+      storageKey: 'frequentWorklogDescription2',
+    },
+  ];
 
   document.addEventListener('DOMContentLoaded', restoreOptions);
   document.addEventListener('DOMContentLoaded', () => {
     versionInput.value = chrome.runtime.getManifest().version;
   });
-  saveButton.addEventListener('click', saveOptions);
 
   initThemeControls();
+  initSettingsNavigation();
+  initEmailVisibilityToggle();
+  initAutosaveControls();
   createExperimentalShapes();
-
-  experimentalFeaturesToggle.addEventListener(
-    'change',
-    onExperimentalToggleChange
-  );
-  jiraTypeSelect.addEventListener('change', onJiraTypeChange);
 
   function createExperimentalShapes(): void {
     const shapeCount = 15;
@@ -117,6 +175,122 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
     });
   }
 
+  function initSettingsNavigation(): void {
+    showSettingsPage(settingsNavButtons[0]?.dataset.settingsPageTarget ?? '');
+
+    settingsNavButtons.forEach((button, index) => {
+      button.addEventListener('click', () => {
+        showSettingsPage(button.dataset.settingsPageTarget ?? '');
+      });
+
+      button.addEventListener('keydown', (event) => {
+        if (
+          !['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(
+            event.key
+          )
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        const direction =
+          event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
+        const nextIndex =
+          (index + direction + settingsNavButtons.length) %
+          settingsNavButtons.length;
+        const nextButton = settingsNavButtons[nextIndex];
+        nextButton.focus();
+        showSettingsPage(nextButton.dataset.settingsPageTarget ?? '');
+      });
+    });
+  }
+
+  function initEmailVisibilityToggle(): void {
+    usernameVisibilityToggle.addEventListener('click', () => {
+      const isVisible = usernameInput.type === 'text';
+      usernameInput.type = isVisible ? 'password' : 'text';
+      usernameVisibilityToggle.setAttribute(
+        'aria-label',
+        isVisible ? 'Show email' : 'Hide email'
+      );
+      usernameVisibilityToggle.title = isVisible ? 'Show email' : 'Hide email';
+      usernameVisibilityToggle
+        .querySelector<HTMLElement>('.visibility-icon-show')
+        ?.toggleAttribute('hidden', !isVisible);
+      usernameVisibilityToggle
+        .querySelector<HTMLElement>('.visibility-icon-hide')
+        ?.toggleAttribute('hidden', isVisible);
+    });
+  }
+
+  function showSettingsPage(pageName: string): void {
+    settingsNavButtons.forEach((button) => {
+      const isSelected = button.dataset.settingsPageTarget === pageName;
+      button.setAttribute('aria-selected', String(isSelected));
+      button.tabIndex = isSelected ? 0 : -1;
+    });
+
+    settingsPages.forEach((page) => {
+      const isSelected = page.dataset.settingsPage === pageName;
+      page.classList.toggle('is-active', isSelected);
+      page.hidden = !isSelected;
+    });
+  }
+
+  function initAutosaveControls(): void {
+    textSettingControls.forEach((control) => {
+      control.input.addEventListener('input', () => {
+        updateInlineSaveButton(control);
+      });
+
+      control.saveButton.addEventListener('click', () => {
+        void saveTextSetting(control);
+      });
+    });
+
+    jiraTypeSelect.addEventListener('change', () => {
+      onJiraTypeChange();
+      void setSyncStorage({
+        jiraType: jiraTypeSelect.value as JiraType,
+      });
+    });
+
+    defaultPageSelect.addEventListener('change', () => {
+      void setSyncStorage({
+        defaultPage: defaultPageSelect.value,
+      });
+    });
+
+    issueDetectionToggle.addEventListener('change', () => {
+      void saveFeatureSettings();
+    });
+
+    experimentalFeaturesToggle.addEventListener(
+      'change',
+      onExperimentalToggleChange
+    );
+    pageViewToggle.addEventListener('change', () => {
+      void saveFeatureSettings();
+    });
+    floatingTimerWidgetToggle.addEventListener('change', () => {
+      void saveFeatureSettings();
+    });
+  }
+
+  function updateInlineSaveButton(control: TextSettingControl): void {
+    control.saveButton.hidden = control.input.value === control.savedValue;
+  }
+
+  async function saveTextSetting(control: TextSettingControl): Promise<void> {
+    control.saveButton.disabled = true;
+    await setSyncStorage({
+      [control.storageKey]: control.input.value,
+    });
+    control.savedValue = control.input.value;
+    control.saveButton.disabled = false;
+    updateInlineSaveButton(control);
+  }
+
   function onExperimentalToggleChange(): void {
     const isEnabled = experimentalFeaturesToggle.checked;
     experimentalSlider
@@ -124,32 +298,37 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       .forEach((shape) => {
         shape.style.opacity = isEnabled ? '1' : '0';
       });
-    pageViewRow.style.display = isEnabled ? 'table-row' : 'none';
-    floatingTimerWidgetRow.style.display = isEnabled ? 'table-row' : 'none';
+    setExperimentalRowsVisible(isEnabled);
 
     if (!isEnabled) {
       pageViewToggle.checked = false;
       floatingTimerWidgetToggle.checked = false;
-      chrome.storage.sync.set({
-        pageViewNewTabEnabled: false,
-        floatingTimerWidgetEnabled: false,
-      });
     }
+
+    void saveFeatureSettings();
   }
 
   function onJiraTypeChange(): void {
-    const urlLabel = urlRow.querySelector<HTMLElement>('td:first-child b');
     if (jiraTypeSelect.value === 'server') {
       baseUrlInput.placeholder = 'https://your-jira-server.com';
-      if (urlLabel) {
-        urlLabel.textContent = 'Jira Server URL*';
-      }
+      urlLabel.textContent = 'Jira Server URL';
     } else {
       baseUrlInput.placeholder = 'https://your-domain.atlassian.net';
-      if (urlLabel) {
-        urlLabel.textContent = 'Jira Cloud URL*';
-      }
+      urlLabel.textContent = 'Jira Cloud URL';
     }
+  }
+
+  function setExperimentalRowsVisible(isVisible: boolean): void {
+    const display = isVisible ? '' : 'none';
+    pageViewRow.style.display = display;
+    floatingTimerWidgetRow.style.display = display;
+  }
+
+  function markTextSettingsSaved(): void {
+    textSettingControls.forEach((control) => {
+      control.savedValue = control.input.value;
+      updateInlineSaveButton(control);
+    });
   }
 
   async function notifyTabs(message: SettingsChangedMessage): Promise<void> {
@@ -167,23 +346,17 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
     });
   }
 
-  async function saveOptions(): Promise<void> {
+  async function saveFeatureSettings(): Promise<void> {
     const experimentalFeatures = experimentalFeaturesToggle.checked;
     const issueDetectionEnabled = issueDetectionToggle.checked;
-    const pageViewNewTabEnabled = experimentalFeatures && pageViewToggle.checked;
+    const pageViewNewTabEnabled =
+      experimentalFeatures && pageViewToggle.checked;
     const floatingTimerWidgetEnabled =
       experimentalFeatures && floatingTimerWidgetToggle.checked;
 
     await setSyncStorage({
-      jiraType: jiraTypeSelect.value as JiraType,
-      username: usernameInput.value,
-      apiToken: passwordInput.value,
-      baseUrl: baseUrlInput.value,
       experimentalFeatures,
       issueDetectionEnabled,
-      frequentWorklogDescription1: frequentWorklogDescription1Input.value,
-      frequentWorklogDescription2: frequentWorklogDescription2Input.value,
-      defaultPage: defaultPageSelect.value,
       pageViewNewTabEnabled,
       floatingTimerWidgetEnabled,
     });
@@ -194,11 +367,6 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
       issueDetectionEnabled,
       floatingTimerWidgetEnabled,
     });
-
-    statusElement.textContent = 'Options saved.';
-    window.setTimeout(() => {
-      statusElement.textContent = '';
-    }, 1000);
   }
 
   async function restoreOptions(): Promise<void> {
@@ -228,19 +396,15 @@ function setSyncStorage(items: Record<string, unknown>): Promise<void> {
     frequentWorklogDescription2Input.value = items.frequentWorklogDescription2;
     defaultPageSelect.value = items.defaultPage;
     systemThemeToggle.checked = items.followSystemTheme;
-    pageViewRow.style.display = items.experimentalFeatures
-      ? 'table-row'
-      : 'none';
+    setExperimentalRowsVisible(items.experimentalFeatures ?? false);
     pageViewToggle.checked = !!(
       items.experimentalFeatures && items.pageViewNewTabEnabled
     );
-    floatingTimerWidgetRow.style.display = items.experimentalFeatures
-      ? 'table-row'
-      : 'none';
     floatingTimerWidgetToggle.checked = !!(
       items.experimentalFeatures && items.floatingTimerWidgetEnabled
     );
-    jiraTypeSelect.dispatchEvent(new Event('change'));
+    markTextSettingsSaved();
+    onJiraTypeChange();
   }
 })();
 
