@@ -507,10 +507,6 @@ function initViewControls() {
       if (!isTimeEntryView(view)) return;
 
       setTimeEntryView(view);
-      if (currentPopupOptions) {
-        currentPopupOptions.timeEntryView = view;
-      }
-      chrome.storage.sync.set({ timeEntryView: view });
     });
   });
 
@@ -875,7 +871,7 @@ function syncGearPanelState(options: PopupOptions) {
   const viewSelect = document.getElementById(
     'gear-time-entry-view-select'
   ) as HTMLSelectElement | null;
-  if (viewSelect) viewSelect.value = activeTimeEntryView;
+  if (viewSelect) viewSelect.value = options.timeEntryView;
 
   renderGearColumnOrder(
     options.timeTableColumnOrder.filter(isColumnId),
