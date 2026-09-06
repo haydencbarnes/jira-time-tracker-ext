@@ -171,7 +171,7 @@ export interface PopupOptions extends BaseExtensionOptions {
   jql: string;
   starredIssues: Record<string, number>;
   defaultPage: string;
-  timeEntryView: 'table' | 'week' | 'stats';
+  timeEntryView: 'table' | 'week' | 'stats' | 'plan';
   timeTableColumns: PopupColumnVisibility;
   timeTableColumnOrder: string[];
   timeTableSort: TimeTableSort;
@@ -184,6 +184,8 @@ export interface TimerOptions extends BaseExtensionOptions {
   issueTitle: string;
 }
 
+export type FloatingTimerLabel = 'key' | 'title' | 'keyAndTitle';
+
 export interface ExtensionSettings {
   issueDetectionEnabled?: boolean;
   baseUrl: string;
@@ -192,6 +194,7 @@ export interface ExtensionSettings {
   jiraType: JiraType;
   experimentalFeatures?: boolean;
   floatingTimerWidgetEnabled?: boolean;
+  floatingTimerLabel?: FloatingTimerLabel;
   followSystemTheme?: boolean;
   darkMode?: boolean;
   /** Open full timer page in a new tab when clicking the toolbar icon (vs popup). */
@@ -204,10 +207,12 @@ export interface OptionsPageSettings extends BaseExtensionOptions {
   followSystemTheme: boolean;
   pageViewNewTabEnabled: boolean;
   floatingTimerWidgetEnabled: boolean;
+  floatingTimerLabel: FloatingTimerLabel;
 }
 
 export interface TimerState {
   issueKey?: string;
+  issueTitle?: string;
   timerSeconds: number;
   timerIsRunning: boolean;
   timerLastUpdated: number | null;

@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Jira Log Time",
-  "version": "1.5.1",
+  "version": "2.0.0",
   "description": "Log/Track your time in Jira in seconds!",
   "host_permissions": ["<all_urls>"],
-  "permissions": ["storage", "tabs"],
+  "permissions": ["scripting", "storage", "tabs"],
   "background": {
     "service_worker": "dist/timerFeatureModule/background.js"
   },

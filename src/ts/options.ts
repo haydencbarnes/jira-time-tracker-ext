@@ -1,4 +1,5 @@
 import type {
+  FloatingTimerLabel,
   JiraType,
   OptionsPageSettings,
   SettingsChangedMessage,
@@ -65,9 +66,8 @@ interface TextSettingControl {
   const floatingTimerWidgetToggle = getRequiredElement<HTMLInputElement>(
     'floatingTimerWidgetToggle'
   );
-  const floatingTimerWidgetRow = getRequiredElement<HTMLElement>(
-    'floatingTimerWidgetRow'
-  );
+  const floatingTimerLabelSelect =
+    getRequiredElement<HTMLSelectElement>('floatingTimerLabel');
   const usernameInput = getRequiredElement<HTMLInputElement>('username');
   const usernameVisibilityToggle = getRequiredElement<HTMLButtonElement>(
     'usernameVisibilityToggle'
@@ -134,6 +134,13 @@ interface TextSettingControl {
   document.addEventListener('DOMContentLoaded', () => {
     versionInput.value = chrome.runtime.getManifest().version;
   });
+  document
+    .getElementById('openOnboardingGuide')
+    ?.addEventListener('click', () => {
+      void chrome.tabs.create({
+        url: chrome.runtime.getURL('dist/onboarding.html'),
+      });
+    });
 
   initThemeControls();
   initSettingsNavigation();
@@ -273,8 +280,16 @@ interface TextSettingControl {
       void saveFeatureSettings();
     });
     floatingTimerWidgetToggle.addEventListener('change', () => {
+      syncFloatingTimerLabelState();
       void saveFeatureSettings();
     });
+    floatingTimerLabelSelect.addEventListener('change', () => {
+      void saveFeatureSettings();
+    });
+  }
+
+  function syncFloatingTimerLabelState(): void {
+    floatingTimerLabelSelect.disabled = !floatingTimerWidgetToggle.checked;
   }
 
   function updateInlineSaveButton(control: TextSettingControl): void {
@@ -302,7 +317,6 @@ interface TextSettingControl {
 
     if (!isEnabled) {
       pageViewToggle.checked = false;
-      floatingTimerWidgetToggle.checked = false;
     }
 
     void saveFeatureSettings();
@@ -319,9 +333,13 @@ interface TextSettingControl {
   }
 
   function setExperimentalRowsVisible(isVisible: boolean): void {
-    const display = isVisible ? '' : 'none';
-    pageViewRow.style.display = display;
-    floatingTimerWidgetRow.style.display = display;
+    pageViewRow.style.display = isVisible ? '' : 'none';
+  }
+
+  function normalizeFloatingTimerLabel(value: unknown): FloatingTimerLabel {
+    return value === 'key' || value === 'title' || value === 'keyAndTitle'
+      ? value
+      : 'keyAndTitle';
   }
 
   function markTextSettingsSaved(): void {
@@ -351,14 +369,17 @@ interface TextSettingControl {
     const issueDetectionEnabled = issueDetectionToggle.checked;
     const pageViewNewTabEnabled =
       experimentalFeatures && pageViewToggle.checked;
-    const floatingTimerWidgetEnabled =
-      experimentalFeatures && floatingTimerWidgetToggle.checked;
+    const floatingTimerWidgetEnabled = floatingTimerWidgetToggle.checked;
+    const floatingTimerLabel = normalizeFloatingTimerLabel(
+      floatingTimerLabelSelect.value
+    );
 
     await setSyncStorage({
       experimentalFeatures,
       issueDetectionEnabled,
       pageViewNewTabEnabled,
       floatingTimerWidgetEnabled,
+      floatingTimerLabel,
     });
 
     await notifyTabs({
@@ -383,6 +404,7 @@ interface TextSettingControl {
       followSystemTheme: true,
       pageViewNewTabEnabled: false,
       floatingTimerWidgetEnabled: false,
+      floatingTimerLabel: 'keyAndTitle',
       darkMode: false,
     });
 
@@ -400,9 +422,11 @@ interface TextSettingControl {
     pageViewToggle.checked = !!(
       items.experimentalFeatures && items.pageViewNewTabEnabled
     );
-    floatingTimerWidgetToggle.checked = !!(
-      items.experimentalFeatures && items.floatingTimerWidgetEnabled
+    floatingTimerWidgetToggle.checked = !!items.floatingTimerWidgetEnabled;
+    floatingTimerLabelSelect.value = normalizeFloatingTimerLabel(
+      items.floatingTimerLabel
     );
+    syncFloatingTimerLabelState();
     markTextSettingsSaved();
     onJiraTypeChange();
   }

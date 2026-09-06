@@ -1,4 +1,19 @@
+## 2.0.0 (Sep 6, 2026)
+
+- Feature: **Plan** tab for laying out a day from Time Table issues, setting a day capacity, and logging a planned block after confirming the issue, date, and time (see [#42](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/42)).
+- Feature: **Floating Timer Widget** is no longer Beta. Drag it anywhere, log from the pill with a confirmation, choose whether it shows the work item ID, title, or both, and dismiss it by hovering the grip for three seconds (see [#8](https://github.com/haydencbarnes/jira-time-tracker-ext/issues/8)).
+- Feature: First-install onboarding guide with screenshots (sample data only). Reopen it from Settings → About.
+- UX: Floating timer success flash is a green outline around the page; long titles carousel; play/pause/reset/log use the same icons as the Timer tab. The widget is re-injected into already-open tabs after install or update.
+- UX: Settings pages no longer clip on the right or bottom; view tabs use a white background like the gear button.
+- Fix: Timer keeps a typed work item ID when the popup closes before Jira finishes resolving the title.
+- Fix: Typing only a work item ID (including one from another project) now adopts that project instead of resetting Project ID on reopen.
+- Fix: Jira API cache now drops expired `chrome.storage.local` entries and purges the cache if the 10MB quota is exceeded.
+- Security: Upgraded esbuild to 0.28.1 or later (Windows development-server path traversal).
+- Chore: Added `scripting` permission so the floating timer can be injected into existing tabs. Release zip now includes `src/images`.
+- Docs: Added getting-started guide with the same screenshots as the in-extension walkthrough.
+
 ## 1.5.1 (Apr 14, 2026)
+
 - Feature: Page view (new tab) is now an experimental feature. Users can now toggle page view (new tab) on and off from the options page. The side panel feature is now deprecated and has been removed.
 - Fix: Live timer badge now updates correctly when the timer is running.
 

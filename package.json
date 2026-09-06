@@ -1,11 +1,11 @@
 {
   "name": "jira-time-tracker-ext",
   "private": true,
-  "version": "1.5.1",
+  "version": "2.0.0",
   "description": "Chrome extension for logging and tracking Jira time.",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "package": "npm run build && rm -f jira-time-tracker-ext.zip ../jira-time-tracker-ext.zip && zip -r ../jira-time-tracker-ext.zip manifest.json dist src/icons src/content-script.css",
+    "package": "npm run build && rm -f jira-time-tracker-ext.zip ../jira-time-tracker-ext.zip && zip -r ../jira-time-tracker-ext.zip manifest.json dist src/icons src/images src/content-script.css",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src/ts --deny-warnings",
     "lint:warn": "oxlint src/ts",
@@ -24,7 +24,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/chrome": "^0.1.40",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "oxlint": "^1.59.0",
     "prettier": "^3.8.2",
     "typescript": "^6.0.2"

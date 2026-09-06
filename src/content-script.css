@@ -348,165 +348,555 @@
   bottom: 16px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: auto;
   max-width: calc(100vw - 32px);
   box-sizing: border-box;
-  padding: 6px 8px;
+  padding: 6px 6px 6px 4px;
   border: 1px solid #dfe1e6;
-  border-radius: 999px;
+  border-radius: 12px;
   background: #ffffff;
   color: #172b4d;
-  box-shadow: 0 4px 14px rgba(9, 30, 66, 0.18);
+  box-shadow:
+    0 6px 18px rgba(9, 30, 66, 0.16),
+    0 1px 3px rgba(9, 30, 66, 0.1);
   z-index: 2147483000;
   font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overflow: visible;
+}
+
+.jira-floating-timer-widget.is-dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 12px 28px rgba(9, 30, 66, 0.24),
+    0 2px 6px rgba(9, 30, 66, 0.12);
 }
 
 .jira-floating-timer-widget.dark {
-  background: #141414;
+  background: #1a1a1a;
   border-color: #333333;
   color: #e0e0e0;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.45),
+    0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.jira-floating-timer-widget-badge {
-  flex-shrink: 0;
-  padding: 2px 5px;
-  border-radius: 999px;
-  background: #ff6b35;
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  box-shadow: 0 1px 3px rgba(255, 107, 53, 0.3);
-}
-
-.jira-floating-timer-widget.dark .jira-floating-timer-widget-badge {
-  background: #ff8c42;
-  box-shadow: 0 1px 3px rgba(255, 140, 66, 0.4);
-}
-
-.jira-floating-timer-widget-issue,
-.jira-floating-timer-widget-value,
-.jira-floating-timer-widget-icon {
-  appearance: none;
-  border: none;
-  background: transparent;
-  font-family: inherit;
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.jira-floating-timer-widget-time {
+/* Grip: drag handle that becomes a hide (X) button after a long hover. */
+.jira-floating-timer-widget-grip {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px;
-  color: inherit;
+  justify-content: center;
+  width: 20px;
+  height: 30px;
+  margin: 0 0 0 2px;
+  padding: 0;
+  border-radius: 6px;
+  color: #97a0af;
   font-size: 13px;
-  font-weight: 700;
   line-height: 1;
-  white-space: nowrap;
+  cursor: grab;
+}
+
+.jira-floating-timer-widget-grip:hover {
+  color: #6b778c;
+}
+
+.jira-floating-timer-widget.is-dragging .jira-floating-timer-widget-grip {
+  cursor: grabbing;
+}
+
+.jira-floating-timer-widget-grip svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: currentColor;
+}
+
+.jira-floating-timer-widget-grip.is-dismiss {
+  color: #de350b;
+  background: rgba(222, 53, 11, 0.1);
+  cursor: pointer;
+  animation: jira-floating-timer-pop 0.2s ease-out;
+}
+
+.jira-floating-timer-widget-grip.is-dismiss:hover {
+  color: #bf2600;
+  background: rgba(222, 53, 11, 0.18);
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-grip {
+  color: #6b778c;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-grip:hover {
+  color: #9fadbc;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-grip.is-dismiss {
+  color: #ff8f73;
+  background: rgba(255, 86, 48, 0.16);
+}
+
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-grip.is-dismiss:hover {
+  color: #ffbdad;
+  background: rgba(255, 86, 48, 0.26);
+}
+
+@keyframes jira-floating-timer-pop {
+  from {
+    transform: scale(0.6);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.jira-floating-timer-widget *,
+.jira-floating-timer-widget *::before,
+.jira-floating-timer-widget *::after {
+  box-sizing: border-box;
+}
+
+/* Reset host-page button styles so the pill looks the same on every site. */
+.jira-floating-timer-widget-grip,
+.jira-floating-timer-widget-issue,
+.jira-floating-timer-widget-title,
+.jira-floating-timer-widget-value,
+.jira-floating-timer-widget-icon,
+.jira-floating-timer-widget-confirm-actions button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  font-family: inherit;
+  text-transform: none;
+  text-decoration: none;
+  letter-spacing: normal;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.jira-floating-timer-widget-issue[hidden],
+.jira-floating-timer-widget-confirm[hidden] {
+  display: none;
+}
+
+.jira-floating-timer-widget-grip:focus-visible,
+.jira-floating-timer-widget-issue:focus-visible,
+.jira-floating-timer-widget-title:focus-visible,
+.jira-floating-timer-widget-value:focus-visible,
+.jira-floating-timer-widget-icon:focus-visible,
+.jira-floating-timer-widget-confirm-actions button:focus-visible {
+  outline: 2px solid #4c9aff;
+  outline-offset: 2px;
+}
+
+/* Copy block: [key flush left, time centered under it] + [title, vertically centered]. */
+.jira-floating-timer-widget-copy {
+  display: flex;
+  flex-direction: row; /* explicit: pages still holding an older sheet had column */
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-right: 2px;
+}
+
+.jira-floating-timer-widget-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
 .jira-floating-timer-widget-issue {
+  display: block;
   padding: 0;
   color: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  opacity: 0.78;
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
 }
 
+.jira-floating-timer-widget-issue:disabled,
+.jira-floating-timer-widget-title:disabled {
+  cursor: default;
+}
+
+.jira-floating-timer-widget-key {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Fixed-width middle column: short titles sit centered in it, long ones marquee. */
+.jira-floating-timer-widget-title {
+  display: block;
+  flex: 0 1 auto;
+  width: 200px;
+  min-width: 0;
+  padding: 0;
+  color: #5e6c84;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jira-floating-timer-widget-title:hover:not(:disabled) {
+  color: #0052cc;
+}
+
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-title:hover:not(:disabled) {
+  color: #4690dd;
+}
+
+.jira-floating-timer-widget-title-text {
+  display: inline;
+  white-space: nowrap;
+}
+
+/* Long titles scroll back and forth so the whole text can be read. */
+.jira-floating-timer-widget-title.is-scrolling {
+  text-overflow: clip;
+  text-align: left; /* a centered overflowing block would clip its start */
+}
+
+.jira-floating-timer-widget-title.is-scrolling
+  .jira-floating-timer-widget-title-text {
+  display: inline-block;
+  animation: jira-floating-timer-marquee var(--jira-ftw-duration, 8s)
+    ease-in-out infinite;
+}
+
+@keyframes jira-floating-timer-marquee {
+  0%,
+  14% {
+    transform: translateX(0);
+  }
+  46%,
+  58% {
+    transform: translateX(var(--jira-ftw-overflow, 0px));
+  }
+  90%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jira-floating-timer-widget-title.is-scrolling {
+    text-overflow: ellipsis;
+  }
+
+  .jira-floating-timer-widget-title.is-scrolling
+    .jira-floating-timer-widget-title-text {
+    animation: none;
+  }
+}
+
+.jira-floating-timer-widget-title[hidden] {
+  display: none;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-title {
+  color: #9fadbc;
+}
+
+/* Stretches to the key's width so the digits center under it; the key itself stays put. */
 .jira-floating-timer-widget-value {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 0;
   color: inherit;
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
-.jira-floating-timer-widget-separator {
-  opacity: 0.45;
+.jira-floating-timer-widget-dot {
+  display: none;
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0052cc;
+  box-shadow: 0 0 0 0 rgba(0, 82, 204, 0.4);
+  animation: jira-floating-timer-pulse 1.6s ease-out infinite;
 }
 
-.jira-floating-timer-widget-issue:hover,
+.jira-floating-timer-widget.is-running .jira-floating-timer-widget-dot {
+  display: inline-block;
+}
+
+.jira-floating-timer-widget.is-running .jira-floating-timer-widget-value {
+  color: #0052cc;
+  /* Balances the dot (7px + 6px gap) so the digits don't shift when running. */
+  padding-right: 13px;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-dot {
+  background: #4690dd;
+  box-shadow: 0 0 0 0 rgba(70, 144, 221, 0.45);
+}
+
+.jira-floating-timer-widget.dark.is-running .jira-floating-timer-widget-value {
+  color: #4690dd;
+}
+
+@keyframes jira-floating-timer-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 82, 204, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(0, 82, 204, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 82, 204, 0);
+  }
+}
+
+.jira-floating-timer-widget-issue:hover:not(:disabled),
 .jira-floating-timer-widget-value:hover {
   color: #0052cc;
 }
 
-.jira-floating-timer-widget.dark .jira-floating-timer-widget-issue:hover,
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-issue:hover:not(:disabled),
 .jira-floating-timer-widget.dark .jira-floating-timer-widget-value:hover {
   color: #4690dd;
 }
 
+.jira-floating-timer-widget-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+
+/* Buttons mirror the timer page controls: blue primary, gray secondary. */
 .jira-floating-timer-widget-icon {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1;
 }
 
 .jira-floating-timer-widget-icon:disabled {
   cursor: default;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .jira-floating-timer-widget-icon svg {
-  width: 11px;
-  height: 11px;
+  width: 16px;
+  height: 16px;
   display: block;
   fill: currentColor;
 }
 
-.jira-floating-timer-widget-reset {
-  background: rgba(9, 30, 66, 0.08);
-  color: #42526e;
-}
-
-.jira-floating-timer-widget-reset:hover:not(:disabled) {
-  background: rgba(222, 53, 11, 0.12);
-  color: #de350b;
-}
-
-.jira-floating-timer-widget-toggle {
+.jira-floating-timer-widget-toggle,
+.jira-floating-timer-widget-log {
   background: #0052cc;
   color: #ffffff;
 }
 
-.jira-floating-timer-widget-toggle:hover:not(:disabled) {
-  background: #0065ff;
+.jira-floating-timer-widget-toggle:hover:not(:disabled),
+.jira-floating-timer-widget-log:hover:not(:disabled) {
+  background: #0041a8;
+}
+
+.jira-floating-timer-widget-reset {
+  background: #e0e0e0;
+  color: #333333;
+}
+
+.jira-floating-timer-widget-reset:hover:not(:disabled) {
+  background: #d4d4d4;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-toggle,
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-log {
+  background: #4690dd;
+  color: #1a1a1a;
+}
+
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-toggle:hover:not(:disabled),
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-log:hover:not(:disabled) {
+  background: #5e9fe3;
 }
 
 .jira-floating-timer-widget.dark .jira-floating-timer-widget-reset {
-  background: rgba(255, 255, 255, 0.12);
-  color: #c1c7d0;
+  background: #333333;
+  color: #e0e0e0;
 }
 
 .jira-floating-timer-widget.dark
   .jira-floating-timer-widget-reset:hover:not(:disabled) {
-  background: rgba(255, 86, 48, 0.18);
-  color: #ff8f73;
+  background: #444444;
 }
 
-.jira-floating-timer-widget.dark .jira-floating-timer-widget-toggle {
-  background: #4690dd;
-  color: #141414;
+.jira-floating-timer-widget-confirm {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 100%;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #dfe1e6;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #172b4d;
+  box-shadow: 0 10px 24px rgba(9, 30, 66, 0.2);
+  cursor: default;
+}
+
+.jira-floating-timer-widget-confirm.is-below {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+.jira-floating-timer-widget-confirm.is-left {
+  right: auto;
+  left: 0;
+}
+
+.jira-floating-timer-widget.dark .jira-floating-timer-widget-confirm {
+  background: #1a1a1a;
+  border-color: #333333;
+  color: #e0e0e0;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.jira-floating-timer-widget-confirm-text {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.jira-floating-timer-widget-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.jira-floating-timer-widget-confirm-actions button {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 28px;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.jira-floating-timer-widget-confirm-actions [data-action='log-cancel'] {
+  background: #e0e0e0;
+  color: #333333;
+}
+
+.jira-floating-timer-widget-confirm-actions [data-action='log-cancel']:hover {
+  background: #d4d4d4;
 }
 
 .jira-floating-timer-widget.dark
-  .jira-floating-timer-widget-toggle:hover:not(:disabled) {
+  .jira-floating-timer-widget-confirm-actions
+  [data-action='log-cancel'] {
+  background: #333333;
+  color: #e0e0e0;
+}
+
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-confirm-actions
+  [data-action='log-cancel']:hover {
+  background: #444444;
+}
+
+.jira-floating-timer-widget-confirm-actions [data-action='log-confirm'] {
+  background: #0052cc;
+  color: #ffffff;
+}
+
+.jira-floating-timer-widget-confirm-actions [data-action='log-confirm']:hover {
+  background: #0041a8;
+}
+
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-confirm-actions
+  [data-action='log-confirm'] {
+  background: #4690dd;
+  color: #1a1a1a;
+}
+
+.jira-floating-timer-widget.dark
+  .jira-floating-timer-widget-confirm-actions
+  [data-action='log-confirm']:hover {
   background: #5e9fe3;
+}
+
+/* Success flash: a green edge around the viewport, transparent in the middle. */
+.jira-floating-timer-log-flash {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 2147483646;
+  border: 4px solid #36b37e;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 0 32px rgba(54, 179, 126, 0.45);
+  opacity: 0;
+  animation: jira-floating-timer-log-flash 1.6s ease-out;
+}
+
+@keyframes jira-floating-timer-log-flash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }

@@ -4,6 +4,8 @@
 
 Easily log time spent on Jira tasks directly from your browser with this convenient Chrome extension, saving you time and increasing productivity.
 
+New here? Read the [getting started guide](docs/getting-started.md) (with screenshots). The extension opens the same guide in a tab on first install, and it is always available from **Settings → About → Open guide**.
+
 ## Features
 
 - Log time spent on Jira tasks directly from your browser.

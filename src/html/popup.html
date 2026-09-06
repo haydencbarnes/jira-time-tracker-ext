@@ -699,7 +699,7 @@
         gap: 2px;
         border: 1px solid #c8d4e5;
         border-radius: 4px;
-        background: #f8fafc;
+        background: #fff;
         padding: 2px;
       }
 
@@ -778,7 +778,8 @@
         padding-bottom: 8px;
       }
 
-      #stats-view {
+      #stats-view,
+      #plan-view {
         display: none;
         padding: 4px 3px 12px;
       }
@@ -886,6 +887,199 @@
         border: 1px solid #dfe1e6;
         border-radius: 6px;
         background: #fff;
+      }
+
+      .plan-summary .stats-card {
+        min-height: 54px;
+      }
+
+      .plan-capacity-input,
+      .plan-duration-input {
+        width: 72px;
+        box-sizing: border-box;
+        border: 1px solid #c8d4e5;
+        border-radius: 4px;
+        background: #fff;
+        color: #172b4d;
+        font-size: 14px;
+        font-weight: bold;
+        line-height: 1;
+        padding: 4px 6px;
+      }
+
+      .plan-duration-input {
+        width: 64px;
+        font-size: 12px;
+        font-weight: normal;
+        text-align: center;
+      }
+
+      .plan-capacity-input:focus,
+      .plan-duration-input:focus {
+        outline: none;
+        border-color: #0052cc;
+      }
+
+      .plan-duration-input.invalid,
+      .plan-capacity-input.invalid {
+        border-color: #de350b;
+      }
+
+      .plan-remaining-over {
+        color: #de350b;
+      }
+
+      .plan-capacity-bar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 8px;
+      }
+
+      .plan-capacity-bar .stats-bar-track {
+        height: 10px;
+      }
+
+      .plan-capacity-bar-fill.over {
+        background: #de350b;
+      }
+
+      .plan-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .plan-section-header .stats-section-title {
+        margin-bottom: 0;
+      }
+
+      .plan-clear-btn,
+      .plan-add-btn,
+      .plan-remove-btn {
+        box-sizing: border-box;
+        border: 1px solid #c8d4e5;
+        border-radius: 4px;
+        background: #fff;
+        color: #253858;
+        cursor: pointer;
+        font-size: 11px;
+        line-height: 1;
+      }
+
+      .plan-clear-btn,
+      .plan-add-btn {
+        height: 24px;
+        padding: 5px 7px;
+      }
+
+      .plan-remove-btn {
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        font-size: 14px;
+      }
+
+      .plan-clear-btn:hover,
+      .plan-add-btn:hover,
+      .plan-remove-btn:hover {
+        background: #eef4ff;
+        border-color: #0052cc;
+      }
+
+      .plan-issue-list {
+        max-height: 280px;
+        overflow-y: auto;
+      }
+
+      .plan-item-row,
+      .plan-available-row {
+        display: grid;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        border-top: 1px solid #f1f2f4;
+        font-size: 11px;
+        padding: 4px 0;
+      }
+
+      .plan-item-row {
+        grid-template-columns: 14px minmax(0, 1fr) 44px 64px 44px 22px;
+      }
+
+      .plan-log-btn {
+        height: 24px;
+        box-sizing: border-box;
+        border: none;
+        border-radius: 4px;
+        background: #0052cc;
+        color: #fff;
+        cursor: pointer;
+        font-size: 11px;
+        line-height: 1;
+        padding: 5px 7px;
+      }
+
+      .plan-log-btn:hover {
+        background: #0041a8;
+      }
+
+      .plan-log-btn:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+
+      .plan-available-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .plan-item-row:first-child,
+      .plan-available-row:first-child {
+        border-top: none;
+      }
+
+      .plan-item-row.dragging {
+        opacity: 0.55;
+      }
+
+      .plan-item-row.drag-over {
+        border-top-color: #0052cc;
+      }
+
+      .plan-drag-handle {
+        color: #6b778c;
+        cursor: grab;
+        font-size: 12px;
+        line-height: 1;
+        user-select: none;
+      }
+
+      .plan-logged {
+        color: #5e6c84;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .plan-hint {
+        color: #5e6c84;
+        font-size: 11px;
+        margin: 0 0 8px;
+      }
+
+      .plan-item-row.success-highlight {
+        background-color: rgba(211, 245, 211, 0.5);
+      }
+
+      .plan-item-row.error-highlight {
+        background-color: rgba(255, 221, 221, 0.6);
+      }
+
+      .plan-item-row.fade-highlight {
+        background-color: transparent;
+        transition: background-color 1s ease-out;
       }
 
       #weekly-log-table {
@@ -1216,16 +1410,81 @@
         background: #90ee90;
       }
 
-      body.dark-mode .stats-issue-row {
+      body.dark-mode .stats-issue-row,
+      body.dark-mode .plan-item-row,
+      body.dark-mode .plan-available-row {
         border-top-color: #333;
       }
 
-      body.dark-mode .weekly-log-btn {
+      body.dark-mode .plan-capacity-input,
+      body.dark-mode .plan-duration-input,
+      body.dark-mode .plan-clear-btn,
+      body.dark-mode .plan-add-btn,
+      body.dark-mode .plan-remove-btn {
+        background: #1a1a1a;
+        border-color: #333;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .plan-capacity-input:focus,
+      body.dark-mode .plan-duration-input:focus {
+        border-color: #4690dd;
+      }
+
+      body.dark-mode .plan-clear-btn:hover,
+      body.dark-mode .plan-add-btn:hover,
+      body.dark-mode .plan-remove-btn:hover {
+        background: #252525;
+        border-color: #4690dd;
+      }
+
+      body.dark-mode .plan-duration-input.invalid,
+      body.dark-mode .plan-capacity-input.invalid,
+      body.dark-mode .plan-remaining-over {
+        border-color: #ff8f73;
+        color: #ff8f73;
+      }
+
+      body.dark-mode .plan-remaining-over {
+        border-color: transparent;
+      }
+
+      body.dark-mode .plan-capacity-bar-fill.over {
+        background: #ff8f73;
+      }
+
+      body.dark-mode .plan-drag-handle,
+      body.dark-mode .plan-logged,
+      body.dark-mode .plan-hint {
+        color: #aaa;
+      }
+
+      body.dark-mode .plan-item-row.drag-over {
+        border-top-color: #4690dd;
+      }
+
+      body.dark-mode .plan-item-row.success-highlight {
+        background-color: rgba(46, 139, 87, 0.3);
+      }
+
+      body.dark-mode .plan-item-row.error-highlight {
+        background-color: rgba(139, 0, 0, 0.4);
+      }
+
+      body.dark-mode .plan-item-row.fade-highlight {
+        background-color: transparent;
+      }
+
+      body.dark-mode .weekly-log-btn,
+      body.dark-mode .plan-log-btn,
+      body.dark-mode #plan-log-confirm-btn {
         background: #4690dd;
         color: #1a1a1a;
       }
 
-      body.dark-mode .weekly-log-btn:hover {
+      body.dark-mode .weekly-log-btn:hover,
+      body.dark-mode .plan-log-btn:hover,
+      body.dark-mode #plan-log-confirm-btn:hover {
         background: #5e9fe3;
       }
 
@@ -1736,6 +1995,248 @@
       body.dark-mode .gear-hint {
         color: #666;
       }
+
+      #plan-log-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 10002;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 20px;
+      }
+
+      #plan-log-modal {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        width: 420px;
+        max-width: calc(100vw - 32px);
+        max-height: 80vh;
+        overflow-y: auto;
+        font-size: 12px;
+      }
+
+      #plan-log-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-bottom: 1px solid #e5e5e5;
+        font-weight: bold;
+        font-size: 13px;
+      }
+
+      #plan-log-modal-close {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #666;
+        padding: 0 4px;
+        line-height: 1;
+        width: auto;
+      }
+
+      #plan-log-modal-close:hover {
+        color: #000;
+      }
+
+      #plan-log-modal-body {
+        padding: 12px 14px 14px;
+      }
+
+      .plan-log-lead {
+        margin: 0 0 8px;
+        color: #5e6c84;
+      }
+
+      .plan-log-issue-key {
+        display: inline-block;
+        font-size: 16px;
+        font-weight: bold;
+        color: #0052cc;
+        text-decoration: none;
+      }
+
+      .plan-log-issue-key:hover {
+        text-decoration: underline;
+      }
+
+      .plan-log-issue-summary {
+        color: #172b4d;
+        margin: 4px 0 2px;
+        font-size: 12px;
+      }
+
+      .plan-log-issue-url {
+        color: #5e6c84;
+        font-size: 10px;
+        word-break: break-all;
+        margin: 0 0 10px;
+      }
+
+      .plan-log-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 0 0 10px;
+      }
+
+      .plan-log-details div {
+        border: 1px solid #dfe1e6;
+        border-radius: 6px;
+        padding: 8px;
+        background: #f8fafc;
+      }
+
+      .plan-log-details dt {
+        color: #5e6c84;
+        font-size: 10px;
+        margin: 0 0 4px;
+      }
+
+      .plan-log-details dd {
+        margin: 0;
+        color: #172b4d;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      .plan-log-already {
+        margin: 0 0 10px;
+        color: #5e6c84;
+        font-size: 11px;
+      }
+
+      .plan-log-comment-label {
+        display: block;
+        color: #5e6c84;
+        font-size: 11px;
+        margin-bottom: 4px;
+      }
+
+      #plan-log-comment {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 56px;
+        margin-bottom: 12px;
+        padding: 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        resize: vertical;
+      }
+
+      #plan-log-comment:focus {
+        outline: none;
+        border-color: #0052cc;
+      }
+
+      .plan-log-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      #plan-log-cancel-btn,
+      #plan-log-confirm-btn {
+        height: 32px;
+        box-sizing: border-box;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0 12px;
+      }
+
+      #plan-log-cancel-btn {
+        border: 1px solid #c8d4e5;
+        background: #fff;
+        color: #253858;
+      }
+
+      #plan-log-cancel-btn:hover {
+        background: #eef4ff;
+        border-color: #0052cc;
+      }
+
+      #plan-log-confirm-btn {
+        border: none;
+        background: #0052cc;
+        color: #fff;
+      }
+
+      #plan-log-confirm-btn:hover {
+        background: #0041a8;
+      }
+
+      #plan-log-confirm-btn:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+
+      body.dark-mode #plan-log-modal {
+        background: #1e1e1e;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        color: #e0e0e0;
+      }
+
+      body.dark-mode #plan-log-modal-header {
+        border-bottom-color: #333;
+      }
+
+      body.dark-mode #plan-log-modal-close {
+        color: #aaa;
+      }
+
+      body.dark-mode #plan-log-modal-close:hover {
+        color: #fff;
+      }
+
+      body.dark-mode .plan-log-lead,
+      body.dark-mode .plan-log-issue-url,
+      body.dark-mode .plan-log-already,
+      body.dark-mode .plan-log-comment-label,
+      body.dark-mode .plan-log-details dt {
+        color: #aaa;
+      }
+
+      body.dark-mode .plan-log-issue-key {
+        color: #4690dd;
+      }
+
+      body.dark-mode .plan-log-issue-summary,
+      body.dark-mode .plan-log-details dd {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .plan-log-details div {
+        background: #141414;
+        border-color: #333;
+      }
+
+      body.dark-mode #plan-log-comment {
+        background: #141414;
+        color: #e0e0e0;
+        border-color: #333;
+      }
+
+      body.dark-mode #plan-log-comment:focus {
+        border-color: #4690dd;
+      }
+
+      body.dark-mode #plan-log-cancel-btn {
+        background: #1a1a1a;
+        border-color: #333;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode #plan-log-cancel-btn:hover {
+        background: #252525;
+        border-color: #4690dd;
+      }
     </style>
   </head>
 
@@ -1768,6 +2269,14 @@
             role="tab"
           >
             Stats
+          </button>
+          <button
+            class="view-tab-btn"
+            type="button"
+            data-time-entry-view="plan"
+            role="tab"
+          >
+            Plan
           </button>
         </div>
         <div id="week-controls" class="week-controls">
@@ -1811,6 +2320,9 @@
       </div>
       <div id="stats-view">
         <div id="stats-content"></div>
+      </div>
+      <div id="plan-view">
+        <div id="plan-content"></div>
       </div>
       <div id="loader-container">
         <div class="loader"></div>
@@ -1898,6 +2410,7 @@
                   <option value="table">Table</option>
                   <option value="week">Week</option>
                   <option value="stats">Stats</option>
+                  <option value="plan">Plan</option>
                 </select>
               </label>
             </div>
@@ -1912,7 +2425,8 @@
               >
             </div>
             <p class="gear-hint">
-              Filter which Jira issues appear in the Time Table using a
+              Filter which Jira issues appear in the Time Table and Plan views
+              using a
               <a
                 class="gear-jql-link"
                 href="https://support.atlassian.com/jira-service-management-cloud/docs/use-advanced-search-with-jira-query-language-jql/"
@@ -1945,6 +2459,53 @@
             <ul id="gear-column-order"></ul>
           </div>
           <button id="gear-save-btn">Save & Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="plan-log-modal-backdrop" style="display: none">
+      <div
+        id="plan-log-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="plan-log-modal-title"
+      >
+        <div id="plan-log-modal-header">
+          <span id="plan-log-modal-title">Confirm worklog</span>
+          <button id="plan-log-modal-close" type="button">&times;</button>
+        </div>
+        <div id="plan-log-modal-body">
+          <p class="plan-log-lead">This time will be logged to:</p>
+          <a
+            id="plan-log-issue-link"
+            class="plan-log-issue-key"
+            target="_blank"
+            rel="noopener noreferrer"
+          ></a>
+          <div id="plan-log-issue-summary" class="plan-log-issue-summary"></div>
+          <div id="plan-log-issue-url" class="plan-log-issue-url"></div>
+          <dl class="plan-log-details">
+            <div>
+              <dt>Date</dt>
+              <dd id="plan-log-date"></dd>
+            </div>
+            <div>
+              <dt>Time</dt>
+              <dd id="plan-log-time"></dd>
+            </div>
+          </dl>
+          <p id="plan-log-already" class="plan-log-already" hidden></p>
+          <label class="plan-log-comment-label" for="plan-log-comment"
+            >Worklog comment</label
+          >
+          <textarea
+            id="plan-log-comment"
+            placeholder="Worklog comment"
+          ></textarea>
+          <div class="plan-log-actions">
+            <button type="button" id="plan-log-cancel-btn">Cancel</button>
+            <button type="button" id="plan-log-confirm-btn">Log time</button>
+          </div>
         </div>
       </div>
     </div>
