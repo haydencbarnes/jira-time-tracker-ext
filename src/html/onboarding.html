@@ -1,0 +1,681 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Getting started with Jira Log Time</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fa;
+        --surface: #ffffff;
+        --surface-alt: #f4f6f8;
+        --text: #172b4d;
+        --muted: #5e6c84;
+        --border: #dfe1e6;
+        --primary: #0052cc;
+        --primary-hover: #0041a8;
+        --primary-soft: #e9f0fb;
+        --success: #00875a;
+        --shadow: 0 10px 30px rgba(9, 30, 66, 0.08);
+      }
+
+      html {
+        background: var(--bg);
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      a {
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      code,
+      kbd {
+        font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+        font-size: 0.92em;
+        background: var(--surface-alt);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 5px;
+      }
+
+      .page {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 36px 24px 96px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 18px;
+        align-items: center;
+        margin-bottom: 26px;
+      }
+
+      .hero img {
+        width: 56px;
+        height: 56px;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      .hero p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .hero-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+      }
+
+      .button:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      .button.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+
+      .button.primary:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+        color: #fff;
+      }
+
+      .steps-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 28px;
+        padding: 0;
+        list-style: none;
+      }
+
+      .steps-nav a {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px 6px 6px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .steps-nav a:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      .step-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--primary);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        flex: 0 0 auto;
+      }
+
+      .step {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        padding: 24px 26px 26px;
+        margin-bottom: 22px;
+        scroll-margin-top: 20px;
+      }
+
+      .step-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+
+      .step-header .step-number {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+      }
+
+      .step h2 {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.3;
+      }
+
+      .step .lead {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .step ol,
+      .step ul {
+        margin: 0 0 16px;
+        padding-left: 22px;
+        font-size: 14px;
+      }
+
+      .step li {
+        margin-bottom: 6px;
+      }
+
+      .step li:last-child {
+        margin-bottom: 0;
+      }
+
+      .shot {
+        margin: 0;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--surface-alt);
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .shot.inline {
+        display: inline-block;
+        max-width: 520px;
+      }
+
+      .shot + .shot {
+        margin-top: 14px;
+      }
+
+      .shot figcaption {
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+      }
+
+      .note {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        margin: 0 0 16px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        background: var(--primary-soft);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .note strong {
+        color: var(--primary);
+      }
+
+      .tips {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .tips li {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: var(--surface-alt);
+        font-size: 13px;
+        margin: 0;
+      }
+
+      .tips strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+      }
+
+      .footer {
+        margin-top: 30px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .footer .button {
+        margin-top: 14px;
+      }
+
+      body.dark-mode {
+        --bg: #141414;
+        --surface: #1a1a1a;
+        --surface-alt: #202020;
+        --text: #e0e0e0;
+        --muted: #b3bac5;
+        --border: #333333;
+        --primary: #4690dd;
+        --primary-hover: #5e9fe3;
+        --primary-soft: #1d2a3a;
+        --success: #79f2c0;
+        --shadow: none;
+        color-scheme: dark;
+      }
+
+      html.dark-mode {
+        background: #141414;
+      }
+
+      body.dark-mode .button.primary {
+        color: #1a1a1a;
+      }
+
+      body.dark-mode .step-number {
+        color: #1a1a1a;
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          padding: 24px 14px 72px;
+        }
+
+        .step {
+          padding: 18px 16px 20px;
+        }
+
+        .shot.inline {
+          max-width: 100%;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="page">
+      <header class="hero">
+        <img src="src/icons/jira_logo128.png" alt="" />
+        <div>
+          <h1>Getting started with Jira Log Time</h1>
+          <p>
+            Five short steps: connect your Jira account, then log time from the
+            Time Table, the Timer, the floating timer, or your daily plan.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button type="button" class="button primary" id="openSettings">
+            Open Settings
+          </button>
+          <button type="button" class="button" id="openTimeTable">
+            Open Time Table
+          </button>
+          <button type="button" class="button" id="openTimer">
+            Open Timer
+          </button>
+        </div>
+      </header>
+
+      <ol class="steps-nav" aria-label="Steps">
+        <li>
+          <a href="#connect"><span class="step-number">1</span>Connect</a>
+        </li>
+        <li>
+          <a href="#time-table"><span class="step-number">2</span>Time Table</a>
+        </li>
+        <li>
+          <a href="#timer"><span class="step-number">3</span>Timer</a>
+        </li>
+        <li>
+          <a href="#floating-timer"
+            ><span class="step-number">4</span>Floating timer</a
+          >
+        </li>
+        <li>
+          <a href="#plan"><span class="step-number">5</span>Plan your day</a>
+        </li>
+        <li>
+          <a href="#tips"><span class="step-number">✓</span>Tips</a>
+        </li>
+      </ol>
+
+      <section class="step" id="connect">
+        <div class="step-header">
+          <span class="step-number">1</span>
+          <h2>Connect your Jira account</h2>
+        </div>
+        <p class="lead">
+          Open <strong>Settings</strong> (the gear in the top-right corner of
+          the popup, or right-click the toolbar icon and choose
+          <em>Options</em>) and fill in the <strong>Account</strong> page.
+        </p>
+        <ol>
+          <li>
+            <strong>Jira instance</strong>: pick <em>Jira Cloud</em> for
+            <code>*.atlassian.net</code> sites, or <em>Jira Server</em> for a
+            self-hosted Server / Data Center instance.
+          </li>
+          <li>
+            <strong>Jira URL</strong>: your site address, for example
+            <code>https://your-team.atlassian.net</code>.
+          </li>
+          <li>
+            <strong>Username or email</strong>: the email on your Atlassian
+            account (Cloud) or your Jira username (Server).
+          </li>
+          <li>
+            <strong>API token</strong>: on Cloud, create one at
+            <a
+              href="https://id.atlassian.com/manage-profile/security/api-tokens"
+              target="_blank"
+              rel="noopener"
+              >id.atlassian.com → Security → API tokens</a
+            >. On Server / Data Center, use a personal access token from your
+            profile (or your password if tokens are disabled).
+          </li>
+          <li>
+            Click <strong>Save</strong> next to each field you change. Settings
+            are stored in your Chrome profile and sync with your Google account.
+          </li>
+        </ol>
+        <figure class="shot">
+          <img
+            src="src/images/onboarding/settings-account.png"
+            alt="Settings page, Account section, with Jira Cloud selected and the URL, email, and API token fields filled in"
+          />
+          <figcaption>
+            Settings → Account. The email and token stay masked; use the eye
+            button to check the email.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="step" id="time-table">
+        <div class="step-header">
+          <span class="step-number">2</span>
+          <h2>Log time from the Time Table</h2>
+        </div>
+        <p class="lead">
+          Click the extension icon in the toolbar. The
+          <strong>Table</strong> tab lists your work items, with one row per
+          issue.
+        </p>
+        <ol>
+          <li>
+            Rows come from a JQL query. The default shows issues assigned to you
+            or that you have logged time on, excluding Closed and Done. Change
+            it from the gear icon at the top right of the table.
+          </li>
+          <li>
+            Type a duration in <strong>Log</strong> (<code>1h 30m</code>,
+            <code>45m</code>, <code>2h</code>), add an optional worklog comment,
+            and pick the date.
+          </li>
+          <li>
+            Press the blue <strong>⇡</strong> button on the row to post the
+            worklog. The <strong>Total</strong> column updates immediately.
+          </li>
+        </ol>
+        <ul>
+          <li>
+            <strong>★</strong> pins an issue to the top of the table. Hover the
+            issue key to see its last five worklogs.
+          </li>
+          <li>
+            The <strong>1</strong> and <strong>2</strong> buttons insert your
+            saved worklog snippets (Settings → Worklog snippets).
+          </li>
+          <li>
+            The gear also toggles the <strong>Status</strong>,
+            <strong>Assignee</strong>, <strong>Total</strong>, and
+            <strong>Comment</strong> columns, sets the sort order, and lets you
+            drag columns into a new order.
+          </li>
+          <li>
+            <strong>Week</strong> and <strong>Stats</strong> show what you have
+            already logged.
+          </li>
+        </ul>
+        <figure class="shot">
+          <img
+            src="src/images/onboarding/time-table.png"
+            alt="Time Table tab showing five sample issues with Log, Worklog Comment, Date, and submit columns"
+          />
+          <figcaption>
+            Table tab with sample issues. Enter a duration, then press ⇡ on the
+            row.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="step" id="timer">
+        <div class="step-header">
+          <span class="step-number">3</span>
+          <h2>Track work with the Timer</h2>
+        </div>
+        <p class="lead">
+          Open the stopwatch icon in the footer, or make the Timer your default
+          tab under Settings → Behavior.
+        </p>
+        <ol>
+          <li>
+            Pick a <strong>Project ID</strong> and a
+            <strong>Work Item ID</strong>
+            from the autocomplete lists, or type a key such as
+            <code>ACME-42</code> directly. The project follows the key you type.
+          </li>
+          <li>
+            Press <strong>▶</strong> to start. The timer keeps running while the
+            popup is closed, and the toolbar badge shows the elapsed time.
+          </li>
+          <li>
+            Use <strong>✎</strong> to edit the elapsed time,
+            <strong>🗑</strong> to reset, and <strong>💬</strong> to add a
+            worklog comment.
+          </li>
+          <li>
+            Press <strong>⇡</strong> to log the elapsed time to the work item.
+            The timer resets after a successful log.
+          </li>
+        </ol>
+        <figure class="shot">
+          <img
+            src="src/images/onboarding/timer.png"
+            alt="Timer page with a project and work item selected and a running timer at 27 minutes"
+          />
+          <figcaption>
+            Timer page with a running timer. ⇡ logs the elapsed time.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="step" id="floating-timer">
+        <div class="step-header">
+          <span class="step-number">4</span>
+          <h2>Keep the timer in view on any page</h2>
+        </div>
+        <p class="lead">
+          Turn on <strong>Floating timer</strong> under Settings → Behavior and
+          a small pill follows you onto every web page.
+        </p>
+        <ul>
+          <li>
+            It shows the current work item and elapsed time. Choose whether it
+            displays the ID and title, the title only, or the ID only.
+          </li>
+          <li>
+            Drag it anywhere by the grip on the left; it remembers its spot.
+          </li>
+          <li>
+            <strong>▶ / ⏸</strong> starts and pauses,
+            <strong>🗑</strong> resets, and <strong>⇡</strong> opens a
+            confirmation showing exactly what will be logged. A green outline
+            and a short chime confirm success.
+          </li>
+          <li>
+            Hover the grip for three seconds and it becomes an
+            <strong>✕</strong>. Clicking it hides the floating timer without
+            stopping the timer; turn it back on in Settings.
+          </li>
+        </ul>
+        <figure class="shot inline">
+          <img
+            src="src/images/onboarding/floating-timer.png"
+            alt="Floating timer pill showing a work item key, elapsed time, title, and pause, reset, and log buttons"
+          />
+          <figcaption>The floating timer pill over a web page.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img
+            src="src/images/onboarding/settings-behavior.png"
+            alt="Settings page, Behavior section, with the Floating timer toggle turned on"
+          />
+          <figcaption>
+            Settings → Behavior: enable the floating timer.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="step" id="plan">
+        <div class="step-header">
+          <span class="step-number">5</span>
+          <h2>Plan your day</h2>
+        </div>
+        <p class="lead">
+          The <strong>Plan</strong> tab lays out how you want to spend the day
+          and lets you log each block when it is done.
+        </p>
+        <ol>
+          <li>Set your <strong>Day capacity</strong> (for example 8h).</li>
+          <li>
+            <strong>Add</strong> work items from your Time Table and give each a
+            planned duration. Drag the ☰ handle to reorder.
+          </li>
+          <li>
+            Press <strong>Log</strong> on a row. A dialog shows the issue, the
+            date, and the time that will be posted; confirm to log it.
+          </li>
+          <li>
+            Use the arrows next to the date to plan tomorrow or review earlier
+            days.
+          </li>
+        </ol>
+        <figure class="shot">
+          <img
+            src="src/images/onboarding/plan.png"
+            alt="Plan tab showing day capacity, planned and logged totals, a day plan with three items, and the Add from Time Table list"
+          />
+          <figcaption>Plan tab with a sample day plan.</figcaption>
+        </figure>
+      </section>
+
+      <section class="step" id="tips">
+        <div class="step-header">
+          <span class="step-number">✓</span>
+          <h2>More ways to save time</h2>
+        </div>
+        <ul class="tips">
+          <li>
+            <strong>Work item detection</strong>
+            Issue keys on any web page get a small timer icon. Click it to log
+            time without leaving the page (Settings → Behavior).
+          </li>
+          <li>
+            <strong>Search</strong>
+            The magnifier in the footer finds any issue, even ones outside your
+            JQL, and logs time to it.
+          </li>
+          <li>
+            <strong>CLI</strong>
+            The » page takes one-line commands like
+            <code>ACME-42 1h 30m yesterday Fix tests</code>.
+          </li>
+          <li>
+            <strong>Worklog snippets</strong>
+            Save two comment presets under Settings → Worklog snippets and
+            insert them with the 1 and 2 buttons.
+          </li>
+          <li>
+            <strong>Dark mode</strong>
+            Use the 🌙 button in the footer, or follow your system theme from
+            Settings → Behavior.
+          </li>
+          <li>
+            <strong>Full-page view</strong>
+            Under Settings → Experimental, open the extension in a tab instead
+            of a popup.
+          </li>
+        </ul>
+      </section>
+
+      <footer class="footer">
+        Reopen this guide any time from Settings → About.
+        <br />
+        Questions or ideas?
+        <a
+          href="https://github.com/haydencbarnes/jira-time-tracker-ext/issues"
+          target="_blank"
+          rel="noopener"
+          >Open an issue on GitHub</a
+        >.
+        <div>
+          <button type="button" class="button primary" id="openSettingsFooter">
+            Open Settings
+          </button>
+        </div>
+      </footer>
+    </div>
+    <script src="dist/onboarding.js"></script>
+  </body>
+</html>

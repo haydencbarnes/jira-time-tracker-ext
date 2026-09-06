@@ -12,6 +12,7 @@ const htmlEntries = [
   { source: 'src/html/search.html', output: 'search.html' },
   { source: 'src/html/options.html', output: 'options.html' },
   { source: 'src/html/cli.html', output: 'cli.html' },
+  { source: 'src/html/onboarding.html', output: 'onboarding.html' },
   {
     source: 'src/html/timerFeatureModule/timer.html',
     output: 'timerFeatureModule/timer.html',
@@ -27,6 +28,7 @@ await build({
     search: 'src/ts/search.ts',
     options: 'src/ts/options.ts',
     cli: 'src/ts/cli.ts',
+    onboarding: 'src/ts/onboarding.ts',
     'jira-issue-detection': 'src/ts/jira-issue-detection.ts',
     'floating-timer-widget': 'src/ts/floating-timer-widget.ts',
     'timerFeatureModule/timer': 'src/ts/timerFeatureModule/timer.ts',
@@ -58,6 +60,7 @@ for (const entry of htmlEntries) {
     html = html
       .replace(/dist\//g, '')
       .replaceAll('src/icons/', '../src/icons/')
+      .replaceAll('src/images/', '../src/images/')
       .replace('dynamically by dist/popup.js', 'dynamically by popup.js');
   }
 

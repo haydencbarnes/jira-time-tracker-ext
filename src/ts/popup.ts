@@ -48,6 +48,25 @@ type StatsIssueTotal = {
   seconds: number;
 };
 
+type DayPlanItem = {
+  key: string;
+  plannedSeconds: number;
+};
+
+type DayPlan = {
+  capacitySeconds: number;
+  items: DayPlanItem[];
+};
+
+type PendingPlanLog = {
+  issueKey: string;
+  summary: string;
+  dateKey: string;
+  seconds: number;
+  issueUrl: string;
+  alreadyLoggedSeconds: number;
+};
+
 type WeeklyWorklogTotalsCacheEntry = {
   data: WeeklyWorklogTotals;
   ts: number;
@@ -59,8 +78,24 @@ const WEEKLY_WORKLOG_TOTALS_CACHE_TTL_MS = 60 * 1000;
 const GEAR_ICON_SVG =
   '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M6.5.5a.5.5 0 0 0-.5.5v1.07a5.5 5.5 0 0 0-1.56.64L3.7 1.97a.5.5 0 0 0-.7 0l-.71.7a.5.5 0 0 0 0 .71l.74.74A5.5 5.5 0 0 0 2.4 5.7H1.3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1.1a5.5 5.5 0 0 0 .63 1.58l-.74.74a.5.5 0 0 0 0 .7l.71.71a.5.5 0 0 0 .7 0l.74-.74a5.5 5.5 0 0 0 1.56.64V12.5a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1.07a5.5 5.5 0 0 0 1.56-.64l.74.74a.5.5 0 0 0 .7 0l.71-.7a.5.5 0 0 0 0-.71l-.74-.74A5.5 5.5 0 0 0 11.6 7.7h1.1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1.1a5.5 5.5 0 0 0-.63-1.58l.74-.74a.5.5 0 0 0 0-.7l-.71-.71a.5.5 0 0 0-.7 0l-.74.74A5.5 5.5 0 0 0 8 2.07V1a.5.5 0 0 0-.5-.5h-1zM7 4.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z"/></svg>';
 
+const DEFAULT_PLAN_CAPACITY_SECONDS = 8 * 60 * 60;
+const DAY_PLANS_STORAGE_KEY = 'dayPlans';
+const PLAN_LOGGED_TTL_MS = 60 * 1000;
+const DAY_PLAN_RETENTION_DAYS = 90;
+
 let activeTimeEntryView: TimeEntryView = 'table';
 let currentWeekStart = getStartOfWeek(new Date());
+let currentPlanDate = getStartOfDay(new Date());
+let dayPlans: Record<string, DayPlan> = {};
+let dayPlansLoaded = false;
+let lastPlanLoggedSeconds: Record<string, number> = {};
+let pendingPlanLog: PendingPlanLog | null = null;
+let planLogModalInitialized = false;
+const planLoggedRequests = new Map<string, Promise<Record<string, number>>>();
+const planLoggedCache = new Map<
+  string,
+  { data: Record<string, number>; ts: number }
+>();
 let currentIssuesResponse: JiraIssuesResponse | null = null;
 let currentIssuesResponseVersion = 0;
 let currentPopupOptions: PopupOptions | null = null;
@@ -184,9 +219,14 @@ function normalizeColumnOrder(stored: unknown): ColumnId[] {
   return ['issueId', ...withoutLocked, 'actions'];
 }
 
+function getStartOfDay(date: Date): Date {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
 function getStartOfWeek(date: Date): Date {
-  const weekStart = new Date(date);
-  weekStart.setHours(0, 0, 0, 0);
+  const weekStart = getStartOfDay(date);
   const day = weekStart.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   weekStart.setDate(weekStart.getDate() + diff);
@@ -490,15 +530,27 @@ function initViewControls() {
   ) as HTMLButtonElement | null;
 
   prevBtn?.addEventListener('click', () => {
-    currentWeekStart = addDays(currentWeekStart, -7);
+    if (activeTimeEntryView === 'plan') {
+      currentPlanDate = addDays(currentPlanDate, -1);
+    } else {
+      currentWeekStart = addDays(currentWeekStart, -7);
+    }
     void renderActiveTimeEntryView();
   });
   nextBtn?.addEventListener('click', () => {
-    currentWeekStart = addDays(currentWeekStart, 7);
+    if (activeTimeEntryView === 'plan') {
+      currentPlanDate = addDays(currentPlanDate, 1);
+    } else {
+      currentWeekStart = addDays(currentWeekStart, 7);
+    }
     void renderActiveTimeEntryView();
   });
   todayBtn?.addEventListener('click', () => {
-    currentWeekStart = getStartOfWeek(new Date());
+    if (activeTimeEntryView === 'plan') {
+      currentPlanDate = getStartOfDay(new Date());
+    } else {
+      currentWeekStart = getStartOfWeek(new Date());
+    }
     void renderActiveTimeEntryView();
   });
   viewButtons.forEach((button) => {
@@ -517,6 +569,7 @@ function initViewControls() {
   }
 
   setTimeEntryView(activeTimeEntryView);
+  initPlanLogModal();
 }
 
 function renderActiveTimeEntryView() {
@@ -528,7 +581,11 @@ function renderActiveTimeEntryView() {
     return renderCurrentStatsView();
   }
 
-  updateWeekRangeLabel();
+  if (activeTimeEntryView === 'plan') {
+    return renderCurrentPlanView();
+  }
+
+  updateDateNavControls();
   return Promise.resolve();
 }
 
@@ -543,15 +600,17 @@ function setTimeEntryView(view: TimeEntryView) {
   const tableView = document.getElementById('table-view');
   const weekView = document.getElementById('week-view');
   const statsView = document.getElementById('stats-view');
+  const planView = document.getElementById('plan-view');
   const weekControls = document.getElementById('week-controls');
 
   if (tableView) tableView.style.display = view === 'table' ? 'block' : 'none';
   if (weekView) weekView.style.display = view === 'week' ? 'block' : 'none';
   if (statsView) statsView.style.display = view === 'stats' ? 'block' : 'none';
+  if (planView) planView.style.display = view === 'plan' ? 'block' : 'none';
   if (viewToolbar) viewToolbar.style.display = 'grid';
   if (weekControls) {
     weekControls.style.display =
-      view === 'week' || view === 'stats' ? 'flex' : 'none';
+      view === 'week' || view === 'stats' || view === 'plan' ? 'flex' : 'none';
   }
 
   document
@@ -562,6 +621,7 @@ function setTimeEntryView(view: TimeEntryView) {
       button.setAttribute('aria-selected', String(isActive));
     });
 
+  updateDateNavControls();
   void renderActiveTimeEntryView();
 }
 
@@ -740,8 +800,35 @@ function updateWeekRangeLabel() {
   const rangeLabel = document.getElementById('week-range-label');
   if (!rangeLabel) return;
 
+  if (activeTimeEntryView === 'plan') {
+    rangeLabel.textContent = currentPlanDate.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+    return;
+  }
+
   const weekEnd = addDays(currentWeekStart, 6);
   rangeLabel.textContent = `${formatShortDate(currentWeekStart)} - ${formatShortDate(weekEnd)}`;
+}
+
+function updateDateNavControls() {
+  updateWeekRangeLabel();
+
+  const isPlan = activeTimeEntryView === 'plan';
+  const prevBtn = document.getElementById('week-prev-btn');
+  const nextBtn = document.getElementById('week-next-btn');
+  if (prevBtn) {
+    const label = isPlan ? 'Previous day' : 'Previous week';
+    prevBtn.title = label;
+    prevBtn.setAttribute('aria-label', label);
+  }
+  if (nextBtn) {
+    const label = isPlan ? 'Next day' : 'Next week';
+    nextBtn.title = label;
+    nextBtn.setAttribute('aria-label', label);
+  }
 }
 
 // ===== Theme =====
@@ -825,7 +912,9 @@ function normalizeTimeEntryView(view: unknown): TimeEntryView {
 }
 
 function isTimeEntryView(view: unknown): view is TimeEntryView {
-  return view === 'table' || view === 'week' || view === 'stats';
+  return (
+    view === 'table' || view === 'week' || view === 'stats' || view === 'plan'
+  );
 }
 
 function isTimeTableSort(sort: unknown): sort is TimeTableSort {
@@ -1345,6 +1434,8 @@ function onFetchSuccess(
     void renderCurrentWeeklyView();
   } else if (activeTimeEntryView === 'stats') {
     void renderCurrentStatsView();
+  } else if (activeTimeEntryView === 'plan') {
+    void renderCurrentPlanView();
   }
 }
 
@@ -1904,6 +1995,902 @@ function createIssueStatsSection(
   });
 
   return section;
+}
+
+function getPlanDateKey(): string {
+  return formatWeeklyDateKey(currentPlanDate);
+}
+
+function readDayPlan(dateKey: string): DayPlan {
+  const existing = dayPlans[dateKey];
+  if (!existing) {
+    return { capacitySeconds: DEFAULT_PLAN_CAPACITY_SECONDS, items: [] };
+  }
+
+  return {
+    capacitySeconds: existing.capacitySeconds,
+    items: existing.items.map((item) => ({ ...item })),
+  };
+}
+
+function writeDayPlan(dateKey: string, plan: DayPlan) {
+  const isDefault =
+    plan.items.length === 0 &&
+    plan.capacitySeconds === DEFAULT_PLAN_CAPACITY_SECONDS;
+  if (isDefault) {
+    delete dayPlans[dateKey];
+  } else {
+    dayPlans[dateKey] = {
+      capacitySeconds: plan.capacitySeconds,
+      items: plan.items.map((item) => ({ ...item })),
+    };
+  }
+
+  chrome.storage.local.set({ [DAY_PLANS_STORAGE_KEY]: dayPlans });
+}
+
+function normalizeDayPlans(raw: unknown): Record<string, DayPlan> {
+  if (!raw || typeof raw !== 'object') return {};
+
+  const cutoff = getStartOfDay(addDays(new Date(), -DAY_PLAN_RETENTION_DAYS));
+  const result: Record<string, DayPlan> = {};
+
+  Object.entries(raw as Record<string, unknown>).forEach(([dateKey, value]) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return;
+    const date = new Date(`${dateKey}T00:00:00`);
+    if (isNaN(date.getTime()) || date < cutoff) return;
+    if (!value || typeof value !== 'object') return;
+
+    const record = value as Partial<DayPlan>;
+    const capacity = Number(record.capacitySeconds);
+    const seen = new Set<string>();
+    const items = Array.isArray(record.items)
+      ? record.items.reduce<DayPlanItem[]>((acc, item) => {
+          if (!item || typeof item !== 'object') return acc;
+          const key = String((item as DayPlanItem).key || '').trim();
+          if (!key || seen.has(key)) return acc;
+          seen.add(key);
+          acc.push({
+            key,
+            plannedSeconds: Math.max(
+              0,
+              Number((item as DayPlanItem).plannedSeconds) || 0
+            ),
+          });
+          return acc;
+        }, [])
+      : [];
+
+    result[dateKey] = {
+      capacitySeconds:
+        Number.isFinite(capacity) && capacity > 0
+          ? capacity
+          : DEFAULT_PLAN_CAPACITY_SECONDS,
+      items,
+    };
+  });
+
+  return result;
+}
+
+function ensureDayPlansLoaded(): Promise<void> {
+  if (dayPlansLoaded) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    chrome.storage.local.get({ [DAY_PLANS_STORAGE_KEY]: {} }, (items) => {
+      dayPlans = normalizeDayPlans(items[DAY_PLANS_STORAGE_KEY]);
+      dayPlansLoaded = true;
+      resolve();
+    });
+  });
+}
+
+function getPlanLoggedCacheKey(
+  options: PopupOptions,
+  dateKey: string,
+  issueKeys: string[]
+): string {
+  return [
+    options.jiraType,
+    options.baseUrl,
+    options.username,
+    dateKey,
+    issueKeys.slice().sort().join(','),
+  ].join(':');
+}
+
+async function loadPlanDayLoggedSeconds(
+  options: PopupOptions,
+  issueKeys: string[],
+  dateKey: string
+): Promise<Record<string, number>> {
+  if (issueKeys.length === 0) return {};
+
+  const cacheKey = getPlanLoggedCacheKey(options, dateKey, issueKeys);
+  const cached = planLoggedCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < PLAN_LOGGED_TTL_MS) {
+    return cached.data;
+  }
+
+  const existingRequest = planLoggedRequests.get(cacheKey);
+  if (existingRequest) return existingRequest;
+
+  const request = (async () => {
+    const JIRA = await getSharedJira(options);
+    let currentUser: Awaited<ReturnType<JiraApiClient['login']>> | null = null;
+    try {
+      currentUser = await JIRA.login();
+    } catch (error) {
+      console.warn('Failed to resolve Jira user for plan worklogs:', error);
+    }
+
+    const totals: Record<string, number> = {};
+    await Promise.all(
+      issueKeys.map(async (issueKey) => {
+        try {
+          const response = await JIRA.getIssueWorklog(issueKey);
+          totals[issueKey] = (response.worklogs || []).reduce(
+            (sum, worklog) => {
+              if (!isWorklogByCurrentUser(worklog, currentUser, options)) {
+                return sum;
+              }
+              if (getWorklogDateKey(worklog) !== dateKey) return sum;
+              return sum + worklog.timeSpentSeconds;
+            },
+            0
+          );
+        } catch (error) {
+          console.warn(`Failed to load plan worklogs for ${issueKey}:`, error);
+        }
+      })
+    );
+
+    planLoggedCache.set(cacheKey, { data: totals, ts: Date.now() });
+    return totals;
+  })();
+
+  planLoggedRequests.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    planLoggedRequests.delete(cacheKey);
+  }
+}
+
+async function renderCurrentPlanView() {
+  updateDateNavControls();
+  await ensureDayPlansLoaded();
+  if (activeTimeEntryView !== 'plan') return;
+
+  const dateKey = getPlanDateKey();
+  const plan = readDayPlan(dateKey);
+  lastPlanLoggedSeconds = {};
+  drawPlanView(currentIssuesResponse, currentPopupOptions, plan, {});
+
+  if (!currentPopupOptions || plan.items.length === 0) return;
+
+  try {
+    const logged = await loadPlanDayLoggedSeconds(
+      currentPopupOptions,
+      plan.items.map((item) => item.key),
+      dateKey
+    );
+    if (activeTimeEntryView !== 'plan' || getPlanDateKey() !== dateKey) return;
+    lastPlanLoggedSeconds = logged;
+    applyPlanLoggedSeconds(readDayPlan(dateKey), logged);
+  } catch (error) {
+    console.warn('Failed to load planned-day worklogs:', error);
+  }
+}
+
+function drawPlanView(
+  issuesResponse: JiraIssuesResponse | null,
+  options: PopupOptions | null,
+  plan: DayPlan,
+  loggedByKey: Record<string, number>
+) {
+  const planContent = document.getElementById('plan-content');
+  if (!planContent) return;
+
+  planContent.replaceChildren();
+
+  const issuesByKey = new Map(
+    (issuesResponse?.data || []).map((issue) => [issue.key, issue])
+  );
+  const plannedKeys = new Set(plan.items.map((item) => item.key));
+  const availableIssues = options
+    ? sortIssues(
+        (issuesResponse?.data || []).filter(
+          (issue) => !plannedKeys.has(issue.key)
+        ),
+        options.starredIssues,
+        options.timeTableSort
+      )
+    : [];
+
+  const hint = document.createElement('p');
+  hint.className = 'plan-hint';
+  hint.textContent =
+    'Add work items from your Time Table and set how long you want to spend on each. Log asks you to confirm the Jira issue and date before anything is posted.';
+  planContent.appendChild(hint);
+
+  planContent.appendChild(createPlanSummary(plan, loggedByKey));
+  planContent.appendChild(createPlanCapacityBar(plan));
+
+  const grid = document.createElement('div');
+  grid.className = 'stats-grid';
+  grid.appendChild(
+    createPlanItemsSection(plan, issuesByKey, options, loggedByKey)
+  );
+  grid.appendChild(createPlanAvailableSection(availableIssues, options));
+  planContent.appendChild(grid);
+}
+
+function createPlanSummary(
+  plan: DayPlan,
+  loggedByKey: Record<string, number>
+): HTMLElement {
+  const plannedSeconds = getPlanPlannedSeconds(plan);
+  const loggedSeconds = getPlanLoggedSeconds(plan, loggedByKey);
+  const remainingSeconds = plan.capacitySeconds - plannedSeconds;
+
+  const summary = document.createElement('div');
+  summary.className = 'stats-summary plan-summary';
+
+  const capacityCard = createStatsCard('Day capacity', '');
+  const capacityValue = capacityCard.querySelector('.stats-value');
+  if (capacityValue) {
+    capacityValue.replaceChildren();
+    const input = document.createElement('input');
+    input.id = 'plan-capacity-input';
+    input.className = 'plan-capacity-input';
+    input.type = 'text';
+    input.setAttribute('aria-label', 'Day capacity');
+    input.value = formatInputTotal(plan.capacitySeconds);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        input.blur();
+      }
+    });
+    input.addEventListener('blur', () => commitPlanCapacity(input));
+    capacityValue.appendChild(input);
+  }
+  summary.appendChild(capacityCard);
+
+  const plannedCard = createStatsCard(
+    'Planned',
+    formatInputTotal(plannedSeconds)
+  );
+  plannedCard
+    .querySelector('.stats-value')
+    ?.setAttribute('id', 'plan-planned-value');
+  summary.appendChild(plannedCard);
+
+  const loggedCard = createStatsCard('Logged', formatInputTotal(loggedSeconds));
+  loggedCard
+    .querySelector('.stats-value')
+    ?.setAttribute('id', 'plan-logged-value');
+  summary.appendChild(loggedCard);
+
+  const remainingCard = createStatsCard(
+    remainingSeconds < 0 ? 'Over capacity' : 'Remaining',
+    formatInputTotal(Math.abs(remainingSeconds))
+  );
+  const remainingValue = remainingCard.querySelector('.stats-value');
+  remainingValue?.setAttribute('id', 'plan-remaining-value');
+  remainingCard
+    .querySelector('.stats-label')
+    ?.setAttribute('id', 'plan-remaining-label');
+  if (remainingSeconds < 0) {
+    remainingValue?.classList.add('plan-remaining-over');
+  }
+  summary.appendChild(remainingCard);
+
+  return summary;
+}
+
+function createPlanCapacityBar(plan: DayPlan): HTMLElement {
+  const plannedSeconds = getPlanPlannedSeconds(plan);
+  const wrap = document.createElement('div');
+  wrap.className = 'plan-capacity-bar';
+
+  const track = document.createElement('div');
+  track.className = 'stats-bar-track';
+  const fill = document.createElement('div');
+  fill.id = 'plan-capacity-bar-fill';
+  fill.className = 'stats-bar-fill plan-capacity-bar-fill';
+  applyPlanCapacityBar(fill, plan.capacitySeconds, plannedSeconds);
+  track.appendChild(fill);
+
+  const value = document.createElement('div');
+  value.id = 'plan-capacity-bar-label';
+  value.textContent = `${formatInputTotal(plannedSeconds)} / ${formatInputTotal(plan.capacitySeconds)}`;
+
+  wrap.appendChild(track);
+  wrap.appendChild(value);
+  return wrap;
+}
+
+function createPlanItemsSection(
+  plan: DayPlan,
+  issuesByKey: Map<string, JiraIssue>,
+  options: PopupOptions | null,
+  loggedByKey: Record<string, number>
+): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'stats-section';
+
+  const header = document.createElement('div');
+  header.className = 'plan-section-header';
+  const title = document.createElement('div');
+  title.className = 'stats-section-title';
+  title.textContent = 'Day plan';
+  header.appendChild(title);
+
+  if (plan.items.length > 0) {
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'plan-clear-btn';
+    clearBtn.textContent = 'Clear';
+    clearBtn.addEventListener('click', () => {
+      const dateKey = getPlanDateKey();
+      const next = readDayPlan(dateKey);
+      next.items = [];
+      writeDayPlan(dateKey, next);
+      void renderCurrentPlanView();
+    });
+    header.appendChild(clearBtn);
+  }
+  section.appendChild(header);
+
+  if (plan.items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'stats-issue-summary';
+    empty.textContent = 'Nothing planned for this day yet.';
+    section.appendChild(empty);
+    return section;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'plan-issue-list';
+  list.id = 'plan-item-list';
+
+  plan.items.forEach((item) => {
+    const issue = issuesByKey.get(item.key);
+    const row = document.createElement('div');
+    row.className = 'plan-item-row';
+    row.draggable = true;
+    row.setAttribute('data-plan-key', item.key);
+
+    const handle = document.createElement('span');
+    handle.className = 'plan-drag-handle';
+    handle.title = 'Drag to reorder';
+    handle.textContent = '\u2630';
+    row.appendChild(handle);
+
+    const issueInfo = document.createElement('div');
+    const issueKey = options
+      ? document.createElement('a')
+      : document.createElement('span');
+    issueKey.className = 'stats-issue-link';
+    issueKey.textContent = item.key;
+    if (issueKey instanceof HTMLAnchorElement && options) {
+      issueKey.href = getJiraIssueUrl(item.key, options);
+      issueKey.target = '_blank';
+    }
+    const summary = document.createElement('div');
+    summary.className = 'stats-issue-summary truncate';
+    summary.textContent =
+      issue?.fields.summary ?? 'Not in the current Time Table';
+    issueInfo.appendChild(issueKey);
+    issueInfo.appendChild(summary);
+    row.appendChild(issueInfo);
+
+    const logged = document.createElement('div');
+    logged.className = 'plan-logged';
+    logged.setAttribute('data-plan-logged-key', item.key);
+    logged.textContent = formatInputTotal(loggedByKey[item.key] || 0);
+    row.appendChild(logged);
+
+    const input = document.createElement('input');
+    input.className = 'plan-duration-input';
+    input.type = 'text';
+    input.setAttribute('aria-label', `Planned time for ${item.key}`);
+    input.placeholder = '1h';
+    input.value =
+      item.plannedSeconds > 0 ? formatInputTotal(item.plannedSeconds) : '';
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        input.blur();
+      }
+    });
+    input.addEventListener('blur', () => commitPlanDuration(item.key, input));
+    row.appendChild(input);
+
+    const logBtn = document.createElement('button');
+    logBtn.type = 'button';
+    logBtn.className = 'plan-log-btn';
+    logBtn.textContent = 'Log';
+    logBtn.title = `Log planned time to ${item.key}`;
+    logBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openPlanLogForIssue(item.key, row);
+    });
+    row.appendChild(logBtn);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'plan-remove-btn';
+    removeBtn.title = `Remove ${item.key} from the plan`;
+    removeBtn.setAttribute('aria-label', `Remove ${item.key} from the plan`);
+    removeBtn.textContent = '\u00d7';
+    removeBtn.addEventListener('click', () => {
+      const dateKey = getPlanDateKey();
+      const next = readDayPlan(dateKey);
+      next.items = next.items.filter((planned) => planned.key !== item.key);
+      writeDayPlan(dateKey, next);
+      void renderCurrentPlanView();
+    });
+    row.appendChild(removeBtn);
+
+    list.appendChild(row);
+  });
+
+  initPlanItemDrag(list);
+  section.appendChild(list);
+  return section;
+}
+
+function createPlanAvailableSection(
+  availableIssues: JiraIssue[],
+  options: PopupOptions | null
+): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'stats-section';
+
+  const title = document.createElement('div');
+  title.className = 'stats-section-title';
+  title.textContent = 'Add from Time Table';
+  section.appendChild(title);
+
+  if (!options || !currentIssuesResponse) {
+    const empty = document.createElement('div');
+    empty.className = 'stats-issue-summary';
+    empty.textContent = 'Load your Time Table to add work items.';
+    section.appendChild(empty);
+    return section;
+  }
+
+  if (availableIssues.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'stats-issue-summary';
+    empty.textContent = 'Every Time Table issue is already on this plan.';
+    section.appendChild(empty);
+    return section;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'plan-issue-list';
+
+  availableIssues.forEach((issue) => {
+    const row = document.createElement('div');
+    row.className = 'plan-available-row';
+
+    const issueInfo = document.createElement('div');
+    const issueKey = document.createElement('a');
+    issueKey.className = 'stats-issue-link';
+    issueKey.href = getJiraIssueUrl(issue.key, options);
+    issueKey.target = '_blank';
+    issueKey.textContent = issue.key;
+    const summary = document.createElement('div');
+    summary.className = 'stats-issue-summary truncate';
+    summary.textContent = issue.fields.summary ?? '';
+    issueInfo.appendChild(issueKey);
+    issueInfo.appendChild(summary);
+    row.appendChild(issueInfo);
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'plan-add-btn';
+    addBtn.textContent = 'Add';
+    addBtn.addEventListener('click', () => {
+      const dateKey = getPlanDateKey();
+      const next = readDayPlan(dateKey);
+      if (next.items.some((item) => item.key === issue.key)) return;
+      next.items.push({ key: issue.key, plannedSeconds: 0 });
+      writeDayPlan(dateKey, next);
+      void renderCurrentPlanView();
+    });
+    row.appendChild(addBtn);
+    list.appendChild(row);
+  });
+
+  section.appendChild(list);
+  return section;
+}
+
+function initPlanItemDrag(list: HTMLElement) {
+  let dragged: HTMLElement | null = null;
+
+  list.addEventListener('dragstart', (event) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('button, input, a, textarea')
+    ) {
+      event.preventDefault();
+      return;
+    }
+    const row =
+      event.target instanceof Element
+        ? event.target.closest<HTMLElement>('[data-plan-key]')
+        : null;
+    dragged = row;
+    row?.classList.add('dragging');
+    if (row) {
+      event.dataTransfer?.setData(
+        'text/plain',
+        row.getAttribute('data-plan-key') || ''
+      );
+    }
+  });
+  list.addEventListener('dragend', () => {
+    dragged?.classList.remove('dragging');
+    list
+      .querySelectorAll('.plan-item-row')
+      .forEach((row) => row.classList.remove('drag-over'));
+    dragged = null;
+  });
+  list.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    const target =
+      event.target instanceof Element
+        ? event.target.closest<HTMLElement>('[data-plan-key]')
+        : null;
+    if (!target || target === dragged) return;
+    list
+      .querySelectorAll('.plan-item-row')
+      .forEach((row) => row.classList.remove('drag-over'));
+    target.classList.add('drag-over');
+  });
+  list.addEventListener('drop', (event) => {
+    event.preventDefault();
+    const target =
+      event.target instanceof Element
+        ? event.target.closest<HTMLElement>('[data-plan-key]')
+        : null;
+    if (!target || !dragged || target === dragged) return;
+
+    const keys = Array.from(
+      list.querySelectorAll<HTMLElement>('[data-plan-key]')
+    ).map((row) => row.getAttribute('data-plan-key') || '');
+    const from = keys.indexOf(dragged.getAttribute('data-plan-key') || '');
+    const to = keys.indexOf(target.getAttribute('data-plan-key') || '');
+    if (from < 0 || to < 0) return;
+
+    const dateKey = getPlanDateKey();
+    const next = readDayPlan(dateKey);
+    const [moved] = next.items.splice(from, 1);
+    if (!moved) return;
+    next.items.splice(to, 0, moved);
+    writeDayPlan(dateKey, next);
+    void renderCurrentPlanView();
+  });
+}
+
+function commitPlanCapacity(input: HTMLInputElement) {
+  const raw = input.value.trim();
+  if (!isValidWorklogDuration(raw)) {
+    input.value = formatInputTotal(
+      readDayPlan(getPlanDateKey()).capacitySeconds
+    );
+    return;
+  }
+
+  input.classList.remove('invalid');
+  const dateKey = getPlanDateKey();
+  const next = readDayPlan(dateKey);
+  next.capacitySeconds = parseWorklogDurationToSeconds(raw);
+  writeDayPlan(dateKey, next);
+  input.value = formatInputTotal(next.capacitySeconds);
+  refreshPlanSummary(next, lastPlanLoggedSeconds);
+}
+
+function commitPlanDuration(issueKey: string, input: HTMLInputElement) {
+  const raw = input.value.trim();
+  if (raw && !isValidWorklogDuration(raw)) {
+    input.classList.add('invalid');
+    return;
+  }
+
+  input.classList.remove('invalid');
+  const dateKey = getPlanDateKey();
+  const next = readDayPlan(dateKey);
+  const item = next.items.find((planned) => planned.key === issueKey);
+  if (!item) return;
+  item.plannedSeconds = raw ? parseWorklogDurationToSeconds(raw) : 0;
+  writeDayPlan(dateKey, next);
+  refreshPlanSummary(next, lastPlanLoggedSeconds);
+}
+
+function getPlanPlannedSeconds(plan: DayPlan): number {
+  return plan.items.reduce((sum, item) => sum + item.plannedSeconds, 0);
+}
+
+function getPlanLoggedSeconds(
+  plan: DayPlan,
+  loggedByKey: Record<string, number>
+): number {
+  return plan.items.reduce(
+    (sum, item) => sum + (loggedByKey[item.key] || 0),
+    0
+  );
+}
+
+function applyPlanCapacityBar(
+  fill: HTMLElement,
+  capacitySeconds: number,
+  plannedSeconds: number
+) {
+  const ratio =
+    capacitySeconds > 0 ? Math.min(plannedSeconds / capacitySeconds, 1) : 0;
+  fill.style.width = `${Math.max(plannedSeconds > 0 ? 4 : 0, ratio * 100)}%`;
+  fill.classList.toggle('over', plannedSeconds > capacitySeconds);
+}
+
+function refreshPlanSummary(
+  plan: DayPlan,
+  loggedByKey: Record<string, number>
+) {
+  const plannedSeconds = getPlanPlannedSeconds(plan);
+  const loggedSeconds = getPlanLoggedSeconds(plan, loggedByKey);
+  const remainingSeconds = plan.capacitySeconds - plannedSeconds;
+
+  const plannedValue = document.getElementById('plan-planned-value');
+  const loggedValue = document.getElementById('plan-logged-value');
+  const remainingValue = document.getElementById('plan-remaining-value');
+  const remainingLabel = document.getElementById('plan-remaining-label');
+  const barFill = document.getElementById('plan-capacity-bar-fill');
+  const barLabel = document.getElementById('plan-capacity-bar-label');
+
+  if (plannedValue) plannedValue.textContent = formatInputTotal(plannedSeconds);
+  if (loggedValue) loggedValue.textContent = formatInputTotal(loggedSeconds);
+  if (remainingValue) {
+    remainingValue.textContent = formatInputTotal(Math.abs(remainingSeconds));
+    remainingValue.classList.toggle(
+      'plan-remaining-over',
+      remainingSeconds < 0
+    );
+  }
+  if (remainingLabel) {
+    remainingLabel.textContent =
+      remainingSeconds < 0 ? 'Over capacity' : 'Remaining';
+  }
+  if (barFill) {
+    applyPlanCapacityBar(barFill, plan.capacitySeconds, plannedSeconds);
+  }
+  if (barLabel) {
+    barLabel.textContent = `${formatInputTotal(plannedSeconds)} / ${formatInputTotal(plan.capacitySeconds)}`;
+  }
+}
+
+function applyPlanLoggedSeconds(
+  plan: DayPlan,
+  loggedByKey: Record<string, number>
+) {
+  plan.items.forEach((item) => {
+    const cell = document.querySelector<HTMLElement>(
+      `[data-plan-logged-key="${item.key}"]`
+    );
+    if (cell) cell.textContent = formatInputTotal(loggedByKey[item.key] || 0);
+  });
+  refreshPlanSummary(plan, loggedByKey);
+}
+
+function formatPlanConfirmDate(dateKey: string): string {
+  const date = new Date(`${dateKey}T00:00:00`);
+  if (isNaN(date.getTime())) return dateKey;
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function getPlanLogModalElements() {
+  return {
+    backdrop: document.getElementById('plan-log-modal-backdrop'),
+    closeBtn: document.getElementById('plan-log-modal-close'),
+    cancelBtn: document.getElementById('plan-log-cancel-btn'),
+    confirmBtn: document.getElementById(
+      'plan-log-confirm-btn'
+    ) as HTMLButtonElement | null,
+    issueLink: document.getElementById(
+      'plan-log-issue-link'
+    ) as HTMLAnchorElement | null,
+    issueSummary: document.getElementById('plan-log-issue-summary'),
+    issueUrl: document.getElementById('plan-log-issue-url'),
+    dateValue: document.getElementById('plan-log-date'),
+    timeValue: document.getElementById('plan-log-time'),
+    alreadyLogged: document.getElementById('plan-log-already'),
+    commentInput: document.getElementById(
+      'plan-log-comment'
+    ) as HTMLTextAreaElement | null,
+  };
+}
+
+function initPlanLogModal() {
+  if (planLogModalInitialized) return;
+  planLogModalInitialized = true;
+
+  const { backdrop, closeBtn, cancelBtn, confirmBtn, commentInput } =
+    getPlanLogModalElements();
+  if (!backdrop || !confirmBtn) return;
+
+  closeBtn?.addEventListener('click', closePlanLogConfirm);
+  cancelBtn?.addEventListener('click', closePlanLogConfirm);
+  backdrop.addEventListener('click', (event) => {
+    if (event.target === backdrop) closePlanLogConfirm();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && backdrop.style.display !== 'none') {
+      closePlanLogConfirm();
+    }
+  });
+  confirmBtn.addEventListener('click', () => {
+    void confirmPlanLog();
+  });
+  if (commentInput) {
+    initializeWorklogSuggestions(commentInput);
+  }
+}
+
+function openPlanLogForIssue(issueKey: string, row: HTMLElement) {
+  clearMessages();
+
+  const input = row.querySelector<HTMLInputElement>('.plan-duration-input');
+  if (input) commitPlanDuration(issueKey, input);
+
+  const dateKey = getPlanDateKey();
+  const plan = readDayPlan(dateKey);
+  const item = plan.items.find((planned) => planned.key === issueKey);
+  if (!item || item.plannedSeconds <= 0) {
+    displayError(`Set a planned time for ${issueKey} before logging.`);
+    return;
+  }
+
+  const options = currentPopupOptions;
+  if (!options) {
+    displayError('Jira settings are not loaded yet.');
+    return;
+  }
+
+  const issue = currentIssuesResponse?.data?.find(
+    (currentIssue) => currentIssue.key === issueKey
+  );
+  openPlanLogConfirm({
+    issueKey,
+    summary: issue?.fields.summary ?? 'Not in the current Time Table',
+    dateKey,
+    seconds: item.plannedSeconds,
+    issueUrl: getJiraIssueUrl(issueKey, options),
+    alreadyLoggedSeconds: lastPlanLoggedSeconds[issueKey] || 0,
+  });
+}
+
+function openPlanLogConfirm(pending: PendingPlanLog) {
+  const {
+    backdrop,
+    issueLink,
+    issueSummary,
+    issueUrl,
+    dateValue,
+    timeValue,
+    alreadyLogged,
+    commentInput,
+    confirmBtn,
+  } = getPlanLogModalElements();
+  if (!backdrop || !confirmBtn) return;
+
+  pendingPlanLog = pending;
+  const timeLabel = formatInputTotal(pending.seconds);
+
+  if (issueLink) {
+    issueLink.href = pending.issueUrl;
+    issueLink.textContent = pending.issueKey;
+  }
+  if (issueSummary) issueSummary.textContent = pending.summary;
+  if (issueUrl) issueUrl.textContent = pending.issueUrl;
+  if (dateValue) dateValue.textContent = formatPlanConfirmDate(pending.dateKey);
+  if (timeValue) timeValue.textContent = timeLabel;
+  if (alreadyLogged) {
+    if (pending.alreadyLoggedSeconds > 0) {
+      alreadyLogged.hidden = false;
+      alreadyLogged.textContent = `Already logged on this issue today: ${formatInputTotal(pending.alreadyLoggedSeconds)}. Confirming will add another ${timeLabel}.`;
+    } else {
+      alreadyLogged.hidden = true;
+      alreadyLogged.textContent = '';
+    }
+  }
+  if (commentInput) commentInput.value = '';
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = `Log ${timeLabel} to ${pending.issueKey}`;
+  backdrop.style.display = 'flex';
+  commentInput?.focus();
+}
+
+function closePlanLogConfirm() {
+  const { backdrop, confirmBtn, commentInput } = getPlanLogModalElements();
+  pendingPlanLog = null;
+  if (commentInput) commentInput.value = '';
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Log time';
+  }
+  if (backdrop) backdrop.style.display = 'none';
+}
+
+async function confirmPlanLog() {
+  const pending = pendingPlanLog;
+  const { confirmBtn, commentInput } = getPlanLogModalElements();
+  if (!pending || !confirmBtn) return;
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Logging...';
+
+  try {
+    const options = currentPopupOptions ?? (await getStoredPopupOptions());
+    const JIRA = await getSharedJira(options);
+    await JIRA.updateWorklog(
+      pending.issueKey,
+      pending.seconds,
+      buildWorklogStartedTimestamp(pending.dateKey),
+      commentInput?.value ?? ''
+    );
+
+    lastPlanLoggedSeconds[pending.issueKey] =
+      (lastPlanLoggedSeconds[pending.issueKey] || 0) + pending.seconds;
+    if (getPlanDateKey() === pending.dateKey) {
+      applyPlanLoggedSeconds(
+        readDayPlan(pending.dateKey),
+        lastPlanLoggedSeconds
+      );
+    }
+    addLoggedSecondsToTableIssueTotal(pending.issueKey, pending.seconds);
+    clearWeeklyWorklogCaches();
+    displaySuccess(
+      `Logged ${formatInputTotal(pending.seconds)} to ${pending.issueKey} on ${formatPlanConfirmDate(pending.dateKey)}.`
+    );
+    showPlanRowAnimation(pending.issueKey, true);
+    closePlanLogConfirm();
+  } catch (error) {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = `Log ${formatInputTotal(pending.seconds)} to ${pending.issueKey}`;
+    window.JiraErrorHandler?.handleJiraError(
+      error,
+      `Failed to log time for ${pending.issueKey}`,
+      'popup'
+    );
+    showPlanRowAnimation(pending.issueKey, false);
+  }
+}
+
+function showPlanRowAnimation(issueKey: string, success: boolean) {
+  const row = document.querySelector<HTMLElement>(
+    `.plan-item-row[data-plan-key="${issueKey}"]`
+  );
+  if (!row) return;
+
+  row.classList.add(success ? 'success-highlight' : 'error-highlight');
+  setTimeout(() => {
+    row.classList.add('fade-highlight');
+    row.classList.remove(success ? 'success-highlight' : 'error-highlight');
+  }, 4000);
+  setTimeout(() => {
+    row.classList.remove('fade-highlight');
+  }, 5000);
 }
 
 function generateWeeklyIssueRow(

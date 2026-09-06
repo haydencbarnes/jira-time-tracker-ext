@@ -6,6 +6,9 @@ import type {
 
 const POPUP_PATH = 'dist/popup.html';
 const TIMER_PAGE_PATH = 'dist/timerFeatureModule/timer.html';
+const ONBOARDING_PAGE_PATH = 'dist/onboarding.html';
+const FLOATING_TIMER_SCRIPT_FILES = ['dist/floating-timer-widget.js'];
+const FLOATING_TIMER_STYLE_FILES = ['src/content-script.css'];
 
 type BackgroundMessage =
   | { action: 'startTimer'; seconds: number }
@@ -20,7 +23,9 @@ let badgeUpdateInterval: number | null = null;
 let currentSeconds = 0;
 let isRunning = false;
 
-async function applyToolbarActionMode(openTimerPageInNewTab: boolean): Promise<void> {
+async function applyToolbarActionMode(
+  openTimerPageInNewTab: boolean
+): Promise<void> {
   try {
     if (openTimerPageInNewTab) {
       await chrome.action.setPopup({ popup: '' });
@@ -48,13 +53,58 @@ void initToolbarActionFromStorage();
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync' && changes.pageViewNewTabEnabled) {
-    void applyToolbarActionMode(changes.pageViewNewTabEnabled.newValue === true);
+    void applyToolbarActionMode(
+      changes.pageViewNewTabEnabled.newValue === true
+    );
   }
 });
 
 chrome.action.onClicked.addListener((tab) => {
   void focusOrOpenTimerTab(tab);
 });
+
+// Chrome only injects manifest content scripts into pages loaded after the
+// extension starts. Re-inject the floating timer into tabs that are already
+// open so it shows up right after an install, update, or reload.
+chrome.runtime.onInstalled.addListener((details) => {
+  void injectFloatingTimerIntoOpenTabs();
+  if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
+    void chrome.tabs.create({
+      url: chrome.runtime.getURL(ONBOARDING_PAGE_PATH),
+    });
+  }
+});
+
+async function injectFloatingTimerIntoOpenTabs(): Promise<void> {
+  if (!chrome.scripting) return;
+
+  let tabs: chrome.tabs.Tab[] = [];
+  try {
+    tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+  } catch (error) {
+    console.error('Failed to query tabs for floating timer injection:', error);
+    return;
+  }
+
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (tab.id == null) return;
+      const target = { tabId: tab.id };
+      try {
+        await chrome.scripting.insertCSS({
+          target,
+          files: FLOATING_TIMER_STYLE_FILES,
+        });
+        await chrome.scripting.executeScript({
+          target,
+          files: FLOATING_TIMER_SCRIPT_FILES,
+        });
+      } catch {
+        // Some pages (Chrome Web Store, PDFs, etc.) refuse injection.
+      }
+    })
+  );
+}
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const message = request as BackgroundMessage;
@@ -101,7 +151,9 @@ async function focusOrOpenTimerTab(refTab?: chrome.tabs.Tab): Promise<void> {
   const timerUrl = getTimerPageUrl();
 
   try {
-    const matches = await chrome.tabs.query({ url: getExtensionTabsUrlPattern() });
+    const matches = await chrome.tabs.query({
+      url: getExtensionTabsUrlPattern(),
+    });
     if (matches.length > 0) {
       const existing = matches.sort(
         (a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0)

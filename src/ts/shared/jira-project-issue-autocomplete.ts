@@ -44,6 +44,9 @@ export function autocomplete(
 ): void {
   let currentFocus = -1;
   let isOpen = false;
+  // Bumped on every open/close so a slow suggestions response for an earlier
+  // keystroke can't repopulate the list (over the controls) after the fact.
+  let requestSeq = 0;
 
   inp.addEventListener('input', function () {
     void showDropdown(this.value);
@@ -65,6 +68,7 @@ export function autocomplete(
     closeAllLists();
     currentFocus = -1;
     isOpen = true;
+    const seq = ++requestSeq;
 
     let matches = arr.filter((item) =>
       item.toLowerCase().includes(val.toLowerCase())
@@ -84,6 +88,7 @@ export function autocomplete(
             ? projectInput.value.split(':')[0].trim()
             : null;
         const suggestions = await jira.getIssueSuggestions(val, selectedKey);
+        if (seq !== requestSeq) return; // superseded or closed while waiting
         const suggestionItems = suggestions.data.map(
           (i) => `${i.key}: ${i.fields.summary || ''}`
         );
@@ -100,6 +105,7 @@ export function autocomplete(
       }
     }
 
+    if (seq !== requestSeq) return;
     matches.forEach((item) => {
       const li = document.createElement('li');
       li.innerHTML = item;
@@ -147,6 +153,7 @@ export function autocomplete(
     for (let i = 0; i < x.length; i += 1) {
       if (elmnt != x[i] && elmnt != inp) {
         (x[i] as HTMLElement).innerHTML = '';
+        if (x[i] === listElement) requestSeq += 1;
       }
     }
     isOpen = false;
@@ -184,7 +191,27 @@ export interface ProjectIssueDirectResolveHooks {
     summary: string | null,
     inputEl: HTMLInputElement
   ) => void | Promise<void>;
+  /**
+   * Fires as soon as a plausible key for the selected project has been typed,
+   * before the async resolve. Lets callers persist the raw key right away so it
+   * survives the popup closing mid-request.
+   */
+  onCandidate?: (
+    candidate: string,
+    inputEl: HTMLInputElement
+  ) => void | Promise<void>;
+  /**
+   * When provided, a typed key from a different project than the selected one
+   * is accepted and the project is switched to the key's (instead of the key
+   * being rejected via onMismatch).
+   */
+  adoptIssueProject?: (
+    projectKey: string,
+    ctx: ProjectIssueAutocompleteContext
+  ) => void | Promise<void>;
 }
+
+const CANDIDATE_DEBOUNCE_MS = 500;
 
 export function attachIssueDirectHandlers(
   JIRA: JiraApiClient,
@@ -208,29 +235,81 @@ export function attachIssueDirectHandlers(
       ? JIRA.isIssueKeyLike(key)
       : /^[A-Z][A-Z0-9_]*-\d+$/.test(key || '');
 
-  const acceptIfValid = async () => {
-    const candidate = extractIssueKey(inputEl.value);
+  const matchesProject = (key: string, projectKey: string) =>
+    typeof JIRA?.validateIssueMatchesProject === 'function'
+      ? JIRA.validateIssueMatchesProject(key, projectKey)
+      : !projectKey || key.split('-')[0] === projectKey.toUpperCase();
+
+  // Seed with the current key so merely focusing/blurring a restored value
+  // doesn't blank its stored title while the resolve is in flight.
+  let lastCandidate = extractIssueKey(inputEl.value);
+  let candidateTimer: number | null = null;
+
+  const announceCandidate = (candidate: string, target: HTMLInputElement) => {
+    if (!hooks.onCandidate || !candidate || candidate === lastCandidate) return;
     if (!isIssueKeyLike(candidate)) return;
     const selectedProject = getSelectedProjectKey();
+    // Without adoption a foreign key will be rejected, so don't persist it.
+    if (
+      selectedProject &&
+      !hooks.adoptIssueProject &&
+      !matchesProject(candidate, selectedProject)
+    ) {
+      return;
+    }
+    lastCandidate = candidate;
+    void hooks.onCandidate(candidate, target);
+  };
+
+  const acceptIfValid = async () => {
+    // This input was swapped out (see replaceIssueInput); the replacement owns the value now.
+    if (!inputEl.isConnected) return;
+    const candidate = extractIssueKey(inputEl.value);
+    if (!isIssueKeyLike(candidate)) return;
+    let selectedProject: string | null = getSelectedProjectKey() || null;
+    if (
+      selectedProject &&
+      hooks.adoptIssueProject &&
+      !matchesProject(candidate, selectedProject)
+    ) {
+      // The typed key wins: move the project to the key's instead of rejecting it.
+      await hooks.adoptIssueProject(candidate.split('-')[0], ctx);
+      selectedProject = null;
+    }
+    announceCandidate(candidate, inputEl);
     try {
       const { key, summary } = await JIRA.resolveIssueKeyFast(
         candidate,
-        selectedProject || null
+        selectedProject
       );
-      inputEl.value = summary ? `${key}: ${summary}` : key;
-      await hooks.onResolvedSideEffects?.(key, summary, inputEl);
+      // Adopting a project reloads its issues, which swaps the input; write to the live one.
+      const target = ctx.issueInputRef.current;
+      target.value = summary ? `${key}: ${summary}` : key;
+      await hooks.onResolvedSideEffects?.(key, summary, target);
     } catch (err) {
+      const target = ctx.issueInputRef.current;
       if (
         (err as { code?: string } | null)?.code === 'ISSUE_PROJECT_MISMATCH'
       ) {
-        await hooks.onMismatch(inputEl, ctx);
+        lastCandidate = '';
+        await hooks.onMismatch(target, ctx);
         displayErrorGlobal('Work item key does not match selected project.');
       } else {
-        inputEl.value = candidate;
-        await hooks.onFallback(candidate, inputEl);
+        target.value = candidate;
+        await hooks.onFallback(candidate, target);
       }
     }
   };
+
+  inputEl.addEventListener('input', () => {
+    if (candidateTimer !== null) window.clearTimeout(candidateTimer);
+    candidateTimer = window.setTimeout(() => {
+      candidateTimer = null;
+      // Read the live input: it may have been replaced since the keystroke.
+      const live = ctx.issueInputRef.current;
+      announceCandidate(extractIssueKey(live.value), live);
+    }, CANDIDATE_DEBOUNCE_MS);
+  });
 
   inputEl.addEventListener('paste', (e) => {
     const pasted =
@@ -377,12 +456,7 @@ export async function setupProjectIssueAutocomplete(
   };
   const projectList = getRequiredElement<HTMLUListElement>('projectList');
   const issueList = getRequiredElement<HTMLUListElement>('issueList');
-
-  const projectsResponse = await JIRA.getProjects();
-  const projects = projectsResponse.data;
-  const projectMap = new Map<string, JiraProjectsResponse['data'][number]>(
-    projects.map((project) => [project.key, project])
-  );
+  const projectMap = new Map<string, JiraProjectsResponse['data'][number]>();
 
   function getSelectedProjectKey(): string {
     const val = projectInput && projectInput.value ? projectInput.value : '';
@@ -406,6 +480,8 @@ export async function setupProjectIssueAutocomplete(
   function replaceIssueInput(): void {
     const oldInput = issueInputRef.current;
     const oldValue = oldInput.value;
+    const hadFocus = document.activeElement === oldInput;
+    const { selectionStart, selectionEnd } = oldInput;
     const newInput = oldInput.cloneNode(true) as HTMLInputElement;
     oldInput.parentNode?.replaceChild(newInput, oldInput);
     issueInputRef.current = newInput;
@@ -419,6 +495,13 @@ export async function setupProjectIssueAutocomplete(
       behavior.directIssueHooks,
       ctx
     );
+    // Don't yank focus from a user who is mid-keystroke when the swap lands.
+    if (hadFocus) {
+      newInput.focus();
+      if (selectionStart !== null && selectionEnd !== null) {
+        newInput.setSelectionRange(selectionStart, selectionEnd);
+      }
+    }
   }
 
   ctx.replaceIssueInput = replaceIssueInput;
@@ -427,6 +510,20 @@ export async function setupProjectIssueAutocomplete(
   setupDropdownArrow(issueInputRef.current);
   setupInputFocus(projectInput);
   setupInputFocus(issueInputRef.current);
+
+  // Attach before the projects request so anything typed while it is in flight
+  // is still captured and persisted.
+  attachIssueDirectHandlers(
+    JIRA,
+    issueInputRef.current,
+    getSelectedProjectKey,
+    behavior.directIssueHooks,
+    ctx
+  );
+
+  const projectsResponse = await JIRA.getProjects();
+  const projects = projectsResponse.data;
+  projects.forEach((project) => projectMap.set(project.key, project));
 
   autocomplete(
     projectInput,
@@ -445,14 +542,6 @@ export async function setupProjectIssueAutocomplete(
         }
       })();
     }
-  );
-
-  attachIssueDirectHandlers(
-    JIRA,
-    issueInputRef.current,
-    getSelectedProjectKey,
-    behavior.directIssueHooks,
-    ctx
   );
 
   if (behavior.runInitialPreload) {

@@ -19,6 +19,76 @@ type CachedValue = {
 
 type ApiMethod = 'GET' | 'POST' | 'PUT';
 
+// ---- persistent response cache housekeeping ----
+// Entries expire after a minute but used to stay in chrome.storage.local
+// forever, so the 10 MB area (no unlimitedStorage permission) slowly filled
+// with dead responses until every write failed with "kQuotaBytes quota
+// exceeded" - including unrelated writes like day plans and widget position.
+const CACHE_KEY_PREFIXES = ['GET:', 'POSTJQL:'];
+const CACHE_PRUNE_INTERVAL_MS = 5 * 60 * 1000;
+let lastCachePruneAt = 0;
+let cachePruneInFlight: Promise<void> | null = null;
+
+function isResponseCacheKey(key: string): boolean {
+  return CACHE_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+function isQuotaError(message: string | undefined): boolean {
+  return /quota/i.test(message || '');
+}
+
+function hasChromeLocalStorage(): boolean {
+  return (
+    typeof chrome !== 'undefined' && !!chrome.storage && !!chrome.storage.local
+  );
+}
+
+/**
+ * Remove cached responses older than `maxAgeMs` (or all of them when `all` is
+ * set). Runs at most once at a time; callers awaiting a prune share it.
+ */
+function pruneResponseCache(options: {
+  maxAgeMs: number;
+  all?: boolean;
+}): Promise<void> {
+  if (cachePruneInFlight) return cachePruneInFlight;
+  cachePruneInFlight = new Promise<void>((resolve) => {
+    if (!hasChromeLocalStorage()) {
+      resolve();
+      return;
+    }
+    try {
+      chrome.storage.local.get(null, (items) => {
+        if (chrome.runtime.lastError) {
+          resolve();
+          return;
+        }
+        const now = Date.now();
+        const stale = Object.keys(items || {}).filter((key) => {
+          if (!isResponseCacheKey(key)) return false;
+          if (options.all) return true;
+          const ts = (items[key] as Partial<CachedValue> | undefined)?.ts;
+          return typeof ts !== 'number' || now - ts > options.maxAgeMs;
+        });
+        if (stale.length === 0) {
+          resolve();
+          return;
+        }
+        chrome.storage.local.remove(stale, () => {
+          void chrome.runtime.lastError;
+          resolve();
+        });
+      });
+    } catch {
+      resolve();
+    }
+  }).finally(() => {
+    cachePruneInFlight = null;
+    lastCachePruneAt = Date.now();
+  });
+  return cachePruneInFlight;
+}
+
 /** Issue row returned by Jira search / issue list APIs */
 interface ApiSearchIssue {
   key: string;
@@ -67,6 +137,14 @@ async function JiraAPI(
   const DEFAULT_TTL_MS = 60 * 1000; // 1 minute cache for GETs
   const WORKLOG_TTL_MS = 60 * 1000;
   const memoryCache = new Map<string, { value: unknown; ts: number }>(); // in-memory cache to reduce storage.local usage
+
+  // Sweep dead entries out of chrome.storage.local now and then so the
+  // response cache can't fill the area again.
+  if (Date.now() - lastCachePruneAt > CACHE_PRUNE_INTERVAL_MS) {
+    void pruneResponseCache({
+      maxAgeMs: Math.max(DEFAULT_TTL_MS, WORKLOG_TTL_MS),
+    });
+  }
 
   // Remove trailing slash and any accidental REST path suffix from baseUrl if present
   baseUrl = baseUrl
@@ -819,7 +897,11 @@ async function JiraAPI(
       const entry = await storageLocalGet(key);
       if (!entry) return null;
       const { value, ts } = entry;
-      if (typeof ts !== 'number' || now - ts > ttlMs) return null;
+      if (typeof ts !== 'number' || now - ts > ttlMs) {
+        // Expired: evict instead of leaving it to pile up.
+        void storageLocalRemove(key);
+        return null;
+      }
       return value;
     } catch (e: unknown) {
       console.warn('Cache read error:', e);
@@ -872,12 +954,27 @@ async function JiraAPI(
   function storageLocalSet(key: string, value: CachedValue): Promise<void> {
     return new Promise<void>((resolve) => {
       try {
-        if (
-          typeof chrome !== 'undefined' &&
-          chrome.storage &&
-          chrome.storage.local
-        ) {
-          chrome.storage.local.set({ [key]: value }, () => resolve());
+        if (hasChromeLocalStorage()) {
+          chrome.storage.local.set({ [key]: value }, () => {
+            const message = chrome.runtime.lastError?.message;
+            if (!message) {
+              resolve();
+              return;
+            }
+            if (!isQuotaError(message)) {
+              console.warn('Cache write error:', message);
+              resolve();
+              return;
+            }
+            // The area is full. Drop the whole response cache and retry once;
+            // if it still fails we just go without the disk cache.
+            void pruneResponseCache({ maxAgeMs: 0, all: true }).then(() => {
+              chrome.storage.local.set({ [key]: value }, () => {
+                void chrome.runtime.lastError;
+                resolve();
+              });
+            });
+          });
         } else if (typeof localStorage !== 'undefined') {
           localStorage.setItem(key, JSON.stringify(value));
           resolve();
@@ -893,12 +990,11 @@ async function JiraAPI(
   function storageLocalRemove(key: string): Promise<void> {
     return new Promise<void>((resolve) => {
       try {
-        if (
-          typeof chrome !== 'undefined' &&
-          chrome.storage &&
-          chrome.storage.local
-        ) {
-          chrome.storage.local.remove([key], () => resolve());
+        if (hasChromeLocalStorage()) {
+          chrome.storage.local.remove([key], () => {
+            void chrome.runtime.lastError;
+            resolve();
+          });
         } else if (typeof localStorage !== 'undefined') {
           localStorage.removeItem(key);
           resolve();

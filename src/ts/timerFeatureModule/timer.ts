@@ -17,6 +17,7 @@ import type {
   BackgroundWorklogResponse,
   JiraApiClient,
   JiraIssue,
+  JiraProjectsResponse,
   TextEntryElement,
   TimerOptions,
   TimerState,
@@ -50,7 +51,13 @@ let _timerSettings: BackgroundTimerSettings | null = null;
 
 document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
 
-function enforceProjectIssueConsistency(): void {
+/**
+ * The work item is the source of truth. If it belongs to a different project
+ * than the Project field shows (or the field is empty), point the field at the
+ * work item's project rather than discarding what the user typed. The display
+ * name is filled in once projects load (see runInitialPreload).
+ */
+function alignProjectWithIssue(): void {
   try {
     const projectInput = document.getElementById(
       'projectId'
@@ -69,19 +76,18 @@ function enforceProjectIssueConsistency(): void {
       : '';
     const issuePrefix = issueKey.includes('-') ? issueKey.split('-')[0] : '';
 
-    if (projectKey && issuePrefix && projectKey !== issuePrefix) {
-      // Clear mismatched issue and remove saved values
-      if (issueInput) issueInput.value = '';
+    let selectedKey = projectKey;
+    if (issuePrefix && projectKey !== issuePrefix) {
+      selectedKey = issuePrefix;
+      if (projectInput) projectInput.value = issuePrefix;
       try {
-        if (chrome.storage?.sync?.remove) {
-          chrome.storage.sync.remove(['issueKey', 'issueTitle']);
-        }
+        chrome.storage.sync.set({ projectId: issuePrefix, projectName: '' });
       } catch {}
     }
 
     // Track selected key for later change detection
-    if (projectInput && projectInput.dataset && projectKey) {
-      projectInput.dataset.selectedKey = projectKey;
+    if (projectInput && projectInput.dataset && selectedKey) {
+      projectInput.dataset.selectedKey = selectedKey;
     }
   } catch {}
 }
@@ -128,8 +134,8 @@ async function onDOMContentLoaded(): Promise<void> {
           options.issueKey;
       }
 
-      // Enforce consistency between project and issue from restored values
-      enforceProjectIssueConsistency();
+      // Make the Project field follow the restored work item
+      alignProjectWithIssue();
 
       await init(options);
 
@@ -227,6 +233,12 @@ async function init(options: TimerOptions): Promise<void> {
   }
 }
 
+function persistIssueKeyOnly(candidate: string): void {
+  try {
+    chrome.storage.sync.set({ issueKey: candidate, issueTitle: '' });
+  } catch {}
+}
+
 async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
   const client = JIRA;
   const formatIssueRow = (issue: JiraIssue) =>
@@ -242,6 +254,18 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
     });
   };
 
+  const loadIssuesForProject = (
+    ctx: ProjectIssueAutocompleteContext,
+    selectedProject: JiraProjectsResponse['data'][number]
+  ) =>
+    loadProjectIssuesIntoAutocomplete({
+      ctx,
+      selectedProject,
+      formatIssueRow,
+      getJiraForSuggestions: () => client,
+      onIssueSelected: persistSelectedIssue,
+    });
+
   await setupProjectIssueAutocomplete(client, {
     getJiraForSuggestions: () => client,
     formatIssueRow,
@@ -249,11 +273,30 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
       onMismatch: (_inputEl, ctx) => {
         clearIssueStorageFromAutocomplete(ctx);
       },
-      onFallback: async (candidate, _inputEl) => {
+      // A typed key from another project switches the Project field to that
+      // project instead of being thrown away.
+      adoptIssueProject: (projectKey, ctx) => {
+        const { projectInput, projectMap } = ctx;
+        const project = projectMap.get(projectKey);
+        projectInput.value = project
+          ? `${projectKey}: ${project.name}`
+          : projectKey;
+        projectInput.dataset.selectedKey = projectKey;
         try {
-          chrome.storage.sync.set({ issueKey: candidate, issueTitle: '' });
+          chrome.storage.sync.set({
+            projectId: projectKey,
+            projectName: project?.name || '',
+          });
         } catch {}
+        // Refresh the dropdown for the new project; not awaited so the key
+        // resolves without waiting on the issue list.
+        if (project) void loadIssuesForProject(ctx, project).catch(() => {});
       },
+      // Save the raw key the moment it is typed. The resolve below fills in the
+      // title, but must not be the only thing standing between the user and a
+      // saved work item: the popup can close before the request returns.
+      onCandidate: persistIssueKeyOnly,
+      onFallback: persistIssueKeyOnly,
       onResolvedSideEffects: async (key, summary, _inputEl) => {
         try {
           chrome.storage.sync.set({
@@ -278,20 +321,14 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
       if (previousKey && previousKey !== selectedKey) {
         clearIssueStorageFromAutocomplete(ctx);
       }
-      await loadProjectIssuesIntoAutocomplete({
-        ctx,
-        selectedProject,
-        formatIssueRow,
-        getJiraForSuggestions: () => client,
-        onIssueSelected: persistSelectedIssue,
-      });
+      await loadIssuesForProject(ctx, selectedProject);
       chrome.storage.sync.set({
         projectId: selectedKey,
         projectName: selectedProject.name,
       });
     },
     runInitialPreload: async (ctx) => {
-      const { projectInput, issueInputRef, projectMap } = ctx;
+      const { projectInput, projectMap } = ctx;
       try {
         const initialVal =
           projectInput && projectInput.value ? projectInput.value : '';
@@ -301,50 +338,77 @@ async function setupAutocomplete(JIRA: JiraApiClient): Promise<void> {
         if (projectInput && projectInput.dataset)
           projectInput.dataset.selectedKey = initialKey;
 
-        if (issueInputRef.current && issueInputRef.current.value) {
-          const existingIssueKey = issueInputRef.current.value
-            .split(':')[0]
-            .trim();
-          const existingPrefix = existingIssueKey.includes('-')
-            ? existingIssueKey.split('-')[0]
-            : '';
-          if (
-            existingPrefix &&
-            existingPrefix.toUpperCase() !== initialKey.toUpperCase()
-          ) {
-            clearIssueStorageFromAutocomplete(ctx);
-          }
-        }
-
         const selectedProject = projectMap.get(initialKey);
         if (!selectedProject) return;
-        await loadProjectIssuesIntoAutocomplete({
-          ctx,
-          selectedProject,
-          formatIssueRow,
-          getJiraForSuggestions: () => client,
-          onIssueSelected: persistSelectedIssue,
-        });
+
+        // A project adopted from a work item is stored as a bare key; show
+        // and save its name now that we know it.
+        if (!initialVal.includes(':')) {
+          projectInput.value = `${selectedProject.key}: ${selectedProject.name}`;
+          chrome.storage.sync.set({
+            projectId: selectedProject.key,
+            projectName: selectedProject.name,
+          });
+        }
+
+        await loadIssuesForProject(ctx, selectedProject);
       } catch {
         // best-effort init
       }
     },
     attachProjectInputExtras: (ctx) => {
-      const { projectInput } = ctx;
+      const { projectInput, projectMap } = ctx;
       projectInput.addEventListener('input', () => {
-        const typedKey = projectInput.value
-          ? projectInput.value.split(':')[0].trim()
-          : '';
-        const currentKey =
-          projectInput && projectInput.dataset
-            ? projectInput.dataset.selectedKey
-            : '';
-        if (typedKey && currentKey && typedKey !== currentKey) {
+        const typedKey = (
+          projectInput.value ? projectInput.value.split(':')[0].trim() : ''
+        ).toUpperCase();
+        const currentKey = (
+          projectInput.dataset?.selectedKey || ''
+        ).toUpperCase();
+        // Only treat this as a project switch once a real, different project
+        // key has been typed. Searching for the current project again (or a
+        // partial key) must not wipe the work item.
+        if (
+          typedKey &&
+          currentKey &&
+          typedKey !== currentKey &&
+          projectMap.has(typedKey)
+        ) {
           clearIssueStorageFromAutocomplete(ctx);
         }
       });
     },
   });
+
+  void backfillIssueTitle(client);
+}
+
+/**
+ * A key saved mid-typing (see onCandidate) has no title yet. Resolve it once
+ * the page is up so the field and the floating timer show the summary.
+ */
+async function backfillIssueTitle(client: JiraApiClient): Promise<void> {
+  const input = document.getElementById('issueKey') as HTMLInputElement | null;
+  if (!input || !input.value || input.value.includes(':')) return;
+  const key = client.extractIssueKey(input.value);
+  if (!client.isIssueKeyLike(key)) return;
+  try {
+    const { summary } = await client.resolveIssueKeyFast(key, null);
+    if (!summary) return;
+    // The input may have been replaced or edited while the request was out.
+    const live = document.getElementById('issueKey') as HTMLInputElement | null;
+    if (
+      !live ||
+      document.activeElement === live ||
+      client.extractIssueKey(live.value) !== key
+    ) {
+      return;
+    }
+    live.value = `${key}: ${summary}`;
+    chrome.storage.sync.set({ issueKey: key, issueTitle: summary });
+  } catch {
+    // best-effort
+  }
 }
 
 function toggleTimer() {

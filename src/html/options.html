@@ -21,14 +21,15 @@
       html {
         min-height: 100%;
         width: 100%;
-        min-width: 750px;
+        overflow-x: hidden;
         overflow-y: scroll;
         scrollbar-gutter: stable;
         background: var(--bg);
       }
 
       body {
-        width: 750px;
+        width: 100%;
+        max-width: 750px;
         min-height: 100vh;
         margin: 0 auto;
         box-sizing: border-box;
@@ -38,8 +39,20 @@
         color: var(--text);
       }
 
+      /*
+       * Zero-height sizer: keeps the popup's preferred width at 750px while the
+       * visible layout follows the real viewport width, so a classic scrollbar
+       * never pushes the right edge off screen.
+       */
+      body::before {
+        content: '';
+        display: block;
+        height: 0;
+        min-width: 750px;
+      }
+
       html.page-view-layout body {
-        width: 750px;
+        max-width: 750px;
       }
 
       a {
@@ -56,7 +69,8 @@
       .container {
         min-height: 100vh;
         box-sizing: border-box;
-        padding: 16px 10px 82px;
+        /* Bottom padding clears the fixed 50px footer. */
+        padding: 16px 10px 66px;
       }
 
       .settings-shell {
@@ -281,9 +295,16 @@
         box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.16);
       }
 
-      input:disabled {
+      input:disabled,
+      select:disabled {
         background: var(--surface-alt);
         color: var(--muted);
+      }
+
+      .toggle-inline-select {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
       }
 
       .text-setting-control {
@@ -312,6 +333,11 @@
 
       .inline-save-button[hidden] {
         display: none;
+      }
+
+      .setting-action-button {
+        width: fit-content;
+        padding: 7px 14px;
       }
 
       .field-icon-button {
@@ -624,7 +650,8 @@
         box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
       }
 
-      body.dark-mode input:disabled {
+      body.dark-mode input:disabled,
+      body.dark-mode select:disabled {
         background: #202020;
         color: #b3bac5;
       }
@@ -705,10 +732,6 @@
         .setting-row {
           grid-template-columns: 1fr;
           gap: 8px;
-        }
-
-        .text-setting-control {
-          grid-template-columns: 1fr;
         }
 
         #info {
@@ -1172,6 +1195,37 @@
                       </div>
                     </div>
                   </div>
+                  <div class="setting-row" id="floatingTimerWidgetRow">
+                    <div class="setting-label">
+                      <span>Floating timer</span>
+                      <small
+                        >Drag it anywhere on a page, log from it, and choose
+                        what it shows</small
+                      >
+                    </div>
+                    <div class="setting-control">
+                      <div class="toggle-control">
+                        <label class="toggle-switch">
+                          <input
+                            type="checkbox"
+                            id="floatingTimerWidgetToggle"
+                          />
+                          <span class="slider"></span>
+                        </label>
+                        <select
+                          id="floatingTimerLabel"
+                          class="toggle-inline-select"
+                          aria-label="Floating timer label"
+                        >
+                          <option value="keyAndTitle">
+                            Ticket ID and title
+                          </option>
+                          <option value="title">Title only</option>
+                          <option value="key">Ticket ID only</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -1195,7 +1249,7 @@
                   <div class="setting-row">
                     <div class="setting-label">
                       <span>Experimental features</span>
-                      <small>Calendar add-on, page view, floating timer</small>
+                      <small>Calendar add-on, page view</small>
                     </div>
                     <div class="setting-control">
                       <div class="toggle-control">
@@ -1225,28 +1279,6 @@
                       </div>
                     </div>
                   </div>
-                  <div
-                    class="setting-row"
-                    id="floatingTimerWidgetRow"
-                    style="display: none"
-                  >
-                    <div class="setting-label">
-                      <span>Floating timer widget</span>
-                      <small>Shows a bottom-right timer on web pages</small>
-                    </div>
-                    <div class="setting-control">
-                      <div class="toggle-control">
-                        <label class="toggle-switch">
-                          <input
-                            type="checkbox"
-                            id="floatingTimerWidgetToggle"
-                          />
-                          <span class="slider"></span>
-                        </label>
-                        <span class="jira-popup-beta-badge">Beta</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </section>
@@ -1270,6 +1302,24 @@
                     </div>
                     <div class="setting-control">
                       <input id="version" type="text" value="" disabled />
+                    </div>
+                  </div>
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span>Getting started</span>
+                      <small
+                        >Setup walkthrough with screenshots of the Time Table,
+                        Timer, floating timer, and Plan tab</small
+                      >
+                    </div>
+                    <div class="setting-control">
+                      <button
+                        type="button"
+                        id="openOnboardingGuide"
+                        class="inline-save-button setting-action-button"
+                      >
+                        Open guide
+                      </button>
                     </div>
                   </div>
                 </div>
